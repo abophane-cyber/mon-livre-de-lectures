@@ -67,17 +67,18 @@ export function buildPrompt(book) {
   const texte = (book.passages || []).join('\n\n');
   const source = captures ? 'LE TEXTE DE MES CAPTURES (et mon texte écrit ci-dessous, s\'il y en a)' : 'MON TEXTE ci-dessous';
   const citeFrom = captures ? 'depuis le texte de mes captures ou mon texte écrit' : 'depuis mon texte';
-  return `Tu rédiges une fiche de lecture pour mon livre de lectures personnel, à partir ${
-    captures ? 'du texte de mes captures d\'écran' : 'du texte que je te donne ci-dessous'
-  }. C'est ce texte que tu résumes.
+  const debut = captures
+    ? `TA TÂCHE : je t'envoie des captures d'écran de pages du livre ci-dessous (jointes à ce message, ou dans mon prochain message). Lis le texte visible sur ces images, puis rédige une fiche de lecture qui résume ce texte, en suivant exactement les consignes et le modèle ci-dessous.
+Si tu ne vois encore aucune image, réponds seulement : « Envoyez-moi vos captures d'écran. » et attends-les ; dès que tu les reçois, rédige directement la fiche, sans rien demander d'autre.`
+    : `TA TÂCHE : rédiger une fiche de lecture pour mon livre de lectures personnel, à partir du texte que je te donne ci-dessous. C'est ce texte que tu résumes.`;
+  return `${debut}
 
 LIVRE
 - Titre : ${book.title || '(inconnu)'}
 - Auteur : ${book.author || '(inconnu)'}
 - Date de parution : ${book.pubDate || '(non précisée)'}
 ${captures ? `
-CAPTURES D'ÉCRAN
-J'ai joint à ce message des captures d'écran de pages du livre (liseuse, appli Kindle ou photo de page).
+CAPTURES D'ÉCRAN (pages du livre : liseuse, appli Kindle ou photo de page)
 a. Lis TOUT le texte du livre visible sur les captures, dans l'ordre des captures, qu'il soit surligné ou non. C'est ce texte que tu dois résumer.
 b. Ignore tout ce qui n'est pas le texte du livre : menus, boutons, heure, batterie, numéros de page ou d'emplacement, titres de l'appli.
 c. Ne recopie pas tout le texte dans ta réponse : résume-le. Seules les citations sont recopiées mot pour mot.
@@ -103,9 +104,14 @@ MON TEXTE${captures ? ' ÉCRIT (EN PLUS DE MES CAPTURES)' : ''}
 ${texte || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')}`;
 }
 
+/** Message court à envoyer avec les captures si l'IA n'a pas compris quoi en faire. */
+export function buildCapturesReminder(book) {
+  return `Voici les captures d'écran du livre « ${book.title || '(inconnu)'} ». Lis le texte visible sur ces images et rédige maintenant la fiche de lecture en suivant exactement ma demande précédente : résumé fidèle et neutre, sans avis ni commentaire, en texte simple avec les titres en majuscules (GENRE, ACCROCHE, ## RÉSUMÉ, ## IDÉES CLÉS, ## PERSONNAGES ou ## NOTIONS CLÉS, ## CITATIONS, ## À RETENIR, ## POUR QUI ?, ## NOTICE, ## BIBLIOGRAPHIE).`;
+}
+
 /** Demande courte : seulement la notice et la bibliographie, depuis des captures (la fiche n'est pas refaite). */
 export function buildNoticePrompt(book) {
-  return `J'ai joint à ce message des captures d'écran concernant le livre « ${book.title || '(inconnu)'} »${book.author ? ` de ${book.author}` : ''}.
+  return `TA TÂCHE : je t'envoie des captures d'écran concernant le livre « ${book.title || '(inconnu)'} »${book.author ? ` de ${book.author}` : ''} (jointes à ce message, ou dans mon prochain message). Si tu ne vois encore aucune image, réponds seulement « Envoyez-moi vos captures d'écran. » et attends-les.
 Ne rédige pas de résumé. Lis seulement les captures et complète ma notice bibliographique :
 ${CONSIGNES_NOTICE}
 

@@ -281,3 +281,4 @@ mark {
 .toast.erreur { background: var(--danger); color: #fff; }
 .toast.attention { background: var(--alerte); color: #fff; }
 @media (min-width: 820px) { .toast { bottom: 24px; } }
+.rappel-captures { margin-top: 14px; padding-top: 10px; border-top: 1px dotted var(--filet); }

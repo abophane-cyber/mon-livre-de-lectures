@@ -242,3 +242,13 @@ test('la demande réclame le texte à titres, pas de JSON', () => {
   assert.match(buildPrompt({ title: 'T', captures: true }), /## NOTICE/);
   assert.match(buildNoticePrompt({ title: 'T' }), /## BIBLIOGRAPHIE/);
 });
+
+test('captures : la tâche est expliquée dès le début, et le message de rappel existe', async () => {
+  const { buildCapturesReminder } = await import('../src/prompt.js');
+  const p = buildPrompt({ title: 'Riches ensemble !', captures: true });
+  assert.match(p.split('\n')[0], /^TA TÂCHE : je t'envoie des captures d'écran/);
+  assert.match(p, /Envoyez-moi vos captures d'écran/);
+  const r = buildCapturesReminder({ title: 'Riches ensemble !' });
+  assert.match(r, /Voici les captures d'écran du livre « Riches ensemble ! »/);
+  assert.match(r, /sans avis ni commentaire/);
+});

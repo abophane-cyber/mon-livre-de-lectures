@@ -1,7 +1,7 @@
 // Vue « Nouvelle fiche » / « Compléter une fiche » : passages → demande pour Claude → réponse.
 import { findBookByKey, getBook, saveBook } from '../db.js';
 import { parseClippings } from '../clippings.js';
-import { LANGUES, LONGUEURS, buildFixPrompt, buildNoticePrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
+import { LANGUES, LONGUEURS, buildCapturesReminder, buildFixPrompt, buildNoticePrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
 import { applyNotice } from '../notice.js';
 import { copyText } from '../download.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
@@ -102,10 +102,15 @@ export async function renderAtelier(view, params) {
       <p class="petit" id="aide-sans-captures" ${v.captures ? 'hidden' : ''}>L'appli copie une demande complète (avec vos règles et votre texte) et ouvre ${esc(ia.label)}. Là-bas, collez-la (appui long puis « Coller » sur le téléphone, Ctrl+V sur l'ordinateur) et envoyez.</p>
       <ol class="petit instructions" id="aide-avec-captures" ${v.captures ? '' : 'hidden'}>
         <li>Touchez le bouton ci-dessous : la demande est copiée et ${esc(ia.label)} s'ouvre.</li>
-        <li>Dans ${esc(ia.label)}, touchez <strong>+</strong> (ou le trombone 📎), puis choisissez vos captures d'écran dans vos photos (20 au maximum par message).</li>
-        <li>Collez la demande dans la zone de message (appui long puis « Coller »), puis envoyez.</li>
+        <li>Dans ${esc(ia.label)}, touchez <strong>+</strong> (ou l'icône photo), puis choisissez vos captures d'écran.</li>
+        <li><strong>Avant d'envoyer</strong>, collez la demande dans la zone de message (appui long puis « Coller »). Les captures et la demande doivent partir <strong>dans le même message</strong>.</li>
+        <li>Envoyez une seule fois.</li>
       </ol>
       <button class="btn primaire" id="copier">Copier la demande et ouvrir ${esc(ia.label)}</button>
+      <div class="rappel-captures" id="bloc-rappel" ${v.captures ? '' : 'hidden'}>
+        <p class="petit"><strong>${esc(ia.label)} n'a pas compris quoi faire des captures</strong> (il les décrit, ou pose une question) ? Touchez ce bouton, puis dans la même conversation, joignez à nouveau vos captures, collez ce message et envoyez.</p>
+        <button class="btn" id="copier-rappel">Copier le message pour les captures</button>
+      </div>
       ${book?.fiche
         ? `<div class="notice-seule">
             <p class="petit"><strong>Seulement la notice et la bibliographie ?</strong> Sans refaire le résumé : touchez ce bouton, joignez dans ${esc(ia.label)} vos captures de la page d'informations du livre (éditeur, ISBN…) ou de la bibliographie, collez, envoyez, puis recollez la réponse à l'étape 3.</p>
@@ -163,6 +168,7 @@ export async function renderAtelier(view, params) {
     $('#aide-captures', view).hidden = !on;
     $('#aide-avec-captures', view).hidden = !on;
     $('#aide-sans-captures', view).hidden = on;
+    $('#bloc-rappel', view).hidden = !on;
     // En mode captures, la zone de texte est masquée (sauf si elle contient déjà du texte).
     const empty = !el.passages.value.trim();
     $('#bloc-passages', view).hidden = on && empty;
@@ -283,6 +289,18 @@ export async function renderAtelier(view, params) {
     const saved = await persist();
     if (!saved) return;
     await copyAndOpen(buildPrompt(saved), `Demande copiée ✓ Collez-la dans ${ia.label}, puis revenez ici avec la réponse.`);
+  });
+
+  $('#copier-rappel', view).addEventListener('click', async () => {
+    const f = readForm();
+    const ok = await copyText(buildCapturesReminder({ title: f.title || book?.title }));
+    toast(
+      ok
+        ? `Message copié ✓ Dans la même conversation ${ia.label} : joignez vos captures, collez ce message, envoyez.`
+        : 'La copie a échoué.',
+      ok ? 'ok' : 'erreur',
+      8000,
+    );
   });
 
   $('#copier-notice', view)?.addEventListener('click', async () => {
