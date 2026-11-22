@@ -5,7 +5,7 @@ import { buildFixPrompt } from '../prompt.js';
 import { NOTICE_FIELDS } from '../notice.js';
 import { copyText } from '../download.js';
 import { esc, pluralize } from '../util.js';
-import { $, $$, getPrefs, icons, setPrefs, toast } from '../ui.js';
+import { $, $$, currentIa, getPrefs, icons, setPrefs, toast } from '../ui.js';
 
 let searchQuery = '';
 let sortable;
@@ -48,7 +48,7 @@ function renderFiche(book) {
   if (bad.length) {
     parts.push(
       `<p class="note-alerte">${pluralize(bad.length, 'citation est', 'citations sont')} à vérifier.
-      <button class="lien" data-action="corriger" data-id="${esc(book.id)}">Copier une demande de correction pour Claude</button></p>`,
+      <button class="lien" data-action="corriger" data-id="${esc(book.id)}">Copier une demande de correction pour ${esc(currentIa().label)}</button></p>`,
     );
   }
   if (f.a_retenir) parts.push(`<h3 class="section">À retenir</h3><p>${esc(f.a_retenir)}</p>`);
@@ -192,7 +192,7 @@ export async function renderLivre(view, params) {
     if (btn.dataset.action === 'corriger') {
       const bad = book.fiche.citations.filter((c) => c.introuvable).map((c) => c.texte);
       const ok = await copyText(buildFixPrompt({ badCitations: bad }));
-      toast(ok ? 'Demande copiée. Collez-la dans la conversation Claude de ce livre, puis recollez la réponse dans « Compléter le texte / refaire le résumé ».' : 'La copie a échoué.', ok ? 'ok' : 'erreur', 8000);
+      toast(ok ? `Demande copiée. Collez-la dans la conversation ${currentIa().label} de ce livre, puis recollez la réponse dans « Compléter le texte / refaire le résumé ».` : 'La copie a échoué.', ok ? 'ok' : 'erreur', 8000);
     }
   };
 

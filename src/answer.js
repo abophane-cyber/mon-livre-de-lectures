@@ -7,12 +7,14 @@ import { normalize } from './util.js';
  * Claude invente souvent ses propres titres : on accepte de nombreuses variantes.
  */
 const SECTION_RULES = [
+  // Rubriques d'avis ou de commentaires de l'IA : ignorées (l'utilisateur ne veut que le résumé).
+  ['_ignore', /^(mon |notre )?(avis( personnel| critique)?|analyse( critique| personnelle)?|critique|commentaires?( personnels?)?|appreciation( personnelle)?|evaluation|note( globale| finale)?|points? forts?( et (points? )?faibles?)?|points? faibles?|forces et (faiblesses|limites)|limites( du livre)?|pourquoi lire ce livre|ressenti|mon ressenti|impressions?|verdict|recommandation|conclusion( personnelle)?|en conclusion|bilan|pour aller plus loin|suggestions? de lecture|lectures? complementaires?|questions? (de reflexion|pour aller plus loin|de discussion))$/],
   ['genre', /^(genre|type de livre|categorie)$/],
   ['accroche', /^(accroche|en une phrase|en bref|le livre en une phrase|pitch)$/],
   ['notice', /^(notice|notice bibliographique|informations? (sur le livre|bibliographiques?|editoriales?))$/],
   ['bibliographie', /^(la )?(bibliographie|references?|sources?|notes et references|ouvrages? (cites|de reference)|livres? cites)( (bibliographiques?|selective|indicative|du livre|de l ouvrage|citees?|utilisees?))?$/],
   ['citations', /^(les )?(citations?|extraits?|passages? (cles|marquants?|importants?))( (marquantes?|cles|commentees?|choisies|importantes?|a retenir|du livre))?$/],
-  ['a_retenir', /^(a retenir|ce qu il faut retenir|ce que je retiens|l essentiel|essentiel a retenir|en conclusion|conclusion|bilan|mon avis|avis|points? a retenir)$/],
+  ['a_retenir', /^(a retenir|ce qu il faut retenir|l essentiel|essentiel a retenir|points? a retenir|idees? a retenir)$/],
   ['pour_qui', /^(pour qui|pour quels? lecteurs?|a qui s adresse (ce livre|cet ouvrage)|a qui le recommander|public( vise)?|lecteurs? cibles?|recommande pour)$/],
   ['notions', /^(les )?(notions?|concepts?)( (cles|principa\w*|essenti\w*|importants?|du livre))?$/],
   ['personnages', /^(les )?(principaux )?personnages( (principaux|cles|du livre))?$/],
@@ -81,7 +83,9 @@ function headingOf(line) {
   const plain = raw.match(/^([^:：]{1,60}?)\s*[:：]\s*(.*)$/);
   const head = bold ? bold[1] : plain ? plain[1] : raw;
   const rest = bold ? bold[2] : plain ? plain[2] : '';
-  const key = sectionOf(headingLabel(head));
+  let key = sectionOf(headingLabel(head));
+  // « Commentaire : … » sous une citation n'est pas un titre : seule une vraie ligne de titre ouvre une rubrique ignorée.
+  if (key === '_ignore' && !hashed && !wholeBold) key = null;
   if (key) {
     // Sans « # » ni gras, il faut une ligne courte (titre seul) ou « Libellé : texte ».
     if (!hashed && !bold && !plain && raw.length > 60) return null;
@@ -206,7 +210,7 @@ export function parseTextAnswer(text) {
     .split('\n')
     .filter((l) => !/^\s*```/.test(l) && !/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(l));
   // _pre = texte avant le premier titre ; _autre = rubriques que l'on ne reconnaît pas.
-  const buckets = { _pre: [], _autre: [] };
+  const buckets = { _pre: [], _autre: [], _ignore: [] };
   let current = '_pre';
   let level = 99;
   let notionsTitle = false;
@@ -263,15 +267,18 @@ export function parseTextAnswer(text) {
     data.personnages_titre = notionsTitle ? 'Notions clés' : 'Personnages';
     data.personnages = items(buckets.personnages).map(pair).map(([nom, role]) => ({ nom, role }));
   }
-  if (buckets.citations) data.citations = citations(buckets.citations);
+  // Citations seules : les commentaires ajoutés par l'IA sous les citations ne sont pas gardés.
+  if (buckets.citations) data.citations = citations(buckets.citations).map((c) => ({ texte: c.texte, commentaire: '' }));
   if (buckets.a_retenir) data.a_retenir = one('a_retenir');
   // Dernière rubrique : on ne garde que le premier paragraphe (Claude ajoute parfois une phrase de conclusion).
   if (buckets.pour_qui) data.pour_qui = paragraphs(buckets.pour_qui)[0] || '';
   if (buckets.notice) data.notice = notice(buckets.notice);
   if (buckets.bibliographie) {
-    data.bibliographie = items(buckets.bibliographie)
+    // Pas de phrase de l'IA à la fin (« Souhaitez-vous… ? », « N'hésitez pas… »).
+    const chat = /\?\s*$|^(souhaitez|voulez|n.h[ée]sitez|j.esp[èe]re|si vous|bonne lecture|je peux|dites-moi)/i;
+    data.bibliographie = items(buckets.bibliographie.filter((l) => !chat.test(l.trim())))
       .map((it) => stripEmphasis(it.join(' ')))
-      .filter((r) => r && !EMPTY_VALUE.test(r));
+      .filter((r) => r && !EMPTY_VALUE.test(r) && !chat.test(r));
   }
   return data;
 }

@@ -329,7 +329,7 @@ export async function renderAtelier(view, params) {
       toast(
         changed
           ? `Notice et bibliographie mises à jour ✓${noticeMsg}`
-          : "Rien de nouveau : Claude n'a trouvé aucune information de notice ou de bibliographie dans vos captures (ou elles étaient déjà là).",
+          : `Rien de nouveau : ${ia.label} n'a trouvé aucune information de notice ou de bibliographie dans vos captures (ou elles étaient déjà là).`,
         changed ? 'ok' : 'attention',
         8000,
       );

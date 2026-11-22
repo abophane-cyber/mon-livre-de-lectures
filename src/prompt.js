@@ -30,16 +30,14 @@ Deuxième paragraphe.
 
 ## CITATIONS
 > « Extrait recopié mot pour mot. »
-Commentaire : pourquoi cet extrait compte.
 
 > « Autre extrait. »
-Commentaire : …
 
 ## À RETENIR
-Ce qu'il faut garder du livre, en 2 à 4 phrases.
+Les idées essentielles du livre, en 2 à 4 phrases.
 
 ## POUR QUI ?
-À qui je recommanderais ce livre, en 1 à 2 phrases.`;
+Le public auquel le livre s'adresse, en 1 phrase.`;
 
 const MODELE_NOTICE = `## NOTICE
 - Éditeur :
@@ -57,7 +55,9 @@ const CONSIGNES_NOTICE = `- Si mes captures ou mon texte montrent les informatio
 - Si mes captures ou mon texte contiennent une bibliographie, des références, des notes de sources ou des ouvrages cités, recopie chaque référence telle quelle dans la rubrique BIBLIOGRAPHIE (une par ligne, avec un tiret). N'en invente aucune et n'ajoute pas tes propres suggestions de lecture : s'il n'y en a pas, laisse la rubrique vide.
 - Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé ni pour les citations.`;
 
-const CONSIGNE_FORMAT = `Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de bloc de code, pas de JSON. Suis exactement ce modèle, avec ces titres en majuscules et dans cet ordre, sans rien ajouter avant « GENRE » ni après la dernière rubrique :`;
+const CONSIGNE_NEUTRE = `Résume fidèlement et de façon neutre. Ne donne JAMAIS ton avis et n'ajoute aucun commentaire : pas d'appréciation (« passionnant », « remarquable »…), pas d'analyse critique, pas de points forts ou faibles, pas de commentaire sous les citations, pas d'introduction ni de conclusion de ta part, pas de question à la fin.`;
+
+const CONSIGNE_FORMAT = `Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de canvas, pas de bloc de code, pas de JSON. Suis exactement ce modèle, avec ces titres en majuscules et dans cet ordre, sans rien ajouter avant « GENRE » ni après la dernière rubrique :`;
 
 /** Texte complet à coller dans Claude. Avec `book.captures`, Claude résume le texte des captures d'écran jointes. */
 export function buildPrompt(book) {
@@ -92,7 +92,8 @@ RÈGLES
 5. Pour un essai ou un livre sans personnages, remplace le titre « ## PERSONNAGES » par « ## NOTIONS CLÉS » et présente les notions principales.
 6. Notice et références bibliographiques (elles iront au verso de ma fiche) :
 ${CONSIGNES_NOTICE}
-7. ${CONSIGNE_FORMAT}
+7. ${CONSIGNE_NEUTRE}
+8. ${CONSIGNE_FORMAT}
 
 ${MODELE}
 
@@ -108,7 +109,7 @@ export function buildNoticePrompt(book) {
 Ne rédige pas de résumé. Lis seulement les captures et complète ma notice bibliographique :
 ${CONSIGNES_NOTICE}
 
-Réponds directement dans la conversation, en texte simple (pas de document, pas de bloc de code), en suivant exactement ce modèle :
+N'ajoute aucun commentaire. Réponds directement dans la conversation, en texte simple (pas de document, pas de canvas, pas de bloc de code), en suivant exactement ce modèle :
 
 ${MODELE_NOTICE}`;
 }
@@ -151,7 +152,7 @@ export function parseAnswer(text) {
   // Un vrai objet JSON est lu comme JSON ; sinon, lecture du texte à titres.
   const data = json || parseTextAnswer(text);
   if (!data) {
-    return { ok: false, errors: ['Le texte collé est vide ou trop court. Copiez toute la réponse de Claude.'] };
+    return { ok: false, errors: ['Le texte collé est vide ou trop court. Copiez toute la réponse de l’IA.'] };
   }
   const notice = readNotice(data.notice);
   const bibliographie = readBibliographie(data.bibliographie);
@@ -172,7 +173,7 @@ export function parseAnswer(text) {
   };
   // Seul le résumé est indispensable ; les autres rubriques manquantes donnent un simple avertissement.
   if (!fiche.resume.length) {
-    return { ok: false, errors: ['Je ne trouve pas de résumé dans ce texte. Vérifiez que vous avez copié toute la réponse de Claude.'] };
+    return { ok: false, errors: ['Je ne trouve pas de résumé dans ce texte. Vérifiez que vous avez copié toute la réponse de l’IA.'] };
   }
   const missing = [
     [!fiche.accroche, 'ACCROCHE'],
@@ -184,7 +185,7 @@ export function parseAnswer(text) {
     .filter(([absent]) => absent)
     .map(([, name]) => name);
   const warnings = [];
-  if (data._fallback) warnings.push("Je n'ai pas reconnu les rubriques : tout le texte de Claude a été mis dans le résumé. Vous pouvez le retoucher avec « Modifier le texte ».");
+  if (data._fallback) warnings.push("Je n'ai pas reconnu les rubriques : tout le texte de la réponse a été mis dans le résumé. Vous pouvez le retoucher avec « Modifier le texte ».");
   else if (missing.length) warnings.push(`Rubriques absentes de la réponse : ${missing.join(', ')}.`);
   // Passages recopiés par Claude (ancien format, facultatif).
   const passages = (Array.isArray(data.passages) ? data.passages : [])
@@ -218,7 +219,7 @@ export function buildFixPrompt({ errors = [], badCitations = [] }) {
   }
   lines.push(
     '',
-    'Renvoie la fiche complète corrigée, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : GENRE, ACCROCHE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## PERSONNAGES (ou ## NOTIONS CLÉS), ## CITATIONS, ## À RETENIR, ## POUR QUI ?',
+    'Renvoie la fiche complète corrigée, sans aucun commentaire ni avis de ta part, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : GENRE, ACCROCHE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## PERSONNAGES (ou ## NOTIONS CLÉS), ## CITATIONS, ## À RETENIR, ## POUR QUI ?',
   );
   return lines.join('\n');
 }

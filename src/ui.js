@@ -1,7 +1,7 @@
 // Préférences propres à cet appareil, messages et petits éléments d'interface.
 
 const PREFS_KEY = 'mll:prefs';
-const DEFAULT_PREFS = { theme: 'auto', ia: 'claude', sort: 'perso', lastExport: 0, lastImport: 0 };
+const DEFAULT_PREFS = { theme: 'auto', ia: 'chatgpt', sort: 'perso', lastExport: 0, lastImport: 0 };
 
 export function getPrefs() {
   try {
@@ -51,8 +51,15 @@ export const IA = {
   gemini: { label: 'Gemini', url: 'https://gemini.google.com/app' },
 };
 
+// IA par défaut : ChatGPT. Un choix fait dans Réglages (iaChoisie) l'emporte. Les anciennes préférences
+// enregistraient « claude » sans que l'utilisateur l'ait choisi : elles sont ignorées.
+export function currentIaKey() {
+  const p = getPrefs();
+  return p.iaChoisie && IA[p.ia] ? p.ia : 'chatgpt';
+}
+
 export function currentIa() {
-  return IA[getPrefs().ia] || IA.claude;
+  return IA[currentIaKey()];
 }
 
 export function applyTheme(theme = getPrefs().theme) {

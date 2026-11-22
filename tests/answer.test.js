@@ -52,8 +52,8 @@ test('réponse en texte à titres (bouton Copier)', () => {
   assert.equal(f.personnages_titre, 'Notions clés');
   assert.deepEqual(f.personnages, [{ nom: 'Bien commun', role: 'ce qui appartient à tous.' }]);
   assert.deepEqual(f.citations, [
-    { texte: 'La richesse est une construction collective.', commentaire: 'idée centrale du livre.' },
-    { texte: "Rien n'est inévitable.", commentaire: "une phrase d'espoir." },
+    { texte: 'La richesse est une construction collective.', commentaire: '' },
+    { texte: "Rien n'est inévitable.", commentaire: '' },
   ]);
   assert.equal(f.a_retenir, 'Un essai accessible.');
   assert.equal(f.pour_qui, "Pour qui s'intéresse à l'économie.");
@@ -96,8 +96,8 @@ test('réponse copiée depuis l’affichage (sans # ni puces)', () => {
   assert.equal(r.fiche.personnages_titre, 'Personnages');
   assert.equal(r.fiche.personnages.length, 2);
   assert.deepEqual(r.fiche.citations, [
-    { texte: 'Il faut se défier des rêves.', commentaire: 'avertissement.' },
-    { texte: 'Ils trompent.', commentaire: 'Une mise en garde.' },
+    { texte: 'Il faut se défier des rêves.', commentaire: '' },
+    { texte: 'Ils trompent.', commentaire: '' },
   ]);
 });
 
@@ -157,12 +157,48 @@ test('titres libres de Claude (emoji, numéros, variantes)', () => {
   assert.deepEqual(f.idees_cles.map((i) => i.titre), ["La dette n'est pas un fardeau", 'Les marchés gouvernent']);
   assert.equal(f.personnages_titre, 'Notions clés');
   assert.deepEqual(f.personnages, [{ nom: 'Dette publique', role: "ce que l'État doit." }]);
-  assert.deepEqual(f.citations, [{ texte: "L'État s'est mis entre les mains des marchés.", commentaire: 'une phrase qui résume la thèse.' }]);
+  assert.deepEqual(f.citations, [{ texte: "L'État s'est mis entre les mains des marchés.", commentaire: '' }]);
   assert.equal(f.a_retenir, "La dépendance aux marchés n'est pas une fatalité.");
   assert.equal(f.pour_qui, "À tous les citoyens curieux d'économie.");
   assert.deepEqual(r.warnings, []);
   assert.deepEqual(r.bibliographie, ['Piketty, T., Le Capital au XXIe siècle, Seuil, 2013.', "Lemoine, B., L'Ordre de la dette, La Découverte, 2016."]);
   assert.deepEqual(r.notice, { editeur: 'Fayard' });
+});
+
+test('les avis et commentaires de l’IA sont ignorés', () => {
+  const r = parseAnswer(`## Résumé
+Le livre retrace l'histoire de la dette française depuis 1980.
+
+## Points forts et points faibles
+Un livre passionnant mais parfois répétitif.
+
+## Citations
+> « Rien n'est inévitable. »
+Commentaire : une phrase magnifique.
+
+## Mon avis
+J'ai adoré ce livre !
+
+## À retenir
+La dette est un choix politique.
+
+## Bibliographie
+- Piketty, Le Capital, 2013.
+
+Souhaitez-vous que je développe une partie ?`);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.fiche.resume, ["Le livre retrace l'histoire de la dette française depuis 1980."]);
+  assert.deepEqual(r.fiche.citations, [{ texte: "Rien n'est inévitable.", commentaire: '' }]);
+  assert.equal(r.fiche.a_retenir, 'La dette est un choix politique.');
+  assert.deepEqual(r.bibliographie, ['Piketty, Le Capital, 2013.']);
+  assert.ok(!JSON.stringify(r.fiche).includes('adoré'));
+  assert.ok(!JSON.stringify(r.fiche).includes('passionnant'));
+});
+
+test('la demande interdit les avis', () => {
+  const p = buildPrompt({ title: 'T', passages: ['x'] });
+  assert.match(p, /Ne donne JAMAIS ton avis/);
+  assert.doesNotMatch(p, /Commentaire :/);
 });
 
 test('aucun titre reconnu : tout le texte devient le résumé', () => {
@@ -175,7 +211,7 @@ Ce livre retrace l'histoire de la dette française.
 Il montre le rôle croissant des marchés.`);
   assert.equal(r.ok, true);
   assert.deepEqual(r.fiche.resume, ['Introduction', "Ce livre retrace l'histoire de la dette française.", 'Développement', 'Il montre le rôle croissant des marchés.']);
-  assert.match(r.warnings[0], /tout le texte de Claude a été mis dans le résumé/);
+  assert.match(r.warnings[0], /tout le texte de la réponse a été mis dans le résumé/);
 });
 
 test('réponse « notice et bibliographie » en texte', () => {

@@ -1,7 +1,7 @@
 // Vue « Réglages » : thème, IA utilisée, couverture, installation.
 import { getSettings, setSettings } from '../db.js';
 import { esc } from '../util.js';
-import { $, IA, applyTheme, getPrefs, setPrefs, toast } from '../ui.js';
+import { $, IA, applyTheme, currentIaKey, getPrefs, setPrefs, toast } from '../ui.js';
 
 let installEvent = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -26,7 +26,7 @@ export async function renderReglages(view) {
 
     <label class="bloc">IA utilisée pour les résumés
       <select id="ia">${Object.entries(IA)
-        .map(([k, v]) => `<option value="${k}"${prefs.ia === k ? ' selected' : ''}>${v.label}</option>`)
+        .map(([k, v]) => `<option value="${k}"${currentIaKey() === k ? ' selected' : ''}>${v.label}</option>`)
         .join('')}</select>
     </label>
 
@@ -57,7 +57,7 @@ export async function renderReglages(view) {
       applyTheme();
     }
     if (e.target.id === 'ia') {
-      setPrefs({ ia: e.target.value });
+      setPrefs({ ia: e.target.value, iaChoisie: true });
       toast(`Les résumés se feront avec ${IA[e.target.value].label}.`, 'ok');
     }
     if (e.target.id === 'titreLivre' || e.target.id === 'nom') {
