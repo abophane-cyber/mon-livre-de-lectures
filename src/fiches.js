@@ -98,3 +98,25 @@ export function mergeParts(a = [], b = []) {
   }
   return [...byId.values()].sort((x, y) => (x.createdAt || 0) - (y.createdAt || 0) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
 }
+
+const ROMAINS = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10, xi: 11, xii: 12, xiii: 13, xiv: 14, xv: 15, xvi: 16, xvii: 17, xviii: 18, xix: 19, xx: 20 };
+
+/**
+ * Le chapitre d'une fiche : chaque fiche d'un livre est un chapitre.
+ * « Chapitre 2 : Le retour des marchés » → { num: '2', titre: 'Le retour des marchés' } ;
+ * « Une dette à faire peur » (sans numéro) → le numéro est celui de la fiche dans le livre.
+ * `label` est vide pour un livre à une seule fiche sans titre de chapitre (la fiche résume tout le livre).
+ */
+export function chapterOf(fiche, index = 0, count = 1) {
+  const c = String(fiche?.chapitre || '').trim();
+  const m = c.match(/^chapitre\s+(\d+|[ivxlc]+\b|premier|première)\s*[.:：–—-]?\s*(.*)$/i);
+  let num = String(index + 1);
+  let titre = c;
+  if (m) {
+    const n = m[1].toLowerCase();
+    num = /^\d+$/.test(n) ? String(parseInt(n, 10)) : n.startsWith('premi') ? '1' : String(ROMAINS[n] || m[1].toUpperCase());
+    titre = m[2].trim();
+  }
+  const label = c || count > 1 ? `Chapitre ${num}` : '';
+  return { num, titre, label };
+}

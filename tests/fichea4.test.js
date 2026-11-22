@@ -71,7 +71,8 @@ test('la fiche A4 ne montre ni titre du livre, ni auteur, ni date ; le chapitre 
   assert.ok(!txt.includes('Madame Bovary'));
   assert.ok(!txt.includes('Gustave Flaubert'));
   assert.ok(!txt.includes('1857'));
-  assert.ok(txt.includes('Chapitre 3. La dette'));
+  assert.ok(txt.includes('CHAPITRE 3 · RÉSUMÉ'));
+  assert.ok(txt.includes('"La dette"'));
 });
 
 test('page de présentation : seule sur sa feuille, puis le résumé sur une page impaire', async () => {

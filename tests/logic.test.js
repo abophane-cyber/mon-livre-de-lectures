@@ -4,7 +4,7 @@ import { parseClippings, parseTitleLine } from '../src/clippings.js';
 import { parseAnswer, checkCitations, buildPrompt, buildNoticePrompt } from '../src/prompt.js';
 import { applyNotice } from '../src/notice.js';
 import { mergeBackup } from '../src/sync.js';
-import { flatten, mergeParts, normalizeBook, partsOf, readyFiches, withPart, withoutPart } from '../src/fiches.js';
+import { chapterOf, flatten, mergeParts, normalizeBook, partsOf, readyFiches, withPart, withoutPart } from '../src/fiches.js';
 import { mergePassages, splitPassages, yearOf } from '../src/util.js';
 
 const CLIPPINGS = `﻿Madame Bovary (French Edition) (Flaubert, Gustave)
@@ -198,4 +198,13 @@ test('mergeBackup : fiches ajoutées au même livre sur les deux appareils', () 
   const b = [{ id: 'x', deleted: true, createdAt: 1, updatedAt: 2 }];
   assert.equal(mergeParts(a, b)[0].deleted, true);
   assert.equal(mergeParts(b, a)[0].deleted, true);
+});
+
+test('chaque fiche d’un livre est un chapitre, numéroté dans l’ordre', () => {
+  assert.deepEqual(chapterOf({ chapitre: 'Une dette à faire peur' }, 0, 2), { num: '1', titre: 'Une dette à faire peur', label: 'Chapitre 1' });
+  assert.deepEqual(chapterOf({ chapitre: '' }, 1, 2), { num: '2', titre: '', label: 'Chapitre 2' });
+  assert.deepEqual(chapterOf({ chapitre: 'Chapitre 2 : Le retour des marchés' }, 1, 2), { num: '2', titre: 'Le retour des marchés', label: 'Chapitre 2' });
+  assert.deepEqual(chapterOf({ chapitre: 'CHAPITRE IV – La crise' }, 0, 1), { num: '4', titre: 'La crise', label: 'Chapitre 4' });
+  // Une seule fiche sans titre de chapitre : elle résume tout le livre, pas de « Chapitre 1 ».
+  assert.equal(chapterOf({ chapitre: '' }, 0, 1).label, '');
 });

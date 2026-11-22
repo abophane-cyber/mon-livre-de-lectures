@@ -287,7 +287,7 @@ mark {
 /* Plusieurs fiches dans un même livre (une par chapitre) */
 .fiche-partie { scroll-margin-top: 70px; }
 .fiche-partie + .fiche-partie { margin-top: 36px; padding-top: 28px; border-top: 2px solid var(--filet); }
-.partie-num { font: 600 0.72rem var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--encre-douce); margin: 0 0 10px; }
+.partie-num { font: 600 0.72rem var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
 .fiche-partie .actions { margin-top: 20px; }
 .actions-livre { border-top-width: 2px; }
 

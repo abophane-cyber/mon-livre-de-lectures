@@ -1,6 +1,6 @@
 // Vue « Mon livre » : sommaire puis toutes les fiches, comme un livre.
 import { deleteBook, getOrder, getSettings, liveBooks, saveBook, setOrder } from '../db.js';
-import { flatten, isComplete, partsOf, readyFiches, withoutPart } from '../fiches.js';
+import { chapterOf, flatten, isComplete, partsOf, readyFiches, withoutPart } from '../fiches.js';
 import { SORTS, filterBooks, sortBooks } from '../books.js';
 import { buildFixPrompt } from '../prompt.js';
 import { NOTICE_FIELDS } from '../notice.js';
@@ -15,7 +15,6 @@ let sortable;
 function renderFiche(book) {
   const f = book.fiche;
   const parts = [];
-  if (f.chapitre) parts.push(`<p class="chapitre-resume">${esc(f.chapitre)}</p>`);
   if (f.accroche) parts.push(`<p class="accroche">${esc(f.accroche)}</p>`);
   if (f.resume?.length) {
     parts.push(`<h3 class="section">Résumé</h3>${f.resume.map((p) => `<p>${esc(p)}</p>`).join('')}`);
@@ -79,12 +78,14 @@ function renderNotice(book) {
 function renderPart(book, part, i, n) {
   const fb = flatten(book, part);
   const q = `${esc(book.id)}?f=${esc(part.id)}`;
+  const ch = chapterOf(part.fiche, i, n);
   const body = part.fiche
     ? renderFiche(fb)
     : `<div class="attente"><p>Cette fiche attend encore son résumé${part.passages?.length ? ' (texte enregistré)' : ''}.</p>
        <a class="btn primaire" href="#/livre/${q}">Terminer la fiche</a></div>`;
   return `<section class="fiche-partie" id="fi-${esc(part.id)}">
-    ${n > 1 ? `<p class="partie-num">Fiche ${i + 1} sur ${n}</p>` : ''}
+    ${ch.label ? `<p class="partie-num">${esc(ch.label)}</p>` : ''}
+    ${ch.titre ? `<h3 class="chapitre-resume">${esc(ch.titre)}</h3>` : ''}
     ${body}
     <div class="actions">
       ${part.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Fiche A4</button>` : ''}
@@ -95,13 +96,12 @@ function renderPart(book, part, i, n) {
   </section>`;
 }
 
-function renderChapter(book, index) {
+function renderBook(book) {
   const parts = partsOf(book);
   const genre = parts.find((p) => p.fiche?.genre)?.fiche.genre;
   const meta = [book.author, book.pubDate, genre].filter(Boolean).map(esc).join(' · ');
   const ready = parts.filter((p) => p.fiche).length;
   return `<article class="chapitre page" id="ch-${esc(book.id)}">
-    <p class="chapitre-num">Chapitre ${index + 1}</p>
     <h2>${esc(book.title)}</h2>
     ${meta ? `<p class="meta">${meta}</p>` : ''}
     <hr class="filet">
@@ -167,7 +167,7 @@ export async function renderLivre(view, params) {
       ${shown.length ? '' : '<p>Aucune fiche ne correspond à votre recherche.</p>'}
       <p class="petit">${pluralize(books.length, 'livre', 'livres')} et ${pluralize(books.reduce((n, b) => n + partsOf(b).length, 0), 'fiche', 'fiches')} dans votre livre de lectures.</p>
     </section>
-    <div id="chapitres">${shown.map(renderChapter).join('')}</div>`;
+    <div id="chapitres">${shown.map((b) => renderBook(b)).join('')}</div>`;
 
   const search = $('#recherche', view);
   search.addEventListener('input', () => {
@@ -199,7 +199,8 @@ export async function renderLivre(view, params) {
     }
     if (btn.dataset.action === 'supprimer-fiche' && part) {
       const i = partsOf(book).indexOf(part) + 1;
-      const nom = part.fiche?.chapitre ? `« ${part.fiche.chapitre} »` : `n° ${i}`;
+      const c = chapterOf(part.fiche, i - 1, partsOf(book).length);
+      const nom = c.titre ? `« ${c.titre} »` : `n° ${i}`;
       if (!confirm(`Supprimer définitivement la fiche ${nom} du livre « ${book.title} » ? Les autres fiches du livre sont gardées.`)) return;
       await saveBook(withoutPart(book, part.id));
       toast(`La fiche ${nom} a été supprimée.`);

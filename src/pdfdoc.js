@@ -1,4 +1,5 @@
 // Mise en page du PDF à imprimer (A4). Fonction pure : décrit le document pour pdfmake.
+import { chapterOf } from './fiches.js';
 
 const ACCENT = '#8a5a14';
 const GREY = '#5c5c5c';
@@ -20,8 +21,9 @@ const sameBook = (a, b) => !!a && !!b && a.id != null && a.id === b.id;
  * Une fiche. La première fiche d'un livre ouvre le chapitre (titre, sommaire) ;
  * les suivantes commencent sur une nouvelle page ; la bibliographie vient après la dernière.
  */
-function chapter(book, index, { first = true, last = true } = {}) {
+function chapter(book, { first = true, last = true } = {}) {
   const f = book.fiche;
+  const ch = chapterOf(f, book.ficheIndex || 0, book.ficheCount || 1);
   const meta = [book.author, book.pubDate, f.genre].filter(Boolean).join(' · ');
   const rule = {
     canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 1.2, lineColor: ACCENT }],
@@ -29,18 +31,17 @@ function chapter(book, index, { first = true, last = true } = {}) {
   };
   const out = !first
     ? [
-        { text: `CHAPITRE ${index + 1} (SUITE)`, style: 'chapterLabel', pageBreak: 'before' },
-        { text: book.title, style: 'meta', margin: [0, 0, 0, 0] },
+        { text: book.title, style: 'meta', margin: [0, 0, 0, 0], pageBreak: 'before' },
         rule,
       ]
     : [
-    { text: `CHAPITRE ${index + 1}`, style: 'chapterLabel', pageBreak: 'before' },
     // Ligne invisible qui sert uniquement d'entrée au sommaire : titre, puis auteur et date de parution.
     {
       text: [
         { text: book.title, bold: true },
         ...(byline(book) ? [{ text: `\n${byline(book)}`, italics: true, color: GREY, fontSize: 9.5 }] : []),
       ],
+      pageBreak: 'before',
       tocItem: true,
       tocStyle: 'tocTitle',
       tocMargin: [0, 0, 0, 8],
@@ -53,7 +54,8 @@ function chapter(book, index, { first = true, last = true } = {}) {
     { text: meta, style: 'meta' },
     rule,
   ];
-  if (f.chapitre) out.push({ text: f.chapitre, style: 'chapterTitle' });
+  if (ch.label) out.push({ text: ch.label.toUpperCase(), style: 'chapterLabel' });
+  if (ch.titre) out.push({ text: ch.titre, style: 'chapterTitle' });
   if (f.accroche) out.push({ text: f.accroche, style: 'accroche' });
 
   if (f.resume?.length) {
@@ -138,14 +140,7 @@ export function buildDocDefinition(books, cover) {
       },
       pageBreak: 'before',
     },
-    ...(() => {
-      let index = -1;
-      return books.flatMap((b, i) => {
-        const first = !sameBook(books[i - 1], b);
-        if (first) index++;
-        return chapter(b, index, { first, last: !sameBook(b, books[i + 1]) });
-      });
-    })(),
+    ...books.flatMap((b, i) => chapter(b, { first: !sameBook(books[i - 1], b), last: !sameBook(b, books[i + 1]) })),
   ];
 
   return {

@@ -1,7 +1,7 @@
 // Vue « PDF » : choisir le format et les fiches, puis télécharger le PDF à imprimer.
 import { getOrder, getSettings, liveBooks, setSettings } from '../db.js';
 import { sortBooks } from '../books.js';
-import { partsOf, readyFiches } from '../fiches.js';
+import { chapterOf, partsOf, readyFiches } from '../fiches.js';
 import { canShareFiles, shareBlob } from '../download.js';
 import { esc, formatDate, pluralize } from '../util.js';
 import { $, $$, getPrefs, setPrefs, toast } from '../ui.js';
@@ -54,7 +54,7 @@ export async function renderPdf(view) {
            ${ready
              .map(
                (b) => `<label class="case"><input type="checkbox" value="${esc(keyOf(b))}" checked>
-                 <span>${esc(b.title)}${b.ficheCount > 1 ? ` — ${esc(b.fiche.chapitre || `fiche ${b.ficheIndex + 1}`)}` : ''}${b.author || b.pubDate ? ` <em>— ${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</em>` : ''}</span></label>`,
+                 <span>${esc(b.title)}${b.ficheCount > 1 ? ` — ${esc([chapterOf(b.fiche, b.ficheIndex, b.ficheCount).label, chapterOf(b.fiche, b.ficheIndex, b.ficheCount).titre].filter(Boolean).join(' : '))}` : ''}${b.author || b.pubDate ? ` <em>— ${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</em>` : ''}</span></label>`,
              )
              .join('')}`
         : '<p>Aucune fiche terminée pour le moment.</p>'}
