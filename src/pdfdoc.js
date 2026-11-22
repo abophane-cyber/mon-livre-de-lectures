@@ -10,17 +10,29 @@ const section = (label) => ({
   headlineLevel: 1,
 });
 
+/** « Auteur · date de parution » (ce qui est renseigné). */
+const byline = (book) => [book.author, book.pubDate].filter(Boolean).join(' · ');
+
 function chapter(book, index) {
   const f = book.fiche;
   const meta = [book.author, book.pubDate, f.genre].filter(Boolean).join(' · ');
   const out = [
     { text: `CHAPITRE ${index + 1}`, style: 'chapterLabel', pageBreak: 'before' },
+    // Ligne invisible qui sert uniquement d'entrée au sommaire : titre, puis auteur et date de parution.
     {
-      text: book.title,
-      style: 'title',
+      text: [
+        { text: book.title, bold: true },
+        ...(byline(book) ? [{ text: `\n${byline(book)}`, italics: true, color: GREY, fontSize: 9.5 }] : []),
+      ],
       tocItem: true,
       tocStyle: 'tocTitle',
+      tocMargin: [0, 0, 0, 8],
+      fontSize: 0.5,
+      lineHeight: 0.1,
+      color: '#ffffff',
+      opacity: 0,
     },
+    { text: book.title, style: 'title' },
     { text: meta, style: 'meta' },
     {
       canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 1.2, lineColor: ACCENT }],

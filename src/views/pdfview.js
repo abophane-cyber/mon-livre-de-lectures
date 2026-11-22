@@ -27,7 +27,7 @@ export async function renderPdf(view) {
            ${ready
              .map(
                (b) => `<label class="case"><input type="checkbox" value="${esc(b.id)}" checked>
-                 <span>${esc(b.title)}${b.author ? ` <em>— ${esc(b.author)}</em>` : ''}</span></label>`,
+                 <span>${esc(b.title)}${b.author || b.pubDate ? ` <em>— ${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</em>` : ''}</span></label>`,
              )
              .join('')}`
         : '<p>Aucune fiche terminée pour le moment.</p>'}

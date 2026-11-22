@@ -117,7 +117,7 @@ export async function renderLivre(view, params) {
               ${canDrag ? `<span class="poignee" aria-label="Déplacer">${icons.grip}</span>` : ''}
               <a href="#/?ch=${esc(b.id)}"><span class="num">${i + 1}.</span>
                 <span class="t">${esc(b.title)}</span>
-                <span class="a">${esc(b.author)}</span></a>
+                <span class="a">${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</span></a>
               ${b.fiche ? '' : '<span class="badge">à terminer</span>'}
             </li>`,
           )
