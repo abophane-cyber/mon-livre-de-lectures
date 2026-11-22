@@ -12,7 +12,7 @@ const LISTS = {
 };
 
 const emptyFiche = () => ({
-  genre: '', accroche: '', resume: [], idees_cles: [], personnages_titre: 'Personnages',
+  chapitre: '', genre: '', accroche: '', resume: [], idees_cles: [], personnages_titre: 'Personnages',
   personnages: [], citations: [], a_retenir: '', pour_qui: '',
 });
 
@@ -40,6 +40,7 @@ export async function renderModifier(view, params) {
       <label>Auteur<input name="author" value="${esc(book.author)}"></label>
       <label>Date de parution<input name="pubDate" value="${esc(book.pubDate)}"></label>
       <label>Genre<input name="genre" value="${esc(f.genre)}"></label>
+      <label>Titre du chapitre <span class="petit">(en haut de la fiche A4)</span><input name="chapitre" value="${esc(f.chapitre)}"></label>
     </div>
     <fieldset>
       <legend>Notice du livre <span class="petit">(verso de la fiche A4, facultatif)</span></legend>
@@ -92,6 +93,7 @@ export async function renderModifier(view, params) {
     const val = (n) => form.elements[n].value.trim();
     const fiche = {
       genre: val('genre'),
+      chapitre: val('chapitre'),
       accroche: val('accroche'),
       resume: val('resume').split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean),
       personnages_titre: val('personnages_titre'),

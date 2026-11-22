@@ -13,6 +13,7 @@ let sortable;
 function renderFiche(book) {
   const f = book.fiche;
   const parts = [];
+  if (f.chapitre) parts.push(`<p class="chapitre-resume">${esc(f.chapitre)}</p>`);
   if (f.accroche) parts.push(`<p class="accroche">${esc(f.accroche)}</p>`);
   if (f.resume?.length) {
     parts.push(`<h3 class="section">Résumé</h3>${f.resume.map((p) => `<p>${esc(p)}</p>`).join('')}`);
@@ -80,7 +81,7 @@ function renderChapter(book, index) {
     <hr class="filet">
     ${body}
     <div class="actions">
-      ${book.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}">Fiche A4 recto-verso</button>` : ''}
+      ${book.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}">Fiche A4</button>` : ''}
       <a class="btn" href="#/modifier/${esc(book.id)}">Modifier le texte</a>
       <a class="btn" href="#/livre/${esc(book.id)}">Compléter le texte / refaire le résumé</a>
       <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">Supprimer</button>
@@ -177,7 +178,7 @@ export async function renderLivre(view, params) {
         toast(
           small.length
             ? 'Fiche A4 téléchargée ✓ Le texte est long : il est imprimé en petits caractères. Choisissez la longueur « Court » ou « Moyen » pour une fiche plus lisible.'
-            : 'Fiche A4 téléchargée ✓ Imprimez-la en recto-verso (retourner sur le bord long).',
+            : 'Fiche A4 téléchargée ✓ S’il y a des références au verso, imprimez en recto-verso (retourner sur le bord long).',
           small.length ? 'attention' : 'ok',
           9000,
         );

@@ -13,8 +13,8 @@ export const LONGUEURS = {
   detaille: { label: 'Détaillé', resume: '5 à 8 paragraphes', idees: '6 à 8', citations: '5 à 8' },
 };
 
-const MODELE = `GENRE : Roman
-ACCROCHE : Une seule phrase qui donne envie de lire le livre.
+const MODELE = `CHAPITRE : [titre exact du chapitre, ou rien]
+GENRE : Essai
 
 ## RÉSUMÉ
 Premier paragraphe.
@@ -25,19 +25,8 @@ Deuxième paragraphe.
 - **Titre court** : explication en 2 à 4 phrases.
 - **Autre idée** : explication.
 
-## PERSONNAGES
-- **Nom** : qui il est et son rôle dans le livre.
-
-## CITATIONS
-> « Extrait recopié mot pour mot. »
-
-> « Autre extrait. »
-
-## À RETENIR
-Les idées essentielles du livre, en 2 à 4 phrases.
-
-## POUR QUI ?
-Le public auquel le livre s'adresse, en 1 phrase.`;
+## NOTIONS CLÉS
+- **Notion** : explication en 1 à 2 phrases.`;
 
 const MODELE_NOTICE = `## NOTICE
 - Éditeur :
@@ -53,24 +42,23 @@ const MODELE_NOTICE = `## NOTICE
 
 const CONSIGNES_NOTICE = `- Si mes captures ou mon texte montrent les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis la rubrique NOTICE uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse vide ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.
 - Si mes captures ou mon texte contiennent une bibliographie, des références, des notes de sources ou des ouvrages cités, recopie chaque référence telle quelle dans la rubrique BIBLIOGRAPHIE (une par ligne, avec un tiret). N'en invente aucune et n'ajoute pas tes propres suggestions de lecture : s'il n'y en a pas, laisse la rubrique vide.
-- Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé ni pour les citations.`;
+- Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé.`;
 
-const CONSIGNE_NEUTRE = `Résume fidèlement et de façon neutre. Ne donne JAMAIS ton avis et n'ajoute aucun commentaire : pas d'appréciation (« passionnant », « remarquable »…), pas d'analyse critique, pas de points forts ou faibles, pas de commentaire sous les citations, pas d'introduction ni de conclusion de ta part, pas de question à la fin.`;
+const CONSIGNE_NEUTRE = `Résume fidèlement et de façon neutre. Ne donne JAMAIS ton avis et n'ajoute aucun commentaire : pas d'appréciation (« passionnant », « remarquable »…), pas d'analyse critique, pas de points forts ou faibles, pas de citations, pas de rubrique « à retenir » ou « pour qui », pas d'introduction ni de conclusion de ta part, pas de question à la fin.`;
 
 const CONSIGNE_FORMAT = `Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de canvas, pas de bloc de code, pas de JSON. Suis exactement ce modèle, avec ces titres en majuscules et dans cet ordre, sans rien ajouter avant « GENRE » ni après la dernière rubrique :`;
 
-/** Texte complet à coller dans Claude. Avec `book.captures`, Claude résume le texte des captures d'écran jointes. */
+/** Texte complet à coller dans l'IA. Avec `book.captures`, l'IA résume le texte des captures d'écran jointes. */
 export function buildPrompt(book) {
   const L = LONGUEURS[book.length] || LONGUEURS.moyen;
   const langue = book.lang || 'français';
   const captures = !!book.captures;
   const texte = (book.passages || []).join('\n\n');
   const source = captures ? 'LE TEXTE DE MES CAPTURES (et mon texte écrit ci-dessous, s\'il y en a)' : 'MON TEXTE ci-dessous';
-  const citeFrom = captures ? 'depuis le texte de mes captures ou mon texte écrit' : 'depuis mon texte';
   const debut = captures
-    ? `TA TÂCHE : je t'envoie des captures d'écran de pages du livre ci-dessous (jointes à ce message, ou dans mon prochain message). Lis le texte visible sur ces images, puis rédige une fiche de lecture qui résume ce texte, en suivant exactement les consignes et le modèle ci-dessous.
-Si tu ne vois encore aucune image, réponds seulement : « Envoyez-moi vos captures d'écran. » et attends-les ; dès que tu les reçois, rédige directement la fiche, sans rien demander d'autre.`
-    : `TA TÂCHE : rédiger une fiche de lecture pour mon livre de lectures personnel, à partir du texte que je te donne ci-dessous. C'est ce texte que tu résumes.`;
+    ? `TA TÂCHE : je t'envoie des captures d'écran de pages du livre ci-dessous (jointes à ce message, ou dans mon prochain message). Lis le texte visible sur ces images, puis rédige un résumé de ce texte, en suivant exactement les consignes et le modèle ci-dessous.
+Si tu ne vois encore aucune image, réponds seulement : « Envoyez-moi vos captures d'écran. » et attends-les ; dès que tu les reçois, rédige directement le résumé, sans rien demander d'autre.`
+    : `TA TÂCHE : rédiger le résumé du texte que je te donne ci-dessous, pour ma fiche de lecture personnelle.`;
   return `${debut}
 
 LIVRE
@@ -81,20 +69,18 @@ ${captures ? `
 CAPTURES D'ÉCRAN (pages du livre : liseuse, appli Kindle ou photo de page)
 a. Lis TOUT le texte du livre visible sur les captures, dans l'ordre des captures, qu'il soit surligné ou non. C'est ce texte que tu dois résumer.
 b. Ignore tout ce qui n'est pas le texte du livre : menus, boutons, heure, batterie, numéros de page ou d'emplacement, titres de l'appli.
-c. Ne recopie pas tout le texte dans ta réponse : résume-le. Seules les citations sont recopiées mot pour mot.
-d. Si un mot est illisible, ne l'invente pas.
-e. Les captures de la page d'informations du livre ou de la bibliographie servent à la NOTICE et à la BIBLIOGRAPHIE (règle 6), pas au résumé.
+c. Si un mot est illisible, ne l'invente pas.
+d. Les captures de la page d'informations du livre ou de la bibliographie servent à la NOTICE et à la BIBLIOGRAPHIE (règle 6), pas au résumé.
 ` : ''}
 RÈGLES
-1. Appuie-toi d'abord sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais d'intrigue, de personnage ou d'événement. En cas de doute, reste sur ce que dit le texte.
-2. Les citations doivent être recopiées MOT POUR MOT ${citeFrom}, et uniquement de là (tu peux en prendre un extrait, sans rien changer à l'intérieur). Garde leur langue d'origine.
-3. Rédige tout le reste de la fiche en ${langue}.
-4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, ${L.citations} citations (moins si le texte ne suffit pas).
-5. Pour un essai ou un livre sans personnages, remplace le titre « ## PERSONNAGES » par « ## NOTIONS CLÉS » et présente les notions principales.
-6. Notice et références bibliographiques (elles iront au verso de ma fiche) :
+1. Appuie-toi sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais rien. En cas de doute, reste sur ce que dit le texte.
+2. Rédige en ${langue}.
+3. Titre du chapitre : si le texte ou les captures montrent un titre de chapitre (par exemple « Chapitre 3. La dette publique »), recopie-le exactement sur la ligne CHAPITRE. S'il n'y en a pas, écris « CHAPITRE : » sans rien après. Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé : je les ai déjà.
+4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, et les notions principales (ou les personnages principaux pour un roman : remplace alors « ## NOTIONS CLÉS » par « ## PERSONNAGES »).
+5. ${CONSIGNE_NEUTRE}
+6. Notice et références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a) :
 ${CONSIGNES_NOTICE}
-7. ${CONSIGNE_NEUTRE}
-8. ${CONSIGNE_FORMAT}
+7. ${CONSIGNE_FORMAT}
 
 ${MODELE}
 
@@ -106,7 +92,7 @@ ${texte || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')
 
 /** Message court à envoyer avec les captures si l'IA n'a pas compris quoi en faire. */
 export function buildCapturesReminder(book) {
-  return `Voici les captures d'écran du livre « ${book.title || '(inconnu)'} ». Lis le texte visible sur ces images et rédige maintenant la fiche de lecture en suivant exactement ma demande précédente : résumé fidèle et neutre, sans avis ni commentaire, en texte simple avec les titres en majuscules (GENRE, ACCROCHE, ## RÉSUMÉ, ## IDÉES CLÉS, ## PERSONNAGES ou ## NOTIONS CLÉS, ## CITATIONS, ## À RETENIR, ## POUR QUI ?, ## NOTICE, ## BIBLIOGRAPHIE).`;
+  return `Voici les captures d'écran du livre « ${book.title || '(inconnu)'} ». Lis le texte visible sur ces images et rédige maintenant le résumé en suivant exactement ma demande précédente : fidèle et neutre, sans avis ni commentaire, en texte simple avec les titres en majuscules (CHAPITRE, GENRE, ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS ou ## PERSONNAGES, ## NOTICE, ## BIBLIOGRAPHIE).`;
 }
 
 /** Demande courte : seulement la notice et la bibliographie, depuis des captures (la fiche n'est pas refaite). */
@@ -167,6 +153,7 @@ export function parseAnswer(text) {
     return { ok: true, partial: true, fiche: null, passages: [], notice, bibliographie };
   }
   const fiche = {
+    chapitre: str(data.chapitre),
     genre: str(data.genre),
     accroche: str(data.accroche),
     resume: asParas(data.resume),
@@ -181,13 +168,8 @@ export function parseAnswer(text) {
   if (!fiche.resume.length) {
     return { ok: false, errors: ['Je ne trouve pas de résumé dans ce texte. Vérifiez que vous avez copié toute la réponse de l’IA.'] };
   }
-  const missing = [
-    [!fiche.accroche, 'ACCROCHE'],
-    [!fiche.idees_cles.length, 'IDÉES CLÉS'],
-    [!fiche.citations.length, 'CITATIONS'],
-    [!fiche.a_retenir, 'À RETENIR'],
-    [!fiche.pour_qui, 'POUR QUI ?'],
-  ]
+  // Seules les rubriques encore demandées comptent (accroche, citations, « à retenir », « pour qui » ne le sont plus).
+  const missing = [[!fiche.idees_cles.length, 'IDÉES CLÉS']]
     .filter(([absent]) => absent)
     .map(([, name]) => name);
   const warnings = [];
@@ -225,7 +207,7 @@ export function buildFixPrompt({ errors = [], badCitations = [] }) {
   }
   lines.push(
     '',
-    'Renvoie la fiche complète corrigée, sans aucun commentaire ni avis de ta part, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : GENRE, ACCROCHE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## PERSONNAGES (ou ## NOTIONS CLÉS), ## CITATIONS, ## À RETENIR, ## POUR QUI ?',
+    'Renvoie le résumé complet corrigé, sans aucun commentaire ni avis de ta part, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : CHAPITRE, GENRE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS (ou ## PERSONNAGES), ## NOTICE, ## BIBLIOGRAPHIE.',
   );
   return lines.join('\n');
 }

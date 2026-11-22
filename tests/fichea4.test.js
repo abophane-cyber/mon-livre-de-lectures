@@ -53,3 +53,23 @@ test('plusieurs fiches : chaque recto commence sur une page impaire', async () =
   const { items } = await fitItems([book(2, 3, 3), book(3, 4, 2), book(1, 2, 1)], countPages);
   assert.equal(await countPages(buildFicheA4Doc(items)), 6);
 });
+
+test('sans références : une seule page ; avec bibliographie : recto-verso', async () => {
+  const sans = { ...book(2, 3, 0) };
+  delete sans.isbn;
+  const { items } = await fitItems([sans], countPages);
+  assert.equal(await countPages(buildFicheA4Doc(items)), 1);
+  const avec = { ...sans, bibliographie: ['Piketty, Le Capital, 2013.'] };
+  const fit2 = await fitItems([avec], countPages);
+  assert.equal(await countPages(buildFicheA4Doc(fit2.items)), 2);
+});
+
+test('la fiche A4 ne montre ni titre du livre, ni auteur, ni date ; le chapitre oui', async () => {
+  const { recto, verso } = await import('../src/fichea4.js');
+  const b = { ...book(1, 1, 0), fiche: { ...book(1, 1, 0).fiche, chapitre: 'Chapitre 3. La dette' }, bibliographie: ['Réf.'] };
+  const txt = JSON.stringify([recto(b), verso(b)]);
+  assert.ok(!txt.includes('Madame Bovary'));
+  assert.ok(!txt.includes('Gustave Flaubert'));
+  assert.ok(!txt.includes('1857'));
+  assert.ok(txt.includes('Chapitre 3. La dette'));
+});

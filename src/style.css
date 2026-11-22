@@ -282,3 +282,4 @@ mark {
 .toast.attention { background: var(--alerte); color: #fff; }
 @media (min-width: 820px) { .toast { bottom: 24px; } }
 .rappel-captures { margin-top: 14px; padding-top: 10px; border-top: 1px dotted var(--filet); }
+.chapitre-resume { font-family: var(--serif); font-weight: 700; font-size: 1.15rem; margin: 0 0 0.6em; text-align: left !important; }

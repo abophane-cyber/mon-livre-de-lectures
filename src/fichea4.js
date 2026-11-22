@@ -1,9 +1,8 @@
-// Fiche de lecture A4 recto-verso : le résumé au recto, les références au verso.
+// Fiche de lecture A4 : le résumé au recto, les références bibliographiques au verso (s'il y en a).
 // Chaque face doit tenir sur une seule page : la taille du texte s'ajuste toute seule.
 
 const ACCENT = '#8a5a14';
 const GREY = '#5c5c5c';
-const HIGHLIGHT = '#fff0a0';
 const BOX = '#f6efe0';
 const RULE = '#e4dccb';
 
@@ -15,54 +14,55 @@ import { NOTICE_FIELDS } from './notice.js';
 
 export { NOTICE_FIELDS };
 
-const byline = (b) => [b.author, b.pubDate].filter(Boolean).join(' · ');
-
 function label(text, s, extra = {}) {
   return { text: text.toUpperCase(), fontSize: 8 * Math.max(s, 0.85), bold: true, color: ACCENT, characterSpacing: 1.5, ...extra };
 }
 
-function header(book, s, kicker) {
-  const f = book.fiche;
+/**
+ * En-tête d'une face : un petit intitulé, éventuellement un titre (le titre du chapitre), puis un filet.
+ * Pas de titre du livre, d'auteur ni de date : ils sont déjà sur la page de présentation.
+ */
+function header(s, kicker, title) {
   return [
-    {
-      columns: [
-        label(kicker, s),
-        { text: (f.genre || '').toUpperCase(), fontSize: 8 * Math.max(s, 0.85), color: GREY, characterSpacing: 1.2, alignment: 'right' },
-      ],
-    },
-    { text: book.title, fontSize: 24 * s, bold: true, lineHeight: 1.1, margin: [0, 8 * s, 0, 2 * s] },
-    byline(book) ? { text: byline(book), fontSize: 11 * s, italics: true, color: GREY } : '',
+    label(kicker, s),
+    title ? { text: title, fontSize: 20 * s, bold: true, lineHeight: 1.15, margin: [0, 8 * s, 0, 0] } : '',
     {
       canvas: [
         { type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 0.5, lineColor: RULE },
         { type: 'line', x1: 0, y1: 0, x2: 56, y2: 0, lineWidth: 2, lineColor: ACCENT },
       ],
-      margin: [0, 10 * s, 0, 12 * s],
+      margin: [0, 9 * s, 0, 14 * s],
     },
   ];
 }
 
-/** Recto : accroche, résumé, idées clés, personnages, et l'encadré « À retenir / Pour qui ? ». */
+/** Recto : titre du chapitre (s'il y en a un), résumé, idées clés, notions ou personnages. Sans commentaire. */
 export function recto(book, s = 1) {
   const f = book.fiche;
   const body = { fontSize: 10.5 * s, lineHeight: 1.32 };
-  const out = [...header(book, s, 'Fiche de lecture')];
-  if (f.accroche) out.push({ text: f.accroche, fontSize: 13 * s, italics: true, lineHeight: 1.3, margin: [0, 0, 0, 12 * s] });
-
+  const out = [...header(s, 'Résumé', f.chapitre)];
   if (f.resume?.length) {
-    out.push(label('Résumé', s, { margin: [0, 0, 0, 6 * s] }));
-    for (const p of f.resume) out.push({ text: p, ...body, alignment: 'justify', margin: [0, 0, 0, 6 * s] });
+    f.resume.forEach((p, k) => {
+      out.push({
+        text: p,
+        ...body,
+        fontSize: (k === 0 ? 11.5 : 10.8) * s,
+        lineHeight: 1.4,
+        alignment: 'justify',
+        margin: [0, 0, 0, 7 * s],
+      });
+    });
   }
 
   if (f.idees_cles?.length) {
-    out.push(label('Idées clés', s, { margin: [0, 8 * s, 0, 6 * s] }));
+    out.push(label('Idées clés', s, { margin: [0, 10 * s, 0, 7 * s] }));
     const cell = (i, n) => ({
       columns: [
         { text: String(n), width: 16 * s, fontSize: 11 * s, bold: true, color: ACCENT },
         {
           stack: [
             { text: i.titre, bold: true, fontSize: 10.5 * s, margin: [0, 0, 0, 1] },
-            { text: i.texte, fontSize: 9.8 * s, lineHeight: 1.28 },
+            i.texte ? { text: i.texte, fontSize: 9.8 * s, lineHeight: 1.3 } : '',
           ],
         },
       ],
@@ -77,56 +77,50 @@ export function recto(book, s = 1) {
   }
 
   if (f.personnages?.length) {
-    out.push(label(f.personnages_titre || 'Personnages', s, { margin: [0, 4 * s, 0, 5 * s] }));
+    out.push(label(f.personnages_titre || 'Personnages', s, { margin: [0, 6 * s, 0, 6 * s] }));
     out.push({
-      text: f.personnages.flatMap((p, k) => [
-        k ? { text: '   ·   ', color: ACCENT } : '',
-        { text: p.nom, bold: true },
-        p.role ? { text: ` — ${p.role}` } : '',
-      ]),
-      ...body,
-      fontSize: 9.8 * s,
-      margin: [0, 0, 0, 10 * s],
-    });
-  }
-
-  const boxCol = (title, text) => ({
-    stack: [label(title, s, { margin: [0, 0, 0, 4] }), { text, fontSize: 9.8 * s, lineHeight: 1.3 }],
-  });
-  const cols = [f.a_retenir && boxCol('À retenir', f.a_retenir), f.pour_qui && boxCol('Pour qui ?', f.pour_qui)].filter(Boolean);
-  if (cols.length) {
-    out.push({
-      table: { widths: ['*'], body: [[{ columns: cols, columnGap: 20, fillColor: BOX }]] },
+      table: {
+        widths: ['*'],
+        body: [[{
+          stack: f.personnages.map((p) => ({
+            text: [{ text: p.nom, bold: true }, p.role ? { text: ` — ${p.role}` } : ''],
+            fontSize: 9.8 * s,
+            lineHeight: 1.3,
+            margin: [0, 0, 0, 4 * s],
+          })),
+          fillColor: BOX,
+        }]],
+      },
       layout: {
         hLineWidth: () => 0,
         vLineWidth: (i) => (i === 0 ? 2 : 0),
         vLineColor: () => ACCENT,
         paddingLeft: () => 12,
         paddingRight: () => 12,
-        paddingTop: () => 10 * s,
-        paddingBottom: () => 10 * s,
+        paddingTop: () => 9 * s,
+        paddingBottom: () => 5 * s,
       },
-      margin: [0, 6 * s, 0, 0],
-      unbreakable: true,
     });
   }
   return out;
 }
 
-/** Verso : notice du livre, puis les citations commentées. */
-export function verso(book, s = 1) {
-  const f = book.fiche;
-  const out = [...header(book, s, 'Références')];
+/** Champs de notice qui viennent du livre lui-même (la date de lecture seule ne justifie pas un verso). */
+const PUBLICATION_FIELDS = NOTICE_FIELDS.filter(([k]) => k !== 'dateLecture');
 
-  const rows = [
-    ['Titre', book.title],
-    ['Auteur', book.author],
-    ['Date de parution', book.pubDate],
-    ['Genre', f.genre],
-    ...NOTICE_FIELDS.map(([k, l]) => [l, book[k]]),
-  ].filter(([, v]) => v);
-  out.push(label('Notice', s, { margin: [0, 0, 0, 4 * s] }));
-  out.push({
+/** Le verso n'existe que s'il y a des références : bibliographie ou informations d'édition. */
+export function hasVerso(book) {
+  return !!(book.bibliographie?.length || PUBLICATION_FIELDS.some(([k]) => book[k]));
+}
+
+/** Verso : références bibliographiques (notice d'édition et bibliographie). */
+export function verso(book, s = 1) {
+  const out = [...header(s, 'Références bibliographiques')];
+
+  // Informations d'édition seulement (titre, auteur et date sont sur la page de présentation).
+  const rows = NOTICE_FIELDS.map(([k, l]) => [l, book[k]]).filter(([, v]) => v);
+  if (rows.length) out.push(label('Notice', s, { margin: [0, 0, 0, 4 * s] }));
+  if (rows.length) out.push({
     table: {
       widths: [110, '*'],
       body: rows.map(([l, v]) => [
@@ -142,40 +136,25 @@ export function verso(book, s = 1) {
       paddingTop: () => 4 * s,
       paddingBottom: () => 4 * s,
     },
-    margin: [0, 0, 0, 14 * s],
+    margin: [0, 0, 0, 16 * s],
   });
 
   if (book.bibliographie?.length) {
-    out.push(label('Bibliographie', s, { margin: [0, 0, 0, 6 * s] }));
+    out.push(label('Bibliographie', s, { margin: [0, 0, 0, 7 * s] }));
     out.push({
-      ul: book.bibliographie.map((r) => ({ text: r, fontSize: 9.3 * s, lineHeight: 1.28, margin: [0, 0, 0, 3 * s] })),
+      ul: book.bibliographie.map((r) => ({ text: r, fontSize: 9.8 * s, lineHeight: 1.32, margin: [0, 0, 0, 4 * s] })),
       markerColor: ACCENT,
-      margin: [0, 0, 0, 14 * s],
     });
-  }
-
-  if (f.citations?.length) {
-    out.push(label('Citations', s, { margin: [0, 0, 0, 8 * s] }));
-    for (const c of f.citations) {
-      out.push({
-        stack: [
-          { text: [{ text: `« ${c.texte} »`, background: HIGHLIGHT, italics: true }], fontSize: 10.5 * s, lineHeight: 1.42 },
-          c.commentaire ? { text: c.commentaire, fontSize: 9.3 * s, color: GREY, lineHeight: 1.28, margin: [0, 3, 0, 0] } : '',
-        ],
-        unbreakable: true,
-        margin: [10, 0, 0, 11 * s],
-      });
-    }
   }
   return out;
 }
 
-/** Document : pour chaque livre, recto (toujours sur une page impaire) puis verso. */
+/** Document : pour chaque livre, le recto (toujours sur une page impaire), puis le verso s'il y a des références. */
 export function buildFicheA4Doc(items, onPageCount) {
   const content = [];
   items.forEach(({ book, r = 1, v = 1 }, i) => {
     content.push({ stack: recto(book, r), pageBreak: i ? 'beforeOdd' : undefined });
-    content.push({ stack: verso(book, v), pageBreak: 'before' });
+    if (hasVerso(book)) content.push({ stack: verso(book, v), pageBreak: 'before' });
   });
   return {
     pageSize: 'A4',
@@ -211,7 +190,7 @@ export async function fitItems(books, countPages) {
   const tooLong = [];
   for (const book of books) {
     const r = await fit(recto, book);
-    const v = await fit(verso, book);
+    const v = hasVerso(book) ? await fit(verso, book) : { scale: 1, ok: true };
     if (!r.ok || !v.ok) tooLong.push(book.title);
     items.push({ book, r: r.scale, v: v.scale });
   }

@@ -102,10 +102,10 @@ test('réponse copiée depuis l’affichage (sans # ni puces)', () => {
 });
 
 test('rubrique manquante : la fiche est acceptée avec un avertissement', () => {
-  const r = parseAnswer(AFFICHE.replace(/POUR QUI \?[\s\S]*$/, ''));
+  const r = parseAnswer(AFFICHE.replace(/IDÉES CLÉS[\s\S]*?PERSONNAGES/, 'PERSONNAGES'));
   assert.equal(r.ok, true);
-  assert.deepEqual(r.missing, ['POUR QUI ?']);
-  assert.match(r.warnings[0], /POUR QUI/);
+  assert.deepEqual(r.missing, ['IDÉES CLÉS']);
+  assert.match(r.warnings[0], /IDÉES CLÉS/);
   assert.equal(parseAnswer('').ok, false);
 });
 
@@ -251,4 +251,15 @@ test('captures : la tâche est expliquée dès le début, et le message de rappe
   const r = buildCapturesReminder({ title: 'Riches ensemble !' });
   assert.match(r, /Voici les captures d'écran du livre « Riches ensemble ! »/);
   assert.match(r, /sans avis ni commentaire/);
+});
+
+test('titre du chapitre : lu s’il est donné, ignoré sinon', () => {
+  const base = `## RÉSUMÉ\nL'auteure retrace l'histoire de la dette publique française depuis les années 1980.`;
+  assert.equal(parseAnswer(`CHAPITRE : Chapitre 3. La dette publique\nGENRE : Essai\n\n${base}`).fiche.chapitre, 'Chapitre 3. La dette publique');
+  assert.equal(parseAnswer(`## Chapitre 2 : Le retour des marchés\n\n${base}`).fiche.chapitre, 'Chapitre 2 : Le retour des marchés');
+  assert.equal(parseAnswer(`CHAPITRE :\nGENRE : Essai\n\n${base}`).fiche.chapitre, '');
+  assert.equal(parseAnswer(`CHAPITRE : [titre exact du chapitre, ou rien]\n\n${base}`).fiche.chapitre, '');
+  const p = buildPrompt({ title: 'T', captures: true });
+  assert.match(p, /CHAPITRE :/);
+  assert.match(p, /Ne mets ni le titre du livre, ni l'auteur, ni la date/);
 });

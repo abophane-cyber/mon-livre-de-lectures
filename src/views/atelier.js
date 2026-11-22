@@ -370,7 +370,7 @@ export async function renderAtelier(view, params) {
     } else if (result.warnings?.length) {
       toast(`Fiche ajoutée ✓ ${result.warnings.join(' ')}`, 'attention', 10000);
     } else {
-      toast(`Fiche ajoutée à votre livre ✓${extra} Pour l'imprimer : bouton « Fiche A4 recto-verso » sous la fiche.`, 'ok', 8000);
+      toast(`Fiche ajoutée à votre livre ✓${extra} Pour l'imprimer : bouton « Fiche A4 » sous la fiche.`, 'ok', 8000);
     }
     location.hash = '#/?ch=' + saved.id;
   });

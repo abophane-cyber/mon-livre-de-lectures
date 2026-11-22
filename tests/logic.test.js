@@ -84,7 +84,7 @@ test('checkCitations : guillemets, apostrophes courbes et coupures […]', () =>
 
 test('buildPrompt contient les règles et les passages', () => {
   const p = buildPrompt({ title: 'T', author: 'A', passages: ['un', 'deux'], length: 'court', lang: 'français' });
-  assert.match(p, /MOT POUR MOT/);
+  assert.match(p, /Ne donne JAMAIS ton avis/);
   assert.match(p, /MON TEXTE\nun\n\ndeux/);
 });
 

@@ -9,6 +9,7 @@ import { normalize } from './util.js';
 const SECTION_RULES = [
   // Rubriques d'avis ou de commentaires de l'IA : ignorées (l'utilisateur ne veut que le résumé).
   ['_ignore', /^(mon |notre )?(avis( personnel| critique)?|analyse( critique| personnelle)?|critique|commentaires?( personnels?)?|appreciation( personnelle)?|evaluation|note( globale| finale)?|points? forts?( et (points? )?faibles?)?|points? faibles?|forces et (faiblesses|limites)|limites( du livre)?|pourquoi lire ce livre|ressenti|mon ressenti|impressions?|verdict|recommandation|conclusion( personnelle)?|en conclusion|bilan|pour aller plus loin|suggestions? de lecture|lectures? complementaires?|questions? (de reflexion|pour aller plus loin|de discussion))$/],
+  ['chapitre', /^(chapitre|titre du chapitre|chapitre resume|chapitre concerne)$/],
   ['genre', /^(genre|type de livre|categorie)$/],
   ['accroche', /^(accroche|en une phrase|en bref|le livre en une phrase|pitch)$/],
   ['notice', /^(notice|notice bibliographique|informations? (sur le livre|bibliographiques?|editoriales?))$/],
@@ -83,6 +84,10 @@ function headingOf(line) {
   const plain = raw.match(/^([^:：]{1,60}?)\s*[:：]\s*(.*)$/);
   const head = bold ? bold[1] : plain ? plain[1] : raw;
   const rest = bold ? bold[2] : plain ? plain[2] : '';
+  // « ## Chapitre 3 : La dette » ou « CHAPITRE 3 – La dette » : tout le titre est le titre du chapitre.
+  if (/^chapitre\s+(\d+|[ivxlc]+|premier|[a-z]+)\b/.test(headingLabel(raw)) && (hashed || wholeBold || bold)) {
+    return { key: 'chapitre', rest: stripEmphasis(raw.replace(/^\*\*|\*\*$/g, '')).replace(/[\s:：]+$/, ''), hashed };
+  }
   let key = sectionOf(headingLabel(head));
   // « Commentaire : … » sous une citation n'est pas un titre : seule une vraie ligne de titre ouvre une rubrique ignorée.
   if (key === '_ignore' && !hashed && !wholeBold) key = null;
@@ -254,6 +259,11 @@ export function parseTextAnswer(text) {
   if (!knownKeys.length && !data.resume) return null;
 
   const one = (k) => buckets[k] && paragraphs(buckets[k]).join(' ');
+  if (buckets.chapitre) {
+    const c = (paragraphs(buckets.chapitre)[0] || '').replace(/\.$/, '');
+    // Ligne laissée vide, ou consigne du modèle recopiée telle quelle : pas de titre de chapitre.
+    if (c && !EMPTY_VALUE.test(c) && !/tel qu.il appara|laisse vide|ou rien|pas de (titre|chapitre)|aucun titre|^\[.*\]$/i.test(c)) data.chapitre = c;
+  }
   if (buckets.genre) data.genre = one('genre').replace(/\.$/, '');
   if (buckets.accroche) data.accroche = one('accroche');
   if (buckets.resume) data.resume = paragraphs(buckets.resume);

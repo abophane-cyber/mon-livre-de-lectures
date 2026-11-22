@@ -9,7 +9,7 @@ import { $, $$, getPrefs, setPrefs, toast } from '../ui.js';
 const FORMATS = {
   a4: {
     label: 'Fiches A4 recto-verso',
-    aide: "Une feuille par livre : le résumé au recto ; au verso, les références (notice, bibliographie) et les citations. Imprimez en recto-verso (« retourner sur le bord long »).",
+    aide: "Une feuille par livre : le résumé au recto (avec le titre du chapitre s'il y en a un) ; au verso, les références bibliographiques, seulement s'il y en a. Imprimez en recto-verso (« retourner sur le bord long »).",
   },
   livre: {
     label: 'Livre complet',
