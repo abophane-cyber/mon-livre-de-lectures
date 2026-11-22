@@ -18,6 +18,13 @@ Pour passer de l'ordinateur au téléphone : **Sauvegarde → Exporter**, je cop
 
 ⚠️ « Effacer les données de navigation » supprime les fiches : je fais des sauvegardes régulières.
 
+## Sécurité
+
+- **Sauvegardes chiffrées** : le fichier est protégé par un mot de passe (AES-GCM 256 bits, clé dérivée par PBKDF2-SHA-256, 600 000 itérations). Sans le mot de passe, il est illisible et ne peut pas être récupéré.
+- **Barrière anti-fuite** (Content Security Policy) : la version publiée ne peut charger du code que depuis sa propre adresse et ne peut envoyer de données à aucun autre site.
+- Aucun secret dans le code (ni clé API, ni mot de passe). Les textes collés sont toujours affichés comme du texte, jamais exécutés.
+- Le compte GitHub qui publie l'appli doit avoir la **double authentification** activée : c'est lui qui contrôle les mises à jour.
+
 ## Pour la personne qui maintient le code
 
 ```

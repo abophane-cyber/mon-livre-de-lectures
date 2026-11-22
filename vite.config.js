@@ -1,11 +1,44 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Barrière anti-fuite (Content Security Policy) : l'appli ne peut charger du code et des
+// fichiers que depuis sa propre adresse, et ne peut envoyer de données à aucun autre site.
+// Ajoutée seulement à la version publiée (l'aperçu de développement a besoin d'une connexion en direct).
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'",
+].join('; ');
+
+const securityHeaders = {
+  name: 'barriere-anti-fuite',
+  apply: 'build',
+  transformIndexHtml: {
+    order: 'post',
+    handler(html) {
+      return html.replace(
+        '<meta charset="utf-8">',
+        `<meta charset="utf-8">\n    <meta http-equiv="Content-Security-Policy" content="${CSP}">\n    <meta name="referrer" content="no-referrer">`,
+      );
+    },
+  },
+};
+
 export default defineConfig({
   // Chemins relatifs : l'appli marche quelle que soit l'adresse de publication (GitHub Pages).
   base: './',
-  build: { chunkSizeWarningLimit: 3000 },
+  // assetsInlineLimit: 0 → les polices restent des fichiers (la barrière anti-fuite refuse les polices « data: »).
+  build: { chunkSizeWarningLimit: 3000, assetsInlineLimit: 0 },
   plugins: [
+    securityHeaders,
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
