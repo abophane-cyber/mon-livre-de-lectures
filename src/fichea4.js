@@ -28,7 +28,7 @@ function header(s, kicker, title) {
     title ? { text: title, fontSize: 20 * s, bold: true, lineHeight: 1.15, margin: [0, 8 * s, 0, 0] } : '',
     {
       canvas: [
-        { type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 0.5, lineColor: RULE },
+        { type: 'line', x1: 0, y1: 0, x2: 507, y2: 0, lineWidth: 0.5, lineColor: RULE },
         { type: 'line', x1: 0, y1: 0, x2: 56, y2: 0, lineWidth: 2, lineColor: ACCENT },
       ],
       margin: [0, 9 * s, 0, 14 * s],
