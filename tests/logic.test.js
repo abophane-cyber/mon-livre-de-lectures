@@ -87,6 +87,22 @@ test('buildPrompt contient les règles et les passages', () => {
   assert.match(p, /\[2\] deux/);
 });
 
+test('captures d\'écran : la demande et la lecture des passages recopiés', () => {
+  const p = buildPrompt({ title: 'T', author: 'A', passages: [], captures: true });
+  assert.match(p, /CAPTURES D'ÉCRAN/);
+  assert.match(p, /"passages": \[/);
+  assert.match(p, /tout est dans mes captures/);
+  assert.doesNotMatch(buildPrompt({ title: 'T', passages: ['x'] }), /CAPTURES/);
+  const r = parseAnswer(JSON.stringify({
+    passages: ['« Il faut se défier des rêves. »', '  Ils   trompent. '],
+    accroche: 'A', resume: ['P'], idees_cles: [{ titre: 'T', texte: 'X' }], citations: [{ texte: 'Ils trompent.' }], a_retenir: 'R', pour_qui: 'Q',
+  }));
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.passages, ['Il faut se défier des rêves.', 'Ils trompent.']);
+  assert.equal(checkCitations(r.fiche, r.passages), 0);
+  assert.deepEqual(parseAnswer('{"accroche":"A","resume":["P"],"idees_cles":[{"titre":"T"}],"citations":[],"a_retenir":"R","pour_qui":"Q"}').passages, []);
+});
+
 test('utilitaires', () => {
   assert.deepEqual(splitPassages('a\nb\n\n\nc'), ['a b', 'c']);
   assert.deepEqual(mergePassages(['abc'], ['abc def', 'x']), ['abc def', 'x']);

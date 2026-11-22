@@ -40,6 +40,7 @@ export async function renderAtelier(view, params) {
     pubDate: draft.pubDate ?? book?.pubDate ?? '',
     lang: draft.lang ?? book?.lang ?? 'français',
     length: draft.length ?? book?.length ?? 'moyen',
+    captures: draft.captures ?? book?.captures ?? false,
     passages: draft.passages ?? joinPassages(book?.passages),
     answer: draft.answer ?? '',
     ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, draft[k] ?? book?.[k] ?? ''])),
@@ -88,12 +89,20 @@ export async function renderAtelier(view, params) {
       <label class="bloc">Vos passages surlignés <span class="petit" id="compte"></span>
         <textarea id="f-passages" rows="12" placeholder="Collez ici votre sélection. Séparez les passages par une ligne vide.">${esc(v.passages)}</textarea>
       </label>
+      <label class="case-simple captures"><input type="checkbox" id="f-captures"${v.captures ? ' checked' : ''}>
+        <span>J'ai des <strong>captures d'écran</strong> de mes passages (je les joindrai dans ${esc(ia.label)})</span></label>
+      <p class="petit" id="aide-captures" ${v.captures ? '' : 'hidden'}>Avec des captures, la zone de texte ci-dessus est facultative. ${esc(ia.label)} recopiera lui-même les passages surlignés de vos captures, et l'appli les ajoutera à cette fiche.</p>
       <button class="lien" id="enregistrer">Enregistrer pour plus tard</button>
     </div>
 
     <div class="etape">
       <h2><span class="pastille">2</span> Demander le résumé à ${esc(ia.label)}</h2>
-      <p class="petit">L'appli copie une demande complète (avec vos règles et vos passages) et ouvre ${esc(ia.label)}. Là-bas, collez-la (appui long puis « Coller » sur le téléphone, Ctrl+V sur l'ordinateur) et envoyez.</p>
+      <p class="petit" id="aide-sans-captures" ${v.captures ? 'hidden' : ''}>L'appli copie une demande complète (avec vos règles et vos passages) et ouvre ${esc(ia.label)}. Là-bas, collez-la (appui long puis « Coller » sur le téléphone, Ctrl+V sur l'ordinateur) et envoyez.</p>
+      <ol class="petit instructions" id="aide-avec-captures" ${v.captures ? '' : 'hidden'}>
+        <li>Touchez le bouton ci-dessous : la demande est copiée et ${esc(ia.label)} s'ouvre.</li>
+        <li>Dans ${esc(ia.label)}, touchez <strong>+</strong> (ou le trombone 📎), puis choisissez vos captures d'écran dans vos photos (20 au maximum par message).</li>
+        <li>Collez la demande dans la zone de message (appui long puis « Coller »), puis envoyez.</li>
+      </ol>
       <button class="btn primaire" id="copier">Copier la demande et ouvrir ${esc(ia.label)}</button>
       <div id="secours" hidden>
         <p class="petit">La copie automatique n'a pas marché : sélectionnez tout le texte ci-dessous et copiez-le.</p>
@@ -129,6 +138,7 @@ export async function renderAtelier(view, params) {
     length: $('input[name="f-length"]:checked', view)?.value || 'moyen',
     passages: el.passages.value,
     answer: el.answer.value,
+    captures: $('#f-captures', view).checked,
     ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, $(`#f-${k}`, view).value.trim()])),
   });
   const updateCount = () => {
@@ -139,6 +149,13 @@ export async function renderAtelier(view, params) {
     saveDraft(draftKey, readForm());
     updateCount();
   };
+  $('#f-captures', view).addEventListener('change', (e) => {
+    const on = e.target.checked;
+    $('#aide-captures', view).hidden = !on;
+    $('#aide-avec-captures', view).hidden = !on;
+    $('#aide-sans-captures', view).hidden = on;
+    saveDraft(draftKey, readForm());
+  });
 
   /** Enregistre le livre (création, ou ajout au livre existant du même titre et auteur). */
   async function persist() {
@@ -149,8 +166,8 @@ export async function renderAtelier(view, params) {
       return null;
     }
     const passages = splitPassages(f.passages);
-    if (!passages.length) {
-      toast('Collez au moins un passage.', 'erreur');
+    if (!passages.length && !f.captures) {
+      toast("Collez au moins un passage, ou cochez « J'ai des captures d'écran ».", 'erreur', 6000);
       el.passages.focus();
       return null;
     }
@@ -160,6 +177,7 @@ export async function renderAtelier(view, params) {
       pubDate: f.pubDate,
       lang: f.lang,
       length: f.length,
+      captures: f.captures,
       ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, f[k]])),
     };
     if (!book) {
@@ -275,13 +293,20 @@ export async function renderAtelier(view, params) {
     if (!saved) return;
     if (saved.fiche && saved.ficheEditedByHand &&
       !confirm('Vous aviez modifié cette fiche à la main. La remplacer par cette nouvelle réponse ?')) return;
-    const missing = checkCitations(result.fiche, saved.passages);
-    await saveBook({ ...saved, fiche: result.fiche, ficheEditedByHand: false });
+    // Passages recopiés par Claude depuis les captures d'écran : ajoutés à ceux de la fiche.
+    const allPassages = mergePassages(saved.passages, result.passages);
+    const fromCaptures = allPassages.length - saved.passages.length;
+    const missing = checkCitations(result.fiche, allPassages);
+    await saveBook({ ...saved, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false });
     clearDraft(draftKey);
+    const extra = fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'passage recopié', 'passages recopiés')} depuis vos captures.` : '';
     if (missing) {
-      toast(`Fiche ajoutée. ${missing > 1 ? `${missing} citations ne figurent` : '1 citation ne figure'} pas mot pour mot dans vos passages : ${missing > 1 ? 'elles sont signalées' : 'elle est signalée'} en orange.`, 'attention', 9000);
+      toast(`Fiche ajoutée.${extra} ${missing > 1 ? `${missing} citations ne figurent` : '1 citation ne figure'} pas mot pour mot dans vos passages : ${missing > 1 ? 'elles sont signalées' : 'elle est signalée'} en orange.`, 'attention', 9000);
     } else {
-      toast('Fiche ajoutée à votre livre ✓', 'ok');
+      toast(`Fiche ajoutée à votre livre ✓${extra}`, 'ok', 6000);
+    }
+    if (saved.captures && !result.passages.length) {
+      toast("Fiche ajoutée, mais Claude n'a pas recopié les passages de vos captures : les citations n'ont pas pu être vérifiées.", 'attention', 9000);
     }
     location.hash = '#/?ch=' + saved.id;
   });

@@ -21,30 +21,44 @@ const EXEMPLE = `{
   "pour_qui": "À qui je recommanderais ce livre, en 1 à 2 phrases."
 }`;
 
-/** Texte complet à coller dans Claude. */
+const EXEMPLE_CAPTURES = EXEMPLE.replace(
+  '{\n',
+  '{\n  "passages": ["Premier passage surligné recopié mot pour mot depuis mes captures.", "Deuxième passage."],\n',
+);
+
+/** Texte complet à coller dans Claude. Avec `book.captures`, Claude lit aussi les captures d'écran jointes. */
 export function buildPrompt(book) {
   const L = LONGUEURS[book.length] || LONGUEURS.moyen;
   const langue = book.lang || 'français';
+  const captures = !!book.captures;
   const passages = (book.passages || []).map((p, i) => `[${i + 1}] ${p}`).join('\n\n');
+  const source = captures ? 'MES PASSAGES (ceux écrits ci-dessous et ceux de mes captures)' : 'MES PASSAGES ci-dessous';
   return `Tu rédiges une fiche de lecture pour mon livre de lectures personnel, à partir des passages que j'ai surlignés.
 
 LIVRE
 - Titre : ${book.title || '(inconnu)'}
 - Auteur : ${book.author || '(inconnu)'}
 - Date de parution : ${book.pubDate || '(non précisée)'}
-
+${captures ? `
+CAPTURES D'ÉCRAN
+J'ai joint à ce message des captures d'écran de ma lecture (liseuse, appli Kindle ou photo de page).
+a. Si du texte est surligné (en couleur), ne garde que les passages surlignés. Sinon, garde tout le texte du livre visible.
+b. Ignore tout ce qui n'est pas le texte du livre : menus, boutons, heure, batterie, numéros de page ou d'emplacement, titres de l'appli.
+c. Recopie chaque passage MOT POUR MOT dans la clé "passages" (un élément par passage, dans l'ordre des captures), sans corriger ni résumer. Recolle les mots coupés par un tiret en fin de ligne.
+d. Si un mot est illisible, écris [illisible] à sa place plutôt que de deviner.
+` : ''}
 RÈGLES
-1. Appuie-toi d'abord sur MES PASSAGES ci-dessous. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais d'intrigue, de personnage ou d'événement. En cas de doute, reste sur ce que disent mes passages.
+1. Appuie-toi d'abord sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais d'intrigue, de personnage ou d'événement. En cas de doute, reste sur ce que disent mes passages.
 2. Les citations doivent être recopiées MOT POUR MOT depuis mes passages, et uniquement depuis eux (tu peux en prendre un extrait, sans rien changer à l'intérieur). Garde leur langue d'origine.
 3. Rédige tout le reste de la fiche en ${langue}.
 4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, ${L.citations} citations (moins si mes passages ne suffisent pas).
 5. Pour un essai ou un livre sans personnages, mets "personnages_titre": "Notions clés" et présente les notions principales dans "personnages" (nom = la notion, role = son explication).
 6. Réponds UNIQUEMENT avec un objet JSON valide, dans un bloc de code \`\`\`json, sans aucun texte avant ou après. Utilise exactement ces clés :
 
-${EXEMPLE}
+${captures ? EXEMPLE_CAPTURES : EXEMPLE}
 
-MES PASSAGES SURLIGNÉS
-${passages || '(aucun passage)'}`;
+MES PASSAGES SURLIGNÉS${captures ? ' (EN PLUS DE MES CAPTURES)' : ''}
+${passages || (captures ? '(aucun : tout est dans mes captures)' : '(aucun passage)')}`;
 }
 
 /** Extrait l'objet JSON d'une réponse (avec ou sans bloc de code, avec du texte autour). */
@@ -100,7 +114,12 @@ export function parseAnswer(text) {
   if (!fiche.a_retenir) errors.push('Il manque « a_retenir ».');
   if (!fiche.pour_qui) errors.push('Il manque « pour_qui ».');
   if (errors.length) return { ok: false, errors };
-  return { ok: true, fiche };
+  // Passages recopiés par Claude depuis les captures d'écran (facultatif).
+  const passages = (Array.isArray(data.passages) ? data.passages : [])
+    .map((p) => (typeof p === 'string' ? p : str(p?.texte)))
+    .map((p) => stripQuotes(p).replace(/\s+/g, ' '))
+    .filter(Boolean);
+  return { ok: true, fiche, passages };
 }
 
 /** Marque les citations qui ne figurent pas mot pour mot dans les passages. */
