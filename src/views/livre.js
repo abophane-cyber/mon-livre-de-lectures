@@ -2,6 +2,7 @@
 import { deleteBook, getOrder, getSettings, liveBooks, setOrder } from '../db.js';
 import { SORTS, filterBooks, sortBooks } from '../books.js';
 import { buildFixPrompt } from '../prompt.js';
+import { NOTICE_FIELDS } from '../notice.js';
 import { copyText } from '../download.js';
 import { esc, pluralize } from '../util.js';
 import { $, $$, getPrefs, icons, setPrefs, toast } from '../ui.js';
@@ -52,6 +53,17 @@ function renderFiche(book) {
   }
   if (f.a_retenir) parts.push(`<h3 class="section">À retenir</h3><p>${esc(f.a_retenir)}</p>`);
   if (f.pour_qui) parts.push(`<h3 class="section">Pour qui ?</h3><p>${esc(f.pour_qui)}</p>`);
+  const notice = NOTICE_FIELDS.filter(([k]) => book[k]);
+  if (notice.length) {
+    parts.push(
+      `<h3 class="section">Notice</h3><dl class="notice-liste">${notice
+        .map(([k, l]) => `<dt>${esc(l)}</dt><dd>${esc(book[k])}</dd>`)
+        .join('')}</dl>`,
+    );
+  }
+  if (book.bibliographie?.length) {
+    parts.push(`<h3 class="section">Bibliographie</h3><ul class="biblio">${book.bibliographie.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`);
+  }
   return parts.join('');
 }
 

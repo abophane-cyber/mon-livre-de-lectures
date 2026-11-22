@@ -46,6 +46,8 @@ export async function renderModifier(view, params) {
       <div class="champs">
         ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(book[k])}"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
       </div>
+      <label class="bloc">Bibliographie <span class="petit">(une référence par ligne)</span>
+        <textarea name="bibliographie" rows="5">${esc((book.bibliographie || []).join('\n'))}</textarea></label>
     </fieldset>
     <label class="bloc">Accroche (une phrase)<textarea name="accroche" rows="2">${esc(f.accroche)}</textarea></label>
     <label class="bloc">Résumé <span class="petit">(une ligne vide entre les paragraphes)</span>
@@ -112,6 +114,7 @@ export async function renderModifier(view, params) {
       author: val('author'),
       pubDate: val('pubDate'),
       ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, val(k)])),
+      bibliographie: form.elements.bibliographie.value.split('\n').map((s) => s.trim()).filter(Boolean),
       fiche,
       ficheEditedByHand: true,
     });

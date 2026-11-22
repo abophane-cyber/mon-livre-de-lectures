@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseClippings, parseTitleLine } from '../src/clippings.js';
-import { parseAnswer, checkCitations, buildPrompt } from '../src/prompt.js';
+import { parseAnswer, checkCitations, buildPrompt, buildNoticePrompt } from '../src/prompt.js';
+import { applyNotice } from '../src/notice.js';
 import { mergeBackup } from '../src/sync.js';
 import { mergePassages, splitPassages, yearOf } from '../src/util.js';
 
@@ -90,7 +91,9 @@ test('buildPrompt contient les règles et les passages', () => {
 test('captures d\'écran : la demande et la lecture des passages recopiés', () => {
   const p = buildPrompt({ title: 'T', author: 'A', passages: [], captures: true });
   assert.match(p, /CAPTURES D'ÉCRAN/);
-  assert.match(p, /"passages": \[/);
+  assert.match(p, /TOUT le texte du livre visible/);
+  assert.match(p, /"notice": \{/);
+  assert.doesNotMatch(p, /"passages": \[/);
   assert.match(p, /tout est dans mes captures/);
   assert.doesNotMatch(buildPrompt({ title: 'T', passages: ['x'] }), /CAPTURES/);
   const r = parseAnswer(JSON.stringify({
@@ -101,6 +104,19 @@ test('captures d\'écran : la demande et la lecture des passages recopiés', () 
   assert.deepEqual(r.passages, ['Il faut se défier des rêves.', 'Ils trompent.']);
   assert.equal(checkCitations(r.fiche, r.passages), 0);
   assert.deepEqual(parseAnswer('{"accroche":"A","resume":["P"],"idees_cles":[{"titre":"T"}],"citations":[],"a_retenir":"R","pour_qui":"Q"}').passages, []);
+});
+
+test('notice et bibliographie : lecture, réponse partielle, sans écraser ce qui est rempli', () => {
+  const r = parseAnswer('```json\n{"notice":{"editeur":"Seuil","isbn":"978-2-02-1","pages":"320","date_parution":"2026","inconnu":"x"},"bibliographie":["Piketty, Le Capital, 2013.","  "]}\n```');
+  assert.equal(r.ok, true);
+  assert.equal(r.partial, true);
+  assert.deepEqual(r.notice, { editeur: 'Seuil', isbn: '978-2-02-1', pages: '320', pubDate: '2026' });
+  assert.deepEqual(r.bibliographie, ['Piketty, Le Capital, 2013.']);
+  const book = { editeur: 'Éditeur déjà saisi', pubDate: '', bibliographie: ['Piketty, Le Capital, 2013.'] };
+  const { patch, changed } = applyNotice(book, r.notice, [...r.bibliographie, 'Autre référence.']);
+  assert.deepEqual(patch, { isbn: '978-2-02-1', pages: '320', pubDate: '2026', bibliographie: ['Piketty, Le Capital, 2013.', 'Autre référence.'] });
+  assert.equal(changed, 4);
+  assert.equal(buildNoticePrompt({ title: 'T' }).includes('Ne rédige pas de résumé'), true);
 });
 
 test('utilitaires', () => {

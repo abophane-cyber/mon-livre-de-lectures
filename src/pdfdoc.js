@@ -89,6 +89,10 @@ function chapter(book, index) {
     out.push(section('Pour qui ?'));
     out.push({ text: f.pour_qui, style: 'body' });
   }
+  if (book.bibliographie?.length) {
+    out.push(section('Bibliographie'));
+    out.push({ ul: book.bibliographie.map((r) => ({ text: r, fontSize: 9.5, margin: [0, 0, 0, 3] })), markerColor: ACCENT });
+  }
   return out;
 }
 

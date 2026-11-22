@@ -1,7 +1,8 @@
 // Vue « Nouvelle fiche » / « Compléter une fiche » : passages → demande pour Claude → réponse.
 import { findBookByKey, getBook, saveBook } from '../db.js';
 import { parseClippings } from '../clippings.js';
-import { LANGUES, LONGUEURS, buildFixPrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
+import { LANGUES, LONGUEURS, buildFixPrompt, buildNoticePrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
+import { applyNotice } from '../notice.js';
 import { copyText } from '../download.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
 import { bookKey, esc, joinPassages, mergePassages, pluralize, splitPassages } from '../util.js';
@@ -90,8 +91,8 @@ export async function renderAtelier(view, params) {
         <textarea id="f-passages" rows="12" placeholder="Collez ici votre sélection. Séparez les passages par une ligne vide.">${esc(v.passages)}</textarea>
       </label>
       <label class="case-simple captures"><input type="checkbox" id="f-captures"${v.captures ? ' checked' : ''}>
-        <span>J'ai des <strong>captures d'écran</strong> de mes passages (je les joindrai dans ${esc(ia.label)})</span></label>
-      <p class="petit" id="aide-captures" ${v.captures ? '' : 'hidden'}>Avec des captures, la zone de texte ci-dessus est facultative. ${esc(ia.label)} recopiera lui-même les passages surlignés de vos captures, et l'appli les ajoutera à cette fiche.</p>
+        <span>J'ai des <strong>captures d'écran</strong> du texte à résumer (je les joindrai dans ${esc(ia.label)})</span></label>
+      <p class="petit" id="aide-captures" ${v.captures ? '' : 'hidden'}>Avec des captures, la zone de texte ci-dessus est facultative. ${esc(ia.label)} résumera <strong>tout le texte visible</strong> sur vos captures, surligné ou non. Ajoutez aussi, si vous voulez, une capture de la page d'informations du livre (éditeur, ISBN) ou de la bibliographie : elles iront au verso de la fiche A4.</p>
       <button class="lien" id="enregistrer">Enregistrer pour plus tard</button>
     </div>
 
@@ -104,6 +105,12 @@ export async function renderAtelier(view, params) {
         <li>Collez la demande dans la zone de message (appui long puis « Coller »), puis envoyez.</li>
       </ol>
       <button class="btn primaire" id="copier">Copier la demande et ouvrir ${esc(ia.label)}</button>
+      ${book?.fiche
+        ? `<div class="notice-seule">
+            <p class="petit"><strong>Seulement la notice et la bibliographie ?</strong> Sans refaire le résumé : touchez ce bouton, joignez dans ${esc(ia.label)} vos captures de la page d'informations du livre (éditeur, ISBN…) ou de la bibliographie, collez, envoyez, puis recollez la réponse à l'étape 3.</p>
+            <button class="btn" id="copier-notice">Copier la demande « notice et bibliographie »</button>
+          </div>`
+        : ''}
       <div id="secours" hidden>
         <p class="petit">La copie automatique n'a pas marché : sélectionnez tout le texte ci-dessous et copiez-le.</p>
         <textarea id="demande" rows="8" readonly></textarea>
@@ -248,20 +255,30 @@ export async function renderAtelier(view, params) {
     if (await persist()) toast('Enregistré. Vous retrouverez cette fiche « à terminer » dans votre livre.', 'ok');
   });
 
-  $('#copier', view).addEventListener('click', async () => {
-    const saved = await persist();
-    if (!saved) return;
-    const prompt = buildPrompt(saved);
+  async function copyAndOpen(prompt, message) {
     const ok = await copyText(prompt);
     if (ok) {
       $('#secours', view).hidden = true;
       window.open(ia.url, '_blank', 'noopener');
-      toast(`Demande copiée ✓ Collez-la dans ${ia.label}, puis revenez ici avec la réponse.`, 'ok', 8000);
+      toast(message, 'ok', 8000);
     } else {
       $('#secours', view).hidden = false;
       $('#demande', view).value = prompt;
       $('#demande', view).select();
     }
+  }
+
+  $('#copier', view).addEventListener('click', async () => {
+    const saved = await persist();
+    if (!saved) return;
+    await copyAndOpen(buildPrompt(saved), `Demande copiée ✓ Collez-la dans ${ia.label}, puis revenez ici avec la réponse.`);
+  });
+
+  $('#copier-notice', view)?.addEventListener('click', async () => {
+    await copyAndOpen(
+      buildNoticePrompt(book),
+      `Demande copiée ✓ Dans ${ia.label}, joignez vos captures (page d'informations, bibliographie), collez, envoyez, puis recollez la réponse à l'étape 3.`,
+    );
   });
 
   $('#coller', view)?.addEventListener('click', async () => {
@@ -291,22 +308,38 @@ export async function renderAtelier(view, params) {
     }
     const saved = await persist();
     if (!saved) return;
+    const { patch, changed } = applyNotice(saved, result.notice, result.bibliographie);
+    const noticeMsg = changed ? ` Notice complétée (${pluralize(changed, 'information', 'informations')}).` : '';
+
+    // Réponse « notice et bibliographie seulement » : la fiche n'est pas touchée.
+    if (result.partial) {
+      await saveBook({ ...saved, ...patch });
+      clearDraft(draftKey);
+      toast(
+        changed
+          ? `Notice et bibliographie mises à jour ✓${noticeMsg}`
+          : "Rien de nouveau : Claude n'a trouvé aucune information de notice ou de bibliographie dans vos captures (ou elles étaient déjà là).",
+        changed ? 'ok' : 'attention',
+        8000,
+      );
+      location.hash = '#/?ch=' + saved.id;
+      return;
+    }
+
     if (saved.fiche && saved.ficheEditedByHand &&
       !confirm('Vous aviez modifié cette fiche à la main. La remplacer par cette nouvelle réponse ?')) return;
     // Passages recopiés par Claude depuis les captures d'écran : ajoutés à ceux de la fiche.
     const allPassages = mergePassages(saved.passages, result.passages);
     const fromCaptures = allPassages.length - saved.passages.length;
-    const missing = checkCitations(result.fiche, allPassages);
-    await saveBook({ ...saved, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false });
+    // Avec des captures, le texte source est dans les images : les citations ne peuvent pas être vérifiées.
+    const missing = saved.captures ? 0 : checkCitations(result.fiche, allPassages);
+    await saveBook({ ...saved, ...patch, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false });
     clearDraft(draftKey);
-    const extra = fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'passage recopié', 'passages recopiés')} depuis vos captures.` : '';
+    const extra = (fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'passage recopié', 'passages recopiés')} depuis vos captures.` : '') + noticeMsg;
     if (missing) {
       toast(`Fiche ajoutée.${extra} ${missing > 1 ? `${missing} citations ne figurent` : '1 citation ne figure'} pas mot pour mot dans vos passages : ${missing > 1 ? 'elles sont signalées' : 'elle est signalée'} en orange.`, 'attention', 9000);
     } else {
       toast(`Fiche ajoutée à votre livre ✓${extra}`, 'ok', 6000);
-    }
-    if (saved.captures && !result.passages.length) {
-      toast("Fiche ajoutée, mais Claude n'a pas recopié les passages de vos captures : les citations n'ont pas pu être vérifiées.", 'attention', 9000);
     }
     location.hash = '#/?ch=' + saved.id;
   });

@@ -1,5 +1,6 @@
 // Préparation de la demande pour Claude, et lecture / vérification de sa réponse.
 import { normalizeQuote } from './util.js';
+import { readBibliographie, readNotice } from './notice.js';
 
 export const LANGUES = ['français', 'anglais', 'espagnol', 'allemand', 'italien', 'portugais'];
 
@@ -21,19 +22,29 @@ const EXEMPLE = `{
   "pour_qui": "À qui je recommanderais ce livre, en 1 à 2 phrases."
 }`;
 
-const EXEMPLE_CAPTURES = EXEMPLE.replace(
-  '{\n',
-  '{\n  "passages": ["Premier passage surligné recopié mot pour mot depuis mes captures.", "Deuxième passage."],\n',
+const EXEMPLE_NOTICE = `"notice": { "editeur": "", "collection": "", "edition": "", "traduction": "", "isbn": "", "pages": "", "date_parution": "" },
+  "bibliographie": ["Référence recopiée telle quelle depuis une capture."]`;
+
+const EXEMPLE_CAPTURES = EXEMPLE.replace('{\n', `{\n  ${EXEMPLE_NOTICE},\n`).replace(
+  'Extrait recopié mot pour mot de mes passages.',
+  'Extrait recopié mot pour mot depuis le texte de mes captures.',
 );
 
-/** Texte complet à coller dans Claude. Avec `book.captures`, Claude lit aussi les captures d'écran jointes. */
+const CONSIGNES_NOTICE = `- Si une capture montre les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis "notice" uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse "" tout ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.
+- Si une capture montre une bibliographie, des références ou des sources, recopie chaque référence telle quelle dans "bibliographie" (un élément par référence).
+- Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé ni pour les citations.`;
+
+/** Texte complet à coller dans Claude. Avec `book.captures`, Claude résume le texte des captures d'écran jointes. */
 export function buildPrompt(book) {
   const L = LONGUEURS[book.length] || LONGUEURS.moyen;
   const langue = book.lang || 'français';
   const captures = !!book.captures;
   const passages = (book.passages || []).map((p, i) => `[${i + 1}] ${p}`).join('\n\n');
-  const source = captures ? 'MES PASSAGES (ceux écrits ci-dessous et ceux de mes captures)' : 'MES PASSAGES ci-dessous';
-  return `Tu rédiges une fiche de lecture pour mon livre de lectures personnel, à partir des passages que j'ai surlignés.
+  const source = captures ? 'LE TEXTE DE MES CAPTURES (et mes passages écrits ci-dessous, s\'il y en a)' : 'MES PASSAGES ci-dessous';
+  const citeFrom = captures ? 'depuis le texte de mes captures ou mes passages écrits' : 'depuis mes passages';
+  return `Tu rédiges une fiche de lecture pour mon livre de lectures personnel, à partir ${
+    captures ? 'du texte de mes captures d\'écran' : 'des passages que j\'ai surlignés'
+  }.
 
 LIVRE
 - Titre : ${book.title || '(inconnu)'}
@@ -41,15 +52,17 @@ LIVRE
 - Date de parution : ${book.pubDate || '(non précisée)'}
 ${captures ? `
 CAPTURES D'ÉCRAN
-J'ai joint à ce message des captures d'écran de ma lecture (liseuse, appli Kindle ou photo de page).
-a. Si du texte est surligné (en couleur), ne garde que les passages surlignés. Sinon, garde tout le texte du livre visible.
+J'ai joint à ce message des captures d'écran de pages du livre (liseuse, appli Kindle ou photo de page).
+a. Lis TOUT le texte du livre visible sur les captures, dans l'ordre des captures, qu'il soit surligné ou non. C'est ce texte que tu dois résumer.
 b. Ignore tout ce qui n'est pas le texte du livre : menus, boutons, heure, batterie, numéros de page ou d'emplacement, titres de l'appli.
-c. Recopie chaque passage MOT POUR MOT dans la clé "passages" (un élément par passage, dans l'ordre des captures), sans corriger ni résumer. Recolle les mots coupés par un tiret en fin de ligne.
-d. Si un mot est illisible, écris [illisible] à sa place plutôt que de deviner.
+c. Ne recopie pas tout le texte dans ta réponse : résume-le. Seules les citations sont recopiées mot pour mot.
+d. Si un mot est illisible, ne l'invente pas.
+e. Notice et bibliographie :
+${CONSIGNES_NOTICE}
 ` : ''}
 RÈGLES
-1. Appuie-toi d'abord sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais d'intrigue, de personnage ou d'événement. En cas de doute, reste sur ce que disent mes passages.
-2. Les citations doivent être recopiées MOT POUR MOT depuis mes passages, et uniquement depuis eux (tu peux en prendre un extrait, sans rien changer à l'intérieur). Garde leur langue d'origine.
+1. Appuie-toi d'abord sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais d'intrigue, de personnage ou d'événement. En cas de doute, reste sur ce que dit ${captures ? 'le texte' : 'mes passages'}.
+2. Les citations doivent être recopiées MOT POUR MOT ${citeFrom}, et uniquement de là (tu peux en prendre un extrait, sans rien changer à l'intérieur). Garde leur langue d'origine.
 3. Rédige tout le reste de la fiche en ${langue}.
 4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, ${L.citations} citations (moins si mes passages ne suffisent pas).
 5. Pour un essai ou un livre sans personnages, mets "personnages_titre": "Notions clés" et présente les notions principales dans "personnages" (nom = la notion, role = son explication).
@@ -57,8 +70,21 @@ RÈGLES
 
 ${captures ? EXEMPLE_CAPTURES : EXEMPLE}
 
-MES PASSAGES SURLIGNÉS${captures ? ' (EN PLUS DE MES CAPTURES)' : ''}
+MES PASSAGES ${captures ? 'ÉCRITS (EN PLUS DE MES CAPTURES)' : 'SURLIGNÉS'}
 ${passages || (captures ? '(aucun : tout est dans mes captures)' : '(aucun passage)')}`;
+}
+
+/** Demande courte : seulement la notice et la bibliographie, depuis des captures (la fiche n'est pas refaite). */
+export function buildNoticePrompt(book) {
+  return `J'ai joint à ce message des captures d'écran concernant le livre « ${book.title || '(inconnu)'} »${book.author ? ` de ${book.author}` : ''}.
+Ne rédige pas de résumé. Lis seulement les captures et complète ma notice bibliographique :
+${CONSIGNES_NOTICE}
+
+Réponds UNIQUEMENT avec un objet JSON valide, dans un bloc de code \`\`\`json, sans aucun texte avant ou après, avec exactement ces clés :
+
+{
+  ${EXEMPLE_NOTICE}
+}`;
 }
 
 /** Extrait l'objet JSON d'une réponse (avec ou sans bloc de code, avec du texte autour). */
@@ -95,6 +121,13 @@ export function parseAnswer(text) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return { ok: false, errors: ['La réponse doit être un objet JSON { ... }.'] };
   }
+  const notice = readNotice(data.notice);
+  const bibliographie = readBibliographie(data.bibliographie);
+  // Réponse « notice seulement » : aucune rubrique de fiche, seulement notice et/ou bibliographie.
+  const ficheKeys = ['accroche', 'resume', 'idees_cles', 'citations', 'a_retenir', 'pour_qui'];
+  if (!ficheKeys.some((k) => k in data) && ('notice' in data || 'bibliographie' in data)) {
+    return { ok: true, partial: true, fiche: null, passages: [], notice, bibliographie };
+  }
   const fiche = {
     genre: str(data.genre),
     accroche: str(data.accroche),
@@ -119,7 +152,7 @@ export function parseAnswer(text) {
     .map((p) => (typeof p === 'string' ? p : str(p?.texte)))
     .map((p) => stripQuotes(p).replace(/\s+/g, ' '))
     .filter(Boolean);
-  return { ok: true, fiche, passages };
+  return { ok: true, fiche, passages, notice, bibliographie };
 }
 
 /** Marque les citations qui ne figurent pas mot pour mot dans les passages. */

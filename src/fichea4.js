@@ -11,12 +11,9 @@ const RULE = '#e4dccb';
 export const SCALES = [1, 0.94, 0.88, 0.82, 0.77, 0.72, 0.67, 0.62];
 const MARGINS = [50, 46, 50, 46];
 
-export const NOTICE_FIELDS = [
-  ['editeur', 'Éditeur'],
-  ['collection', 'Collection'],
-  ['isbn', 'ISBN'],
-  ['dateLecture', 'Date de lecture'],
-];
+import { NOTICE_FIELDS } from './notice.js';
+
+export { NOTICE_FIELDS };
 
 const byline = (b) => [b.author, b.pubDate].filter(Boolean).join(' · ');
 
@@ -147,6 +144,15 @@ export function verso(book, s = 1) {
     },
     margin: [0, 0, 0, 14 * s],
   });
+
+  if (book.bibliographie?.length) {
+    out.push(label('Bibliographie', s, { margin: [0, 0, 0, 6 * s] }));
+    out.push({
+      ul: book.bibliographie.map((r) => ({ text: r, fontSize: 9.3 * s, lineHeight: 1.28, margin: [0, 0, 0, 3 * s] })),
+      markerColor: ACCENT,
+      margin: [0, 0, 0, 14 * s],
+    });
+  }
 
   if (f.citations?.length) {
     out.push(label('Citations', s, { margin: [0, 0, 0, 8 * s] }));

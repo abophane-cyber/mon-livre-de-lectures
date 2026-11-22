@@ -245,6 +245,12 @@ mark {
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--filet); font-family: var(--sans); }
 .actions .btn { min-height: 40px; padding: 8px 14px; font-size: 0.88rem; }
 
+.notice-liste { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; font-size: 0.95rem; }
+.notice-liste dt { color: var(--encre-douce); font-family: var(--sans); font-size: 0.85rem; padding-top: 2px; }
+.notice-liste dd { margin: 0; }
+.biblio { padding-left: 1.1em; font-size: 0.93rem; }
+.biblio li { margin-bottom: 4px; }
+.notice-seule { margin-top: 16px; padding-top: 12px; border-top: 1px dotted var(--filet); }
 .notice { margin: 4px 0 14px; }
 .notice summary { cursor: pointer; color: var(--accent); font-weight: 500; font-size: 0.92rem; padding: 6px 0; }
 .case-simple { flex-direction: row; align-items: center; gap: 10px; font-weight: 400; }
