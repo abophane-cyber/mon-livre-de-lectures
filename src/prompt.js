@@ -17,7 +17,7 @@ const EXEMPLE = `{
   "idees_cles": [{ "titre": "Titre court", "texte": "Explication en 2 à 4 phrases." }],
   "personnages_titre": "Personnages",
   "personnages": [{ "nom": "Nom", "role": "Qui il est et son rôle dans le livre." }],
-  "citations": [{ "texte": "Extrait recopié mot pour mot de mes passages.", "commentaire": "Pourquoi ce passage compte." }],
+  "citations": [{ "texte": "Extrait recopié mot pour mot de mon texte.", "commentaire": "Pourquoi cet extrait compte." }],
   "a_retenir": "Ce qu'il faut garder du livre, en 2 à 4 phrases.",
   "pour_qui": "À qui je recommanderais ce livre, en 1 à 2 phrases."
 }`;
@@ -26,7 +26,7 @@ const EXEMPLE_NOTICE = `"notice": { "editeur": "", "collection": "", "edition": 
   "bibliographie": ["Référence recopiée telle quelle depuis une capture."]`;
 
 const EXEMPLE_CAPTURES = EXEMPLE.replace('{\n', `{\n  ${EXEMPLE_NOTICE},\n`).replace(
-  'Extrait recopié mot pour mot de mes passages.',
+  'Extrait recopié mot pour mot de mon texte.',
   'Extrait recopié mot pour mot depuis le texte de mes captures.',
 );
 
@@ -40,11 +40,11 @@ export function buildPrompt(book) {
   const langue = book.lang || 'français';
   const captures = !!book.captures;
   const passages = (book.passages || []).map((p, i) => `[${i + 1}] ${p}`).join('\n\n');
-  const source = captures ? 'LE TEXTE DE MES CAPTURES (et mes passages écrits ci-dessous, s\'il y en a)' : 'MES PASSAGES ci-dessous';
-  const citeFrom = captures ? 'depuis le texte de mes captures ou mes passages écrits' : 'depuis mes passages';
+  const source = captures ? 'LE TEXTE DE MES CAPTURES (et mon texte écrit ci-dessous, s\'il y en a)' : 'MON TEXTE ci-dessous';
+  const citeFrom = captures ? 'depuis le texte de mes captures ou mon texte écrit' : 'depuis mon texte';
   return `Tu rédiges une fiche de lecture pour mon livre de lectures personnel, à partir ${
-    captures ? 'du texte de mes captures d\'écran' : 'des passages que j\'ai surlignés'
-  }.
+    captures ? 'du texte de mes captures d\'écran' : 'du texte que je te donne ci-dessous'
+  }. C'est ce texte que tu résumes.
 
 LIVRE
 - Titre : ${book.title || '(inconnu)'}
@@ -61,17 +61,17 @@ e. Notice et bibliographie :
 ${CONSIGNES_NOTICE}
 ` : ''}
 RÈGLES
-1. Appuie-toi d'abord sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais d'intrigue, de personnage ou d'événement. En cas de doute, reste sur ce que dit ${captures ? 'le texte' : 'mes passages'}.
+1. Appuie-toi d'abord sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais d'intrigue, de personnage ou d'événement. En cas de doute, reste sur ce que dit le texte.
 2. Les citations doivent être recopiées MOT POUR MOT ${citeFrom}, et uniquement de là (tu peux en prendre un extrait, sans rien changer à l'intérieur). Garde leur langue d'origine.
 3. Rédige tout le reste de la fiche en ${langue}.
-4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, ${L.citations} citations (moins si mes passages ne suffisent pas).
+4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, ${L.citations} citations (moins si le texte ne suffit pas).
 5. Pour un essai ou un livre sans personnages, mets "personnages_titre": "Notions clés" et présente les notions principales dans "personnages" (nom = la notion, role = son explication).
 6. Réponds UNIQUEMENT avec un objet JSON valide, dans un bloc de code \`\`\`json, sans aucun texte avant ou après. Utilise exactement ces clés :
 
 ${captures ? EXEMPLE_CAPTURES : EXEMPLE}
 
-MES PASSAGES ${captures ? 'ÉCRITS (EN PLUS DE MES CAPTURES)' : 'SURLIGNÉS'}
-${passages || (captures ? '(aucun : tout est dans mes captures)' : '(aucun passage)')}`;
+MON TEXTE${captures ? ' ÉCRIT (EN PLUS DE MES CAPTURES)' : ''}
+${passages || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')}`;
 }
 
 /** Demande courte : seulement la notice et la bibliographie, depuis des captures (la fiche n'est pas refaite). */
@@ -173,9 +173,9 @@ export function buildFixPrompt({ errors = [], badCitations = [] }) {
   const lines = ['Ta réponse ne convient pas encore :'];
   for (const e of errors) lines.push(`- ${e}`);
   if (badCitations.length) {
-    lines.push('- Ces citations ne figurent pas mot pour mot dans mes passages :');
+    lines.push('- Ces citations ne figurent pas mot pour mot dans mon texte :');
     for (const c of badCitations) lines.push(`  « ${c} »`);
-    lines.push('  Remplace-les par des extraits recopiés exactement depuis mes passages.');
+    lines.push('  Remplace-les par des extraits recopiés exactement depuis mon texte.');
   }
   lines.push('', 'Renvoie la fiche complète corrigée, uniquement en JSON valide dans un bloc ```json, avec les mêmes clés.');
   return lines.join('\n');

@@ -1,14 +1,14 @@
 # Mon livre de lectures
 
-Appli personnelle qui transforme mes surlignements Kindle en fiches de lecture, rassemblées dans un livre exportable en PDF pour l'impression. Elle s'installe sur l'écran d'accueil du téléphone et fonctionne hors connexion.
+Appli personnelle qui transforme le texte que je lui donne (copié-collé, captures d'écran ou `My Clippings.txt` de la Kindle) en fiches de lecture, rassemblées dans un livre exportable en PDF pour l'impression, ou en fiches A4 recto-verso. Elle s'installe sur l'écran d'accueil du téléphone et fonctionne hors connexion.
 
 ## Comment ça marche
 
-1. **Nouvelle fiche** : je colle mes passages, ou j'importe `My Clippings.txt` depuis la liseuse (branchée en USB, dossier `documents`) et je choisis un livre.
+1. **Nouvelle fiche** : je colle le texte à résumer, ou je coche « captures d'écran » (je les joindrai dans Claude), ou j'importe `My Clippings.txt` depuis la liseuse (branchée en USB, dossier `documents`) et je choisis un livre.
 2. **Copier la demande et ouvrir Claude** : je colle la demande dans Claude (gratuit), j'envoie.
 3. Je copie la réponse de Claude, je la colle dans l'appli, puis **Ajouter à mon livre**.
 
-Un livre = une fiche. Si j'ajoute des passages à un livre qui existe déjà, ils s'ajoutent aux anciens et je refais le résumé.
+Un livre = une fiche. Si j'ajoute du texte à un livre qui existe déjà, il s'ajoute à l'ancien et je refais le résumé.
 
 ## Mes données
 

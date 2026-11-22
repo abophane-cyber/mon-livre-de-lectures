@@ -51,10 +51,10 @@ export async function renderAtelier(view, params) {
 
   view.innerHTML = `<section class="page atelier">
     <h1>${book ? `Compléter « ${esc(book.title)} »` : 'Nouvelle fiche'}</h1>
-    ${book?.fiche ? '<p class="petit">Ajoutez vos nouveaux passages à la fin de la liste, puis refaites le résumé : la nouvelle réponse remplacera la fiche actuelle.</p>' : ''}
+    ${book?.fiche ? '<p class="petit">Ajoutez du texte à la fin si vous voulez, puis refaites le résumé : la nouvelle réponse remplacera la fiche actuelle.</p>' : ''}
 
     <div class="etape">
-      <h2><span class="pastille">1</span> Le livre et vos passages</h2>
+      <h2><span class="pastille">1</span> Le livre et le texte à résumer</h2>
       <div class="import">
         <label class="btn" for="fichier-clippings">Importer My Clippings.txt</label>
         <input type="file" id="fichier-clippings" accept=".txt,text/plain" hidden>
@@ -87,18 +87,19 @@ export async function renderAtelier(view, params) {
           )
           .join('')}
       </fieldset>
-      <label class="bloc">Vos passages surlignés <span class="petit" id="compte"></span>
-        <textarea id="f-passages" rows="12" placeholder="Collez ici votre sélection. Séparez les passages par une ligne vide.">${esc(v.passages)}</textarea>
-      </label>
       <label class="case-simple captures"><input type="checkbox" id="f-captures"${v.captures ? ' checked' : ''}>
         <span>J'ai des <strong>captures d'écran</strong> du texte à résumer (je les joindrai dans ${esc(ia.label)})</span></label>
-      <p class="petit" id="aide-captures" ${v.captures ? '' : 'hidden'}>Avec des captures, la zone de texte ci-dessus est facultative. ${esc(ia.label)} résumera <strong>tout le texte visible</strong> sur vos captures, surligné ou non. Ajoutez aussi, si vous voulez, une capture de la page d'informations du livre (éditeur, ISBN) ou de la bibliographie : elles iront au verso de la fiche A4.</p>
+      <p class="petit" id="aide-captures" ${v.captures ? '' : 'hidden'}>${esc(ia.label)} résumera <strong>tout le texte visible</strong> sur vos captures, surligné ou non. Ajoutez aussi, si vous voulez, une capture de la page d'informations du livre (éditeur, ISBN) ou de la bibliographie : elles iront au verso de la fiche A4.</p>
+      <button class="lien" id="montrer-passages" type="button" ${v.captures && !v.passages.trim() ? '' : 'hidden'}>+ Ajouter aussi du texte copié-collé</button>
+      <label class="bloc" id="bloc-passages" ${v.captures && !v.passages.trim() ? 'hidden' : ''}>Le texte à résumer <span class="petit" id="compte"></span>
+        <textarea id="f-passages" rows="12" placeholder="Collez ici le texte à résumer : un extrait, un chapitre, vos passages préférés…">${esc(v.passages)}</textarea>
+      </label>
       <button class="lien" id="enregistrer">Enregistrer pour plus tard</button>
     </div>
 
     <div class="etape">
       <h2><span class="pastille">2</span> Demander le résumé à ${esc(ia.label)}</h2>
-      <p class="petit" id="aide-sans-captures" ${v.captures ? 'hidden' : ''}>L'appli copie une demande complète (avec vos règles et vos passages) et ouvre ${esc(ia.label)}. Là-bas, collez-la (appui long puis « Coller » sur le téléphone, Ctrl+V sur l'ordinateur) et envoyez.</p>
+      <p class="petit" id="aide-sans-captures" ${v.captures ? 'hidden' : ''}>L'appli copie une demande complète (avec vos règles et votre texte) et ouvre ${esc(ia.label)}. Là-bas, collez-la (appui long puis « Coller » sur le téléphone, Ctrl+V sur l'ordinateur) et envoyez.</p>
       <ol class="petit instructions" id="aide-avec-captures" ${v.captures ? '' : 'hidden'}>
         <li>Touchez le bouton ci-dessous : la demande est copiée et ${esc(ia.label)} s'ouvre.</li>
         <li>Dans ${esc(ia.label)}, touchez <strong>+</strong> (ou le trombone 📎), puis choisissez vos captures d'écran dans vos photos (20 au maximum par message).</li>
@@ -149,7 +150,8 @@ export async function renderAtelier(view, params) {
     ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, $(`#f-${k}`, view).value.trim()])),
   });
   const updateCount = () => {
-    $('#compte', view).textContent = `(${pluralize(splitPassages(el.passages.value).length, 'passage', 'passages')})`;
+    const mots = el.passages.value.trim() ? el.passages.value.trim().split(/\s+/).length : 0;
+    $('#compte', view).textContent = mots ? `(${pluralize(mots.toLocaleString('fr-FR'), 'mot', 'mots')})` : '';
   };
   updateCount();
   view.oninput = () => {
@@ -161,7 +163,16 @@ export async function renderAtelier(view, params) {
     $('#aide-captures', view).hidden = !on;
     $('#aide-avec-captures', view).hidden = !on;
     $('#aide-sans-captures', view).hidden = on;
+    // En mode captures, la zone de texte est masquée (sauf si elle contient déjà du texte).
+    const empty = !el.passages.value.trim();
+    $('#bloc-passages', view).hidden = on && empty;
+    $('#montrer-passages', view).hidden = !(on && empty);
     saveDraft(draftKey, readForm());
+  });
+  $('#montrer-passages', view).addEventListener('click', () => {
+    $('#bloc-passages', view).hidden = false;
+    $('#montrer-passages', view).hidden = true;
+    el.passages.focus();
   });
 
   /** Enregistre le livre (création, ou ajout au livre existant du même titre et auteur). */
@@ -174,7 +185,7 @@ export async function renderAtelier(view, params) {
     }
     const passages = splitPassages(f.passages);
     if (!passages.length && !f.captures) {
-      toast("Collez au moins un passage, ou cochez « J'ai des captures d'écran ».", 'erreur', 6000);
+      toast("Collez le texte à résumer, ou cochez « J'ai des captures d'écran ».", 'erreur', 6000);
       el.passages.focus();
       return null;
     }
@@ -194,7 +205,7 @@ export async function renderAtelier(view, params) {
         // Ne pas effacer ce qui était déjà renseigné (date, ISBN…) avec des champs laissés vides.
         const filled = Object.fromEntries(Object.entries(meta).filter(([, val]) => val !== ''));
         book = await saveBook({ ...twin, ...filled, passages: mergePassages(twin.passages, passages) });
-        toast(`Ce livre avait déjà une fiche : vos passages y ont été ajoutés.`, 'info', 6000);
+        toast(`Ce livre avait déjà une fiche : votre texte y a été ajouté.`, 'info', 6000);
       } else {
         book = await saveBook({ ...meta, passages });
       }
@@ -242,13 +253,13 @@ export async function renderAtelier(view, params) {
       el.title.value = chosen.title;
       el.author.value = chosen.author;
     }
-    if (!sameBook && !confirm(`Ajouter les passages de « ${chosen.title} » à « ${el.title.value} » ?`)) return;
+    if (!sameBook && !confirm(`Ajouter le texte de « ${chosen.title} » à « ${el.title.value} » ?`)) return;
     const before = splitPassages(el.passages.value);
     const merged = mergePassages(before, chosen.passages);
     el.passages.value = joinPassages(merged);
     saveDraft(draftKey, readForm());
     updateCount();
-    toast(`${pluralize(merged.length - before.length, 'nouveau passage ajouté', 'nouveaux passages ajoutés')}.`, 'ok');
+    toast(`${pluralize(merged.length - before.length, 'nouvel extrait ajouté', 'nouveaux extraits ajoutés')}.`, 'ok');
   });
 
   $('#enregistrer', view).addEventListener('click', async () => {
@@ -335,9 +346,9 @@ export async function renderAtelier(view, params) {
     const missing = saved.captures ? 0 : checkCitations(result.fiche, allPassages);
     await saveBook({ ...saved, ...patch, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false });
     clearDraft(draftKey);
-    const extra = (fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'passage recopié', 'passages recopiés')} depuis vos captures.` : '') + noticeMsg;
+    const extra = (fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'extrait recopié', 'extraits recopiés')} depuis vos captures.` : '') + noticeMsg;
     if (missing) {
-      toast(`Fiche ajoutée.${extra} ${missing > 1 ? `${missing} citations ne figurent` : '1 citation ne figure'} pas mot pour mot dans vos passages : ${missing > 1 ? 'elles sont signalées' : 'elle est signalée'} en orange.`, 'attention', 9000);
+      toast(`Fiche ajoutée.${extra} ${missing > 1 ? `${missing} citations ne figurent` : '1 citation ne figure'} pas mot pour mot dans votre texte : ${missing > 1 ? 'elles sont signalées' : 'elle est signalée'} en orange.`, 'attention', 9000);
     } else {
       toast(`Fiche ajoutée à votre livre ✓${extra}`, 'ok', 6000);
     }

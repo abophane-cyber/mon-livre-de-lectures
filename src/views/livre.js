@@ -39,7 +39,7 @@ function renderFiche(book) {
           (c) => `<figure class="citation${c.introuvable ? ' suspecte' : ''}">
             <blockquote><mark>« ${esc(c.texte)} »</mark></blockquote>
             ${c.commentaire ? `<figcaption>${esc(c.commentaire)}</figcaption>` : ''}
-            ${c.introuvable ? '<p class="alerte">⚠ Cette citation ne figure pas mot pour mot dans vos passages.</p>' : ''}
+            ${c.introuvable ? '<p class="alerte">⚠ Cette citation ne figure pas mot pour mot dans votre texte.</p>' : ''}
           </figure>`,
         )
         .join('')}`,
@@ -71,7 +71,7 @@ function renderChapter(book, index) {
   const meta = [book.author, book.pubDate, book.fiche?.genre].filter(Boolean).map(esc).join(' · ');
   const body = book.fiche
     ? renderFiche(book)
-    : `<div class="attente"><p>Cette fiche attend encore son résumé (${pluralize(book.passages.length, 'passage', 'passages')} enregistrés).</p>
+    : `<div class="attente"><p>Cette fiche attend encore son résumé${book.passages.length ? ' (texte enregistré)' : ''}.</p>
        <a class="btn primaire" href="#/livre/${esc(book.id)}">Terminer la fiche</a></div>`;
   return `<article class="chapitre page" id="ch-${esc(book.id)}">
     <p class="chapitre-num">Chapitre ${index + 1}</p>
@@ -82,7 +82,7 @@ function renderChapter(book, index) {
     <div class="actions">
       ${book.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}">Fiche A4 recto-verso</button>` : ''}
       <a class="btn" href="#/modifier/${esc(book.id)}">Modifier le texte</a>
-      <a class="btn" href="#/livre/${esc(book.id)}">Ajouter des passages / refaire le résumé</a>
+      <a class="btn" href="#/livre/${esc(book.id)}">Compléter le texte / refaire le résumé</a>
       <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">Supprimer</button>
     </div>
   </article>`;
@@ -192,7 +192,7 @@ export async function renderLivre(view, params) {
     if (btn.dataset.action === 'corriger') {
       const bad = book.fiche.citations.filter((c) => c.introuvable).map((c) => c.texte);
       const ok = await copyText(buildFixPrompt({ badCitations: bad }));
-      toast(ok ? 'Demande copiée. Collez-la dans la conversation Claude de ce livre, puis recollez la réponse dans « Ajouter des passages / refaire le résumé ».' : 'La copie a échoué.', ok ? 'ok' : 'erreur', 8000);
+      toast(ok ? 'Demande copiée. Collez-la dans la conversation Claude de ce livre, puis recollez la réponse dans « Compléter le texte / refaire le résumé ».' : 'La copie a échoué.', ok ? 'ok' : 'erreur', 8000);
     }
   };
 
