@@ -67,7 +67,7 @@ test('parseAnswer : erreurs claires', () => {
   assert.equal(parseAnswer('pas de json').ok, false);
   const r = parseAnswer('{"genre":"Roman"}');
   assert.equal(r.ok, false);
-  assert.ok(r.errors.some((e) => e.includes('accroche')));
+  assert.ok(r.errors.some((e) => e.includes('ACCROCHE')));
 });
 
 test('checkCitations : guillemets, apostrophes courbes et coupures […]', () => {
@@ -85,14 +85,14 @@ test('checkCitations : guillemets, apostrophes courbes et coupures […]', () =>
 test('buildPrompt contient les règles et les passages', () => {
   const p = buildPrompt({ title: 'T', author: 'A', passages: ['un', 'deux'], length: 'court', lang: 'français' });
   assert.match(p, /MOT POUR MOT/);
-  assert.match(p, /\[2\] deux/);
+  assert.match(p, /MON TEXTE\nun\n\ndeux/);
 });
 
 test('captures d\'écran : la demande et la lecture des passages recopiés', () => {
   const p = buildPrompt({ title: 'T', author: 'A', passages: [], captures: true });
   assert.match(p, /CAPTURES D'ÉCRAN/);
   assert.match(p, /TOUT le texte du livre visible/);
-  assert.match(p, /"notice": \{/);
+  assert.match(p, /## NOTICE/);
   assert.doesNotMatch(p, /"passages": \[/);
   assert.match(p, /tout est dans mes captures/);
   assert.doesNotMatch(buildPrompt({ title: 'T', passages: ['x'] }), /CAPTURES/);

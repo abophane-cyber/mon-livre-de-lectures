@@ -120,7 +120,7 @@ export async function renderAtelier(view, params) {
 
     <div class="etape">
       <h2><span class="pastille">3</span> Coller la réponse de ${esc(ia.label)}</h2>
-      <p class="petit">Dans ${esc(ia.label)}, copiez toute la réponse (bouton « Copier » sous le bloc de code), revenez ici et collez-la.</p>
+      <p class="petit">Dans ${esc(ia.label)}, copiez toute la réponse avec le bouton <strong>Copier</strong> (les deux petits carrés sous la réponse), revenez ici et collez-la. Une phrase en plus avant ou après ne gêne pas.</p>
       <textarea id="f-answer" rows="8" placeholder="Collez ici la réponse de ${esc(ia.label)}">${esc(v.answer)}</textarea>
       <div class="rangee">
         ${navigator.clipboard?.readText ? '<button class="btn" id="coller">Coller</button>' : ''}

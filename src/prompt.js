@@ -1,6 +1,9 @@
 // Préparation de la demande pour Claude, et lecture / vérification de sa réponse.
+// La fiche est demandée en texte à titres (Claude le fait naturellement sur claude.ai) ;
+// l'ancien format JSON reste accepté.
 import { normalizeQuote } from './util.js';
 import { readBibliographie, readNotice } from './notice.js';
+import { parseTextAnswer } from './answer.js';
 
 export const LANGUES = ['français', 'anglais', 'espagnol', 'allemand', 'italien', 'portugais'];
 
@@ -10,36 +13,58 @@ export const LONGUEURS = {
   detaille: { label: 'Détaillé', resume: '5 à 8 paragraphes', idees: '6 à 8', citations: '5 à 8' },
 };
 
-const EXEMPLE = `{
-  "genre": "Roman",
-  "accroche": "Une seule phrase qui donne envie de lire le livre.",
-  "resume": ["Premier paragraphe.", "Deuxième paragraphe."],
-  "idees_cles": [{ "titre": "Titre court", "texte": "Explication en 2 à 4 phrases." }],
-  "personnages_titre": "Personnages",
-  "personnages": [{ "nom": "Nom", "role": "Qui il est et son rôle dans le livre." }],
-  "citations": [{ "texte": "Extrait recopié mot pour mot de mon texte.", "commentaire": "Pourquoi cet extrait compte." }],
-  "a_retenir": "Ce qu'il faut garder du livre, en 2 à 4 phrases.",
-  "pour_qui": "À qui je recommanderais ce livre, en 1 à 2 phrases."
-}`;
+const MODELE = `GENRE : Roman
+ACCROCHE : Une seule phrase qui donne envie de lire le livre.
 
-const EXEMPLE_NOTICE = `"notice": { "editeur": "", "collection": "", "edition": "", "traduction": "", "isbn": "", "pages": "", "date_parution": "" },
-  "bibliographie": ["Référence recopiée telle quelle depuis une capture."]`;
+## RÉSUMÉ
+Premier paragraphe.
 
-const EXEMPLE_CAPTURES = EXEMPLE.replace('{\n', `{\n  ${EXEMPLE_NOTICE},\n`).replace(
-  'Extrait recopié mot pour mot de mon texte.',
-  'Extrait recopié mot pour mot depuis le texte de mes captures.',
-);
+Deuxième paragraphe.
 
-const CONSIGNES_NOTICE = `- Si une capture montre les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis "notice" uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse "" tout ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.
-- Si une capture montre une bibliographie, des références ou des sources, recopie chaque référence telle quelle dans "bibliographie" (un élément par référence).
+## IDÉES CLÉS
+- **Titre court** : explication en 2 à 4 phrases.
+- **Autre idée** : explication.
+
+## PERSONNAGES
+- **Nom** : qui il est et son rôle dans le livre.
+
+## CITATIONS
+> « Extrait recopié mot pour mot. »
+Commentaire : pourquoi cet extrait compte.
+
+> « Autre extrait. »
+Commentaire : …
+
+## À RETENIR
+Ce qu'il faut garder du livre, en 2 à 4 phrases.
+
+## POUR QUI ?
+À qui je recommanderais ce livre, en 1 à 2 phrases.`;
+
+const MODELE_NOTICE = `## NOTICE
+- Éditeur :
+- Collection :
+- Édition :
+- Traduction :
+- ISBN :
+- Nombre de pages :
+- Date de parution :
+
+## BIBLIOGRAPHIE
+- Référence recopiée telle quelle.`;
+
+const CONSIGNES_NOTICE = `- Si une capture montre les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis la rubrique NOTICE uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse vide ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.
+- Si une capture montre une bibliographie, des références ou des sources, recopie chaque référence telle quelle dans la rubrique BIBLIOGRAPHIE (une par ligne).
 - Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé ni pour les citations.`;
+
+const CONSIGNE_FORMAT = `Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de bloc de code, pas de JSON. Suis exactement ce modèle, avec ces titres en majuscules et dans cet ordre, sans rien ajouter avant « GENRE » ni après la dernière rubrique :`;
 
 /** Texte complet à coller dans Claude. Avec `book.captures`, Claude résume le texte des captures d'écran jointes. */
 export function buildPrompt(book) {
   const L = LONGUEURS[book.length] || LONGUEURS.moyen;
   const langue = book.lang || 'français';
   const captures = !!book.captures;
-  const passages = (book.passages || []).map((p, i) => `[${i + 1}] ${p}`).join('\n\n');
+  const texte = (book.passages || []).join('\n\n');
   const source = captures ? 'LE TEXTE DE MES CAPTURES (et mon texte écrit ci-dessous, s\'il y en a)' : 'MON TEXTE ci-dessous';
   const citeFrom = captures ? 'depuis le texte de mes captures ou mon texte écrit' : 'depuis mon texte';
   return `Tu rédiges une fiche de lecture pour mon livre de lectures personnel, à partir ${
@@ -65,13 +90,13 @@ RÈGLES
 2. Les citations doivent être recopiées MOT POUR MOT ${citeFrom}, et uniquement de là (tu peux en prendre un extrait, sans rien changer à l'intérieur). Garde leur langue d'origine.
 3. Rédige tout le reste de la fiche en ${langue}.
 4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, ${L.citations} citations (moins si le texte ne suffit pas).
-5. Pour un essai ou un livre sans personnages, mets "personnages_titre": "Notions clés" et présente les notions principales dans "personnages" (nom = la notion, role = son explication).
-6. Réponds UNIQUEMENT avec un objet JSON valide, dans un bloc de code \`\`\`json, sans aucun texte avant ou après. Utilise exactement ces clés :
+5. Pour un essai ou un livre sans personnages, remplace le titre « ## PERSONNAGES » par « ## NOTIONS CLÉS » et présente les notions principales.
+6. ${CONSIGNE_FORMAT}
 
-${captures ? EXEMPLE_CAPTURES : EXEMPLE}
+${MODELE}${captures ? `\n\n${MODELE_NOTICE}` : ''}
 
 MON TEXTE${captures ? ' ÉCRIT (EN PLUS DE MES CAPTURES)' : ''}
-${passages || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')}`;
+${texte || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')}`;
 }
 
 /** Demande courte : seulement la notice et la bibliographie, depuis des captures (la fiche n'est pas refaite). */
@@ -80,52 +105,57 @@ export function buildNoticePrompt(book) {
 Ne rédige pas de résumé. Lis seulement les captures et complète ma notice bibliographique :
 ${CONSIGNES_NOTICE}
 
-Réponds UNIQUEMENT avec un objet JSON valide, dans un bloc de code \`\`\`json, sans aucun texte avant ou après, avec exactement ces clés :
+Réponds directement dans la conversation, en texte simple (pas de document, pas de bloc de code), en suivant exactement ce modèle :
 
-{
-  ${EXEMPLE_NOTICE}
-}`;
+${MODELE_NOTICE}`;
 }
 
-/** Extrait l'objet JSON d'une réponse (avec ou sans bloc de code, avec du texte autour). */
-function extractJson(text) {
+/** Essaie de lire un objet JSON (ancien format). Renvoie null si ce n'en est pas un. */
+function tryJson(text) {
   const raw = String(text ?? '').trim();
   const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const body = fence ? fence[1] : raw;
   const start = body.indexOf('{');
   const end = body.lastIndexOf('}');
-  if (start === -1 || end <= start) throw new Error('aucun objet JSON trouvé');
-  return JSON.parse(body.slice(start, end + 1));
+  if (start === -1 || end <= start) return null;
+  try {
+    const data = JSON.parse(body.slice(start, end + 1));
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : null;
+  } catch {
+    return null;
+  }
 }
 
 const str = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
 const asParas = (v) =>
   (Array.isArray(v) ? v.map(str) : str(v).split(/\n\s*\n/).map((s) => s.trim())).filter(Boolean);
 /** Retire les guillemets autour d'une citation (l'appli ajoute les siens). */
-export const stripQuotes = (s) => str(s).replace(/^[«"“„'\s ]+/, '').replace(/[»"”'\s ]+$/, '');
+export const stripQuotes = (s) => str(s).replace(/^[«"“„'\s ]+/, '').replace(/[»"”'\s ]+$/, '');
 const asList = (v, a, b) =>
   (Array.isArray(v) ? v : [])
     .map((x) => (typeof x === 'string' ? { [a]: x, [b]: '' } : { [a]: str(x?.[a]), [b]: str(x?.[b]) }))
     .filter((x) => x[a] || x[b]);
 
+const FICHE_KEYS = ['accroche', 'resume', 'idees_cles', 'citations', 'a_retenir', 'pour_qui'];
+
 /**
- * Lit la réponse collée. Renvoie { ok: true, fiche } ou { ok: false, errors: [...] }.
+ * Lit la réponse collée (texte à titres, ou JSON).
+ * Renvoie { ok: true, fiche, passages, notice, bibliographie } (partial: true si seulement notice/bibliographie),
+ * ou { ok: false, errors: [...] }.
  */
 export function parseAnswer(text) {
-  let data;
-  try {
-    data = extractJson(text);
-  } catch (e) {
-    return { ok: false, errors: [`La réponse ne contient pas de JSON lisible (${e.message}).`] };
-  }
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return { ok: false, errors: ['La réponse doit être un objet JSON { ... }.'] };
+  const json = tryJson(text);
+  const data = json && [...FICHE_KEYS, 'notice', 'bibliographie'].some((k) => k in json) ? json : parseTextAnswer(text);
+  if (!data) {
+    return {
+      ok: false,
+      errors: ["Je ne reconnais pas de fiche dans ce texte : aucune rubrique (RÉSUMÉ, IDÉES CLÉS…) n'a été trouvée."],
+    };
   }
   const notice = readNotice(data.notice);
   const bibliographie = readBibliographie(data.bibliographie);
   // Réponse « notice seulement » : aucune rubrique de fiche, seulement notice et/ou bibliographie.
-  const ficheKeys = ['accroche', 'resume', 'idees_cles', 'citations', 'a_retenir', 'pour_qui'];
-  if (!ficheKeys.some((k) => k in data) && ('notice' in data || 'bibliographie' in data)) {
+  if (!FICHE_KEYS.some((k) => k in data) && ('notice' in data || 'bibliographie' in data)) {
     return { ok: true, partial: true, fiche: null, passages: [], notice, bibliographie };
   }
   const fiche = {
@@ -140,14 +170,14 @@ export function parseAnswer(text) {
     pour_qui: str(data.pour_qui),
   };
   const errors = [];
-  if (!fiche.accroche) errors.push('Il manque « accroche ».');
-  if (!fiche.resume.length) errors.push('Il manque « resume ».');
-  if (!fiche.idees_cles.length) errors.push('Il manque « idees_cles ».');
-  if (!Array.isArray(data.citations)) errors.push('Il manque « citations » (une liste).');
-  if (!fiche.a_retenir) errors.push('Il manque « a_retenir ».');
-  if (!fiche.pour_qui) errors.push('Il manque « pour_qui ».');
+  if (!fiche.accroche) errors.push('Il manque la rubrique « ACCROCHE ».');
+  if (!fiche.resume.length) errors.push('Il manque la rubrique « RÉSUMÉ ».');
+  if (!fiche.idees_cles.length) errors.push('Il manque la rubrique « IDÉES CLÉS ».');
+  if (!('citations' in data)) errors.push('Il manque la rubrique « CITATIONS ».');
+  if (!fiche.a_retenir) errors.push('Il manque la rubrique « À RETENIR ».');
+  if (!fiche.pour_qui) errors.push('Il manque la rubrique « POUR QUI ? ».');
   if (errors.length) return { ok: false, errors };
-  // Passages recopiés par Claude depuis les captures d'écran (facultatif).
+  // Passages recopiés par Claude (ancien format, facultatif).
   const passages = (Array.isArray(data.passages) ? data.passages : [])
     .map((p) => (typeof p === 'string' ? p : str(p?.texte)))
     .map((p) => stripQuotes(p).replace(/\s+/g, ' '))
@@ -155,7 +185,7 @@ export function parseAnswer(text) {
   return { ok: true, fiche, passages, notice, bibliographie };
 }
 
-/** Marque les citations qui ne figurent pas mot pour mot dans les passages. */
+/** Marque les citations qui ne figurent pas mot pour mot dans le texte donné. */
 export function checkCitations(fiche, passages) {
   const haystack = normalizeQuote((passages || []).join(' \n '));
   let missing = 0;
@@ -177,6 +207,9 @@ export function buildFixPrompt({ errors = [], badCitations = [] }) {
     for (const c of badCitations) lines.push(`  « ${c} »`);
     lines.push('  Remplace-les par des extraits recopiés exactement depuis mon texte.');
   }
-  lines.push('', 'Renvoie la fiche complète corrigée, uniquement en JSON valide dans un bloc ```json, avec les mêmes clés.');
+  lines.push(
+    '',
+    'Renvoie la fiche complète corrigée, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : GENRE, ACCROCHE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## PERSONNAGES (ou ## NOTIONS CLÉS), ## CITATIONS, ## À RETENIR, ## POUR QUI ?',
+  );
   return lines.join('\n');
 }
