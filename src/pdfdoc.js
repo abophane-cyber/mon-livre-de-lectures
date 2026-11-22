@@ -1,0 +1,146 @@
+// Mise en page du PDF à imprimer (A4). Fonction pure : décrit le document pour pdfmake.
+
+const ACCENT = '#8a5a14';
+const GREY = '#5c5c5c';
+const HIGHLIGHT = '#fff0a0';
+
+const section = (label) => ({
+  text: label.toUpperCase(),
+  style: 'section',
+  headlineLevel: 1,
+});
+
+function chapter(book, index) {
+  const f = book.fiche;
+  const meta = [book.author, book.pubDate, f.genre].filter(Boolean).join(' · ');
+  const out = [
+    { text: `CHAPITRE ${index + 1}`, style: 'chapterLabel', pageBreak: 'before' },
+    {
+      text: book.title,
+      style: 'title',
+      tocItem: true,
+      tocStyle: 'tocTitle',
+    },
+    { text: meta, style: 'meta' },
+    {
+      canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 1.2, lineColor: ACCENT }],
+      margin: [0, 10, 0, 14],
+    },
+  ];
+  if (f.accroche) out.push({ text: f.accroche, style: 'accroche' });
+
+  if (f.resume?.length) {
+    out.push(section('Résumé'));
+    for (const p of f.resume) out.push({ text: p, style: 'body' });
+  }
+  if (f.idees_cles?.length) {
+    out.push(section('Idées clés'));
+    for (const i of f.idees_cles) {
+      out.push({
+        stack: [
+          { text: i.titre, bold: true, margin: [0, 0, 0, 2] },
+          { text: i.texte, style: 'body', margin: [0, 0, 0, 0] },
+        ],
+        unbreakable: true,
+        margin: [0, 0, 0, 8],
+      });
+    }
+  }
+  if (f.personnages?.length) {
+    out.push(section(f.personnages_titre || 'Personnages'));
+    for (const p of f.personnages) {
+      out.push({
+        text: [{ text: p.nom, bold: true }, p.role ? { text: ` — ${p.role}` } : ''],
+        style: 'body',
+        margin: [0, 0, 0, 5],
+      });
+    }
+  }
+  if (f.citations?.length) {
+    out.push(section('Citations'));
+    for (const c of f.citations) {
+      out.push({
+        stack: [
+          { text: [{ text: `« ${c.texte} »`, background: HIGHLIGHT, italics: true }], lineHeight: 1.45 },
+          c.commentaire ? { text: c.commentaire, style: 'comment' } : '',
+        ],
+        unbreakable: true,
+        margin: [12, 2, 0, 12],
+      });
+    }
+  }
+  if (f.a_retenir) {
+    out.push(section('À retenir'));
+    out.push({ text: f.a_retenir, style: 'body' });
+  }
+  if (f.pour_qui) {
+    out.push(section('Pour qui ?'));
+    out.push({ text: f.pour_qui, style: 'body' });
+  }
+  return out;
+}
+
+/**
+ * @param {Array} books fiches à imprimer, dans l'ordre (chacune avec book.fiche)
+ * @param {{titreLivre: string, nom: string, date: string}} cover
+ */
+export function buildDocDefinition(books, cover) {
+  const content = [
+    {
+      stack: [
+        { text: cover.titreLivre || 'Mon livre de lectures', style: 'coverTitle' },
+        {
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 80, y2: 0, lineWidth: 1.5, lineColor: ACCENT }],
+          alignment: 'center',
+          margin: [0, 18, 0, 18],
+        },
+        cover.nom ? { text: cover.nom, style: 'coverName' } : '',
+        { text: cover.date || '', style: 'coverDate' },
+        { text: `${books.length} fiche${books.length > 1 ? 's' : ''} de lecture`, style: 'coverDate' },
+      ],
+      margin: [0, 200, 0, 0],
+    },
+    {
+      toc: {
+        title: { text: 'Sommaire', style: 'tocHeading' },
+        numberStyle: 'tocNumber',
+      },
+      pageBreak: 'before',
+    },
+    ...books.flatMap((b, i) => chapter(b, i)),
+  ];
+
+  return {
+    pageSize: 'A4',
+    // Marges confortables pour l'impression (environ 2,5 cm, 2,8 cm en bas pour le numéro).
+    pageMargins: [72, 68, 72, 80],
+    info: { title: cover.titreLivre || 'Mon livre de lectures', author: cover.nom || '' },
+    content,
+    footer: (page) =>
+      page === 1
+        ? null
+        : { text: String(page), alignment: 'center', fontSize: 9, color: GREY, margin: [0, 34, 0, 0] },
+    // Ne jamais laisser un titre de rubrique seul en bas de page.
+    pageBreakBefore: (node, rest) => {
+      if (node.headlineLevel !== 1) return false;
+      const following = rest.getFollowingNodesOnPage ? rest.getFollowingNodesOnPage() : rest.followingNodesOnPage;
+      return Array.isArray(following) && following.length === 0;
+    },
+    defaultStyle: { font: 'Literata', fontSize: 10.5, lineHeight: 1.35, color: '#1d1d1d' },
+    styles: {
+      coverTitle: { fontSize: 32, bold: true, alignment: 'center', lineHeight: 1.1 },
+      coverName: { fontSize: 15, alignment: 'center', margin: [0, 0, 0, 8] },
+      coverDate: { fontSize: 11, alignment: 'center', color: GREY, margin: [0, 0, 0, 4] },
+      tocHeading: { fontSize: 22, bold: true, margin: [0, 0, 0, 20] },
+      tocTitle: { fontSize: 11 },
+      tocNumber: { fontSize: 11, color: GREY },
+      chapterLabel: { fontSize: 8.5, color: ACCENT, characterSpacing: 2, margin: [0, 0, 0, 6] },
+      title: { fontSize: 22, bold: true, lineHeight: 1.15 },
+      meta: { fontSize: 10.5, italics: true, color: GREY, margin: [0, 4, 0, 0] },
+      accroche: { fontSize: 12.5, italics: true, lineHeight: 1.4, margin: [0, 0, 0, 6] },
+      section: { fontSize: 8.5, bold: true, color: ACCENT, characterSpacing: 1.6, margin: [0, 16, 0, 7] },
+      body: { alignment: 'justify', margin: [0, 0, 0, 7] },
+      comment: { fontSize: 9.5, color: GREY, margin: [0, 4, 0, 0] },
+    },
+  };
+}
