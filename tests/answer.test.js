@@ -101,11 +101,81 @@ test('réponse copiée depuis l’affichage (sans # ni puces)', () => {
   ]);
 });
 
-test('rubrique manquante : message clair', () => {
+test('rubrique manquante : la fiche est acceptée avec un avertissement', () => {
   const r = parseAnswer(AFFICHE.replace(/POUR QUI \?[\s\S]*$/, ''));
-  assert.equal(r.ok, false);
-  assert.ok(r.errors.some((e) => e.includes('POUR QUI')));
-  assert.equal(parseAnswer('Bonjour, je ne peux pas lire les images.').ok, false);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.missing, ['POUR QUI ?']);
+  assert.match(r.warnings[0], /POUR QUI/);
+  assert.equal(parseAnswer('').ok, false);
+});
+
+// 3. Fiche « à la Claude » : ses propres titres, emoji, numéros, gras avec deux-points (cas réel de l'utilisateur).
+const LIBRE = `# Fiche de lecture : *Riches ensemble !* d'Anne-Laure Delatte
+
+*Un essai qui raconte comment l'État s'est mis à dépendre des marchés.*
+
+## 📖 1. Résumé du livre
+
+### Le contexte
+Dans les années 1980, avec le retour du libéralisme, l'État français cesse de se financer surtout par des circuits administrés.
+
+- **Maastricht et l'euro (années 1990) :** le traité fixe un plafond de dette (60 % du PIB).
+
+## 💡 Les idées principales
+
+1. **La dette n'est pas un fardeau :** c'est un choix politique.
+2. **Les marchés gouvernent :** les États dépendent des investisseurs.
+
+## Concepts clés
+- **Dette publique** — ce que l'État doit.
+
+## ✍️ Citations marquantes
+- « L'État s'est mis entre les mains des marchés. » : une phrase qui résume la thèse.
+
+## 🎯 Ce qu'il faut retenir
+La dépendance aux marchés n'est pas une fatalité.
+
+## 👥 À qui s'adresse ce livre ?
+À tous les citoyens curieux d'économie.
+
+## 📚 Références bibliographiques
+- Piketty, T., *Le Capital au XXIe siècle*, Seuil, 2013.
+- Lemoine, B., *L'Ordre de la dette*, La Découverte, 2016.
+
+## Notice
+- Éditeur : Fayard
+- ISBN : non visible`;
+
+test('titres libres de Claude (emoji, numéros, variantes)', () => {
+  const r = parseAnswer(LIBRE);
+  assert.equal(r.ok, true, JSON.stringify(r.errors));
+  const f = r.fiche;
+  assert.equal(f.accroche, "Un essai qui raconte comment l'État s'est mis à dépendre des marchés.");
+  assert.equal(f.resume.length, 3);
+  assert.match(f.resume[1], /^Dans les années 1980/);
+  assert.match(f.resume[2], /^Maastricht et l'euro/);
+  assert.deepEqual(f.idees_cles.map((i) => i.titre), ["La dette n'est pas un fardeau", 'Les marchés gouvernent']);
+  assert.equal(f.personnages_titre, 'Notions clés');
+  assert.deepEqual(f.personnages, [{ nom: 'Dette publique', role: "ce que l'État doit." }]);
+  assert.deepEqual(f.citations, [{ texte: "L'État s'est mis entre les mains des marchés.", commentaire: 'une phrase qui résume la thèse.' }]);
+  assert.equal(f.a_retenir, "La dépendance aux marchés n'est pas une fatalité.");
+  assert.equal(f.pour_qui, "À tous les citoyens curieux d'économie.");
+  assert.deepEqual(r.warnings, []);
+  assert.deepEqual(r.bibliographie, ['Piketty, T., Le Capital au XXIe siècle, Seuil, 2013.', "Lemoine, B., L'Ordre de la dette, La Découverte, 2016."]);
+  assert.deepEqual(r.notice, { editeur: 'Fayard' });
+});
+
+test('aucun titre reconnu : tout le texte devient le résumé', () => {
+  const r = parseAnswer(`Voici ma fiche :
+
+## Introduction
+Ce livre retrace l'histoire de la dette française.
+
+## Développement
+Il montre le rôle croissant des marchés.`);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.fiche.resume, ['Introduction', "Ce livre retrace l'histoire de la dette française.", 'Développement', 'Il montre le rôle croissant des marchés.']);
+  assert.match(r.warnings[0], /tout le texte de Claude a été mis dans le résumé/);
 });
 
 test('réponse « notice et bibliographie » en texte', () => {

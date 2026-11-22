@@ -53,8 +53,8 @@ const MODELE_NOTICE = `## NOTICE
 ## BIBLIOGRAPHIE
 - Référence recopiée telle quelle.`;
 
-const CONSIGNES_NOTICE = `- Si une capture montre les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis la rubrique NOTICE uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse vide ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.
-- Si une capture montre une bibliographie, des références ou des sources, recopie chaque référence telle quelle dans la rubrique BIBLIOGRAPHIE (une par ligne).
+const CONSIGNES_NOTICE = `- Si mes captures ou mon texte montrent les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis la rubrique NOTICE uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse vide ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.
+- Si mes captures ou mon texte contiennent une bibliographie, des références, des notes de sources ou des ouvrages cités, recopie chaque référence telle quelle dans la rubrique BIBLIOGRAPHIE (une par ligne, avec un tiret). N'en invente aucune et n'ajoute pas tes propres suggestions de lecture : s'il n'y en a pas, laisse la rubrique vide.
 - Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé ni pour les citations.`;
 
 const CONSIGNE_FORMAT = `Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de bloc de code, pas de JSON. Suis exactement ce modèle, avec ces titres en majuscules et dans cet ordre, sans rien ajouter avant « GENRE » ni après la dernière rubrique :`;
@@ -82,8 +82,7 @@ a. Lis TOUT le texte du livre visible sur les captures, dans l'ordre des capture
 b. Ignore tout ce qui n'est pas le texte du livre : menus, boutons, heure, batterie, numéros de page ou d'emplacement, titres de l'appli.
 c. Ne recopie pas tout le texte dans ta réponse : résume-le. Seules les citations sont recopiées mot pour mot.
 d. Si un mot est illisible, ne l'invente pas.
-e. Notice et bibliographie :
-${CONSIGNES_NOTICE}
+e. Les captures de la page d'informations du livre ou de la bibliographie servent à la NOTICE et à la BIBLIOGRAPHIE (règle 6), pas au résumé.
 ` : ''}
 RÈGLES
 1. Appuie-toi d'abord sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais d'intrigue, de personnage ou d'événement. En cas de doute, reste sur ce que dit le texte.
@@ -91,9 +90,13 @@ RÈGLES
 3. Rédige tout le reste de la fiche en ${langue}.
 4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, ${L.citations} citations (moins si le texte ne suffit pas).
 5. Pour un essai ou un livre sans personnages, remplace le titre « ## PERSONNAGES » par « ## NOTIONS CLÉS » et présente les notions principales.
-6. ${CONSIGNE_FORMAT}
+6. Notice et références bibliographiques (elles iront au verso de ma fiche) :
+${CONSIGNES_NOTICE}
+7. ${CONSIGNE_FORMAT}
 
-${MODELE}${captures ? `\n\n${MODELE_NOTICE}` : ''}
+${MODELE}
+
+${MODELE_NOTICE}
 
 MON TEXTE${captures ? ' ÉCRIT (EN PLUS DE MES CAPTURES)' : ''}
 ${texte || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')}`;
@@ -145,12 +148,10 @@ const FICHE_KEYS = ['accroche', 'resume', 'idees_cles', 'citations', 'a_retenir'
  */
 export function parseAnswer(text) {
   const json = tryJson(text);
-  const data = json && [...FICHE_KEYS, 'notice', 'bibliographie'].some((k) => k in json) ? json : parseTextAnswer(text);
+  // Un vrai objet JSON est lu comme JSON ; sinon, lecture du texte à titres.
+  const data = json || parseTextAnswer(text);
   if (!data) {
-    return {
-      ok: false,
-      errors: ["Je ne reconnais pas de fiche dans ce texte : aucune rubrique (RÉSUMÉ, IDÉES CLÉS…) n'a été trouvée."],
-    };
+    return { ok: false, errors: ['Le texte collé est vide ou trop court. Copiez toute la réponse de Claude.'] };
   }
   const notice = readNotice(data.notice);
   const bibliographie = readBibliographie(data.bibliographie);
@@ -169,20 +170,28 @@ export function parseAnswer(text) {
     a_retenir: Array.isArray(data.a_retenir) ? data.a_retenir.map(str).join(' ') : str(data.a_retenir),
     pour_qui: str(data.pour_qui),
   };
-  const errors = [];
-  if (!fiche.accroche) errors.push('Il manque la rubrique « ACCROCHE ».');
-  if (!fiche.resume.length) errors.push('Il manque la rubrique « RÉSUMÉ ».');
-  if (!fiche.idees_cles.length) errors.push('Il manque la rubrique « IDÉES CLÉS ».');
-  if (!('citations' in data)) errors.push('Il manque la rubrique « CITATIONS ».');
-  if (!fiche.a_retenir) errors.push('Il manque la rubrique « À RETENIR ».');
-  if (!fiche.pour_qui) errors.push('Il manque la rubrique « POUR QUI ? ».');
-  if (errors.length) return { ok: false, errors };
+  // Seul le résumé est indispensable ; les autres rubriques manquantes donnent un simple avertissement.
+  if (!fiche.resume.length) {
+    return { ok: false, errors: ['Je ne trouve pas de résumé dans ce texte. Vérifiez que vous avez copié toute la réponse de Claude.'] };
+  }
+  const missing = [
+    [!fiche.accroche, 'ACCROCHE'],
+    [!fiche.idees_cles.length, 'IDÉES CLÉS'],
+    [!fiche.citations.length, 'CITATIONS'],
+    [!fiche.a_retenir, 'À RETENIR'],
+    [!fiche.pour_qui, 'POUR QUI ?'],
+  ]
+    .filter(([absent]) => absent)
+    .map(([, name]) => name);
+  const warnings = [];
+  if (data._fallback) warnings.push("Je n'ai pas reconnu les rubriques : tout le texte de Claude a été mis dans le résumé. Vous pouvez le retoucher avec « Modifier le texte ».");
+  else if (missing.length) warnings.push(`Rubriques absentes de la réponse : ${missing.join(', ')}.`);
   // Passages recopiés par Claude (ancien format, facultatif).
   const passages = (Array.isArray(data.passages) ? data.passages : [])
     .map((p) => (typeof p === 'string' ? p : str(p?.texte)))
     .map((p) => stripQuotes(p).replace(/\s+/g, ' '))
     .filter(Boolean);
-  return { ok: true, fiche, passages, notice, bibliographie };
+  return { ok: true, fiche, passages, notice, bibliographie, warnings, missing };
 }
 
 /** Marque les citations qui ne figurent pas mot pour mot dans le texte donné. */

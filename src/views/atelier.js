@@ -349,8 +349,10 @@ export async function renderAtelier(view, params) {
     const extra = (fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'extrait recopié', 'extraits recopiés')} depuis vos captures.` : '') + noticeMsg;
     if (missing) {
       toast(`Fiche ajoutée.${extra} ${missing > 1 ? `${missing} citations ne figurent` : '1 citation ne figure'} pas mot pour mot dans votre texte : ${missing > 1 ? 'elles sont signalées' : 'elle est signalée'} en orange.`, 'attention', 9000);
+    } else if (result.warnings?.length) {
+      toast(`Fiche ajoutée ✓ ${result.warnings.join(' ')}`, 'attention', 10000);
     } else {
-      toast(`Fiche ajoutée à votre livre ✓${extra}`, 'ok', 6000);
+      toast(`Fiche ajoutée à votre livre ✓${extra} Pour l'imprimer : bouton « Fiche A4 recto-verso » sous la fiche.`, 'ok', 8000);
     }
     location.hash = '#/?ch=' + saved.id;
   });

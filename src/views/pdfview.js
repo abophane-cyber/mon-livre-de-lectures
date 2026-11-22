@@ -5,14 +5,15 @@ import { canShareFiles, shareBlob } from '../download.js';
 import { esc, formatDate, pluralize } from '../util.js';
 import { $, $$, getPrefs, setPrefs, toast } from '../ui.js';
 
+// La fiche A4 recto-verso est le format principal (choisi par défaut).
 const FORMATS = {
+  a4: {
+    label: 'Fiches A4 recto-verso',
+    aide: "Une feuille par livre : le résumé au recto ; au verso, les références (notice, bibliographie) et les citations. Imprimez en recto-verso (« retourner sur le bord long »).",
+  },
   livre: {
     label: 'Livre complet',
     aide: 'Couverture, sommaire avec numéros de page, puis une fiche par page.',
-  },
-  a4: {
-    label: 'Fiches A4 recto-verso',
-    aide: "Une feuille par livre : le résumé au recto, la notice et les citations au verso. Imprimez en recto-verso (« retourner sur le bord long »).",
   },
 };
 
@@ -21,7 +22,7 @@ export async function renderPdf(view) {
   const sorted = sortBooks(books, order, getPrefs().sort);
   const ready = sorted.filter((b) => b.fiche);
   const date = formatDate(Date.now());
-  let format = FORMATS[getPrefs().pdfFormat] ? getPrefs().pdfFormat : 'livre';
+  let format = FORMATS[getPrefs().pdfFormat] ? getPrefs().pdfFormat : 'a4';
 
   view.innerHTML = `<section class="page pdf">
     <h1>Télécharger le PDF</h1>

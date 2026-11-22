@@ -67,7 +67,7 @@ test('parseAnswer : erreurs claires', () => {
   assert.equal(parseAnswer('pas de json').ok, false);
   const r = parseAnswer('{"genre":"Roman"}');
   assert.equal(r.ok, false);
-  assert.ok(r.errors.some((e) => e.includes('ACCROCHE')));
+  assert.ok(r.errors.some((e) => e.includes('résumé')));
 });
 
 test('checkCitations : guillemets, apostrophes courbes et coupures […]', () => {

@@ -2,30 +2,40 @@
 // avec ou sans les « # » (selon la façon dont elle a été copiée), avec du texte autour.
 import { normalize } from './util.js';
 
-/** Rubriques reconnues : libellé normalisé → clé. */
-const SECTIONS = {
-  genre: 'genre',
-  accroche: 'accroche',
-  resume: 'resume',
-  'resume du livre': 'resume',
-  'idees cles': 'idees_cles',
-  'idees principales': 'idees_cles',
-  idees: 'idees_cles',
-  personnages: 'personnages',
-  'personnages principaux': 'personnages',
-  'notions cles': 'notions',
-  notions: 'notions',
-  'personnages ou notions cles': 'personnages',
-  citations: 'citations',
-  'citations commentees': 'citations',
-  'a retenir': 'a_retenir',
-  'pour qui': 'pour_qui',
-  notice: 'notice',
-  'notice bibliographique': 'notice',
-  bibliographie: 'bibliographie',
-  references: 'bibliographie',
-  'references bibliographiques': 'bibliographie',
-};
+/**
+ * Rubriques reconnues, testées dans l'ordre sur le titre normalisé (sans accents, sans emoji, sans numéro).
+ * Claude invente souvent ses propres titres : on accepte de nombreuses variantes.
+ */
+const SECTION_RULES = [
+  ['genre', /^(genre|type de livre|categorie)$/],
+  ['accroche', /^(accroche|en une phrase|en bref|le livre en une phrase|pitch)$/],
+  ['notice', /^(notice|notice bibliographique|informations? (sur le livre|bibliographiques?|editoriales?))$/],
+  ['bibliographie', /^(la )?(bibliographie|references?|sources?|notes et references|ouvrages? (cites|de reference)|livres? cites)( (bibliographiques?|selective|indicative|du livre|de l ouvrage|citees?|utilisees?))?$/],
+  ['citations', /^(les )?(citations?|extraits?|passages? (cles|marquants?|importants?))( (marquantes?|cles|commentees?|choisies|importantes?|a retenir|du livre))?$/],
+  ['a_retenir', /^(a retenir|ce qu il faut retenir|ce que je retiens|l essentiel|essentiel a retenir|en conclusion|conclusion|bilan|mon avis|avis|points? a retenir)$/],
+  ['pour_qui', /^(pour qui|pour quels? lecteurs?|a qui s adresse (ce livre|cet ouvrage)|a qui le recommander|public( vise)?|lecteurs? cibles?|recommande pour)$/],
+  ['notions', /^(les )?(notions?|concepts?)( (cles|principa\w*|essenti\w*|importants?|du livre))?$/],
+  ['personnages', /^(les )?(principaux )?personnages( (principaux|cles|du livre))?$/],
+  ['personnages', /^personnages ou notions( cles)?$/],
+  ['idees_cles', /^(les )?(\w+ )?(idees?|themes?|points?|arguments?|messages?|enseignements?|lecons?|axes?|grandes idees)( (cles|principa\w*|essenti\w*|forts?|importants?|majeurs?|du livre|developpes?))?$/],
+  ['resume', /^(le )?(resume|synthese|contenu|presentation)( (du livre|de l ouvrage|detaille|general|de l essai|du texte|des captures))?$/],
+  ['resume', /^(de quoi (parle|traite) (le livre|l ouvrage|ce livre)|en resume)$/],
+];
+
+/** Nettoie un titre : « ## 📖 1. **Résumé du livre :** » → « resume du livre ». */
+function headingLabel(text) {
+  const t = stripEmphasis(text)
+    .replace(/^[^\p{L}\d]+/u, '')
+    .replace(/^(?:\d+|[IVX]+)\s*[.)\-–]\s*/i, '')
+    .replace(/[\s:：.!?]+$/, '');
+  return normalize(t);
+}
+
+function sectionOf(label) {
+  if (!label || label.split(' ').length > 8) return null;
+  for (const [key, re] of SECTION_RULES) if (re.test(label)) return key;
+  return null;
+}
 
 const NOTICE_LABELS = {
   editeur: 'editeur',
@@ -46,20 +56,39 @@ const NOTICE_LABELS = {
 const EMPTY_VALUE = /^(?:-+|—|–|\.+|aucune?|non visible|non indiqu[ée]e?|non pr[ée]cis[ée]e?|inconnue?|n\/?a|vide|\(.*\))$/i;
 const LIST_MARK = /^\s*(?:[-*•–]|\d+[.)])\s+/;
 
-const stripEmphasis = (s) => s.replace(/\*\*|__/g, '').replace(/^\*(.+)\*$/, '$1').replace(/^_(.+)_$/, '$1').trim();
+const stripEmphasis = (s) =>
+  s
+    .replace(/\*\*|__/g, '')
+    .replace(/^\*(.+)\*$/, '$1')
+    .replace(/^_(.+)_$/, '$1')
+    // italique au milieu d'une phrase : « *Le Capital* » → « Le Capital »
+    .replace(/(^|[\s(«"“])[*_]([^*_\n]+?)[*_](?=[\s,.;:!?)»"”]|$)/g, '$1$2')
+    .trim();
 
-/** Si la ligne est un titre de rubrique, renvoie { key, rest } (rest = texte après « : » sur la même ligne). */
+/**
+ * Si la ligne est un titre, renvoie { key, rest, hashed } :
+ * key = rubrique reconnue (ou null pour un titre « # » inconnu), rest = texte après « : » sur la même ligne.
+ * Renvoie null pour une ligne ordinaire.
+ */
 function headingOf(line) {
-  const hashed = /^\s*#{1,6}\s*/.test(line);
+  if (LIST_MARK.test(line) || /^\s*>/.test(line)) return null;
+  const hashed = /^\s*#{1,6}\s/.test(line);
   const raw = line.replace(/^\s*#{1,6}\s*/, '').trim();
-  const bare = stripEmphasis(raw.replace(/^\*\*(.+?)\*\*/, '$1'));
-  const m = bare.match(/^([^:：]{1,40}?)\s*[:：]\s*(.*)$/);
-  const label = normalize(m ? m[1] : bare);
-  const key = SECTIONS[label];
-  if (!key) return null;
-  // Sans « # », on n'accepte qu'une ligne courte (le titre seul, ou « Genre : … »).
-  if (!hashed && !m && bare.length > 40) return null;
-  return { key, rest: m ? stripEmphasis(m[2]) : '', notions: key === 'notions' };
+  if (!raw) return null;
+  const wholeBold = /^\*\*[^*]+\*\*\s*[:：]?\s*$/.test(raw);
+  // « **Titre :** suite » ou « Titre : suite »
+  const bold = raw.match(/^\*\*([^*]+?)\*\*\s*[:：]?\s*(.*)$/);
+  const plain = raw.match(/^([^:：]{1,60}?)\s*[:：]\s*(.*)$/);
+  const head = bold ? bold[1] : plain ? plain[1] : raw;
+  const rest = bold ? bold[2] : plain ? plain[2] : '';
+  const key = sectionOf(headingLabel(head));
+  if (key) {
+    // Sans « # » ni gras, il faut une ligne courte (titre seul) ou « Libellé : texte ».
+    if (!hashed && !bold && !plain && raw.length > 60) return null;
+    return { key, rest: stripEmphasis(rest), hashed };
+  }
+  if (hashed || wholeBold) return { key: null, rest: '', hashed };
+  return null;
 }
 
 const paragraphs = (lines) =>
@@ -176,28 +205,59 @@ export function parseTextAnswer(text) {
     .replace(/\r\n?/g, '\n')
     .split('\n')
     .filter((l) => !/^\s*```/.test(l) && !/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(l));
-  const buckets = {};
-  let current = null;
+  // _pre = texte avant le premier titre ; _autre = rubriques que l'on ne reconnaît pas.
+  const buckets = { _pre: [], _autre: [] };
+  let current = '_pre';
+  let level = 99;
   let notionsTitle = false;
+  const levelOf = (line) => (line.match(/^\s*(#{1,6})\s/)?.[1].length ?? 7);
   for (const line of lines) {
     const h = headingOf(line);
-    if (h) {
+    const known = current !== '_pre' && current !== '_autre';
+    if (h && h.key) {
       const key = h.key === 'notions' ? 'personnages' : h.key;
-      if (h.notions) notionsTitle = true;
+      if (h.key === 'notions') notionsTitle = true;
       current = key;
+      level = levelOf(line);
       buckets[key] = buckets[key] || [];
       if (h.rest) buckets[key].push(h.rest);
       continue;
     }
-    if (current) buckets[current].push(line);
+    if (h && h.hashed && !(known && levelOf(line) > level)) {
+      // Titre inconnu (« # Fiche de lecture… », « ## Le contexte »…) : son contenu est gardé à part.
+      current = '_autre';
+      level = 99;
+      buckets._autre.push('', line.replace(/^\s*#{1,6}\s*/, ''), '');
+      continue;
+    }
+    // Sous-titre dans une rubrique connue (ex. « ### Le contexte » dans le résumé) : on le garde comme paragraphe.
+    buckets[current].push(h && h.hashed ? `\n${line.replace(/^\s*#{1,6}\s*/, '')}\n` : line);
   }
-  if (!Object.keys(buckets).length) return null;
 
   const data = {};
+  const knownKeys = Object.keys(buckets).filter((k) => !k.startsWith('_'));
+  // Solution de secours : pas de rubrique « résumé » reconnue → tout le texte libre devient le résumé.
+  const noticeOnly = knownKeys.length && knownKeys.every((k) => k === 'notice' || k === 'bibliographie');
+  if (!buckets.resume && !noticeOnly) {
+    const chat = /^(voici|bien s[uû]r|d.accord|avec plaisir|je vous|j.ai (lu|r[ée]dig)|excellent|parfait)\b|[:：]$/i;
+    const free = paragraphs([...buckets._pre, '', ...buckets._autre]).filter((p) => !chat.test(p));
+    // Au moins quelques phrases, pour ne pas transformer un message d'erreur de Claude en fiche.
+    if (free.join(' ').length >= 80) {
+      data.resume = free;
+      data._fallback = true;
+    }
+  }
+  if (!knownKeys.length && !data.resume) return null;
+
   const one = (k) => buckets[k] && paragraphs(buckets[k]).join(' ');
   if (buckets.genre) data.genre = one('genre').replace(/\.$/, '');
   if (buckets.accroche) data.accroche = one('accroche');
   if (buckets.resume) data.resume = paragraphs(buckets.resume);
+  if (!data.accroche) {
+    // « Accroche » parfois écrite en italique juste sous le titre, avant la première rubrique.
+    const italic = [...buckets._pre, ...buckets._autre].map((l) => l.trim()).find((l) => /^[*_][^*_].{10,}[*_]$/.test(l));
+    if (italic) data.accroche = stripEmphasis(italic.replace(/^[*_]|[*_]$/g, ''));
+  }
   if (buckets.idees_cles) data.idees_cles = items(buckets.idees_cles).map(pair).map(([titre, texte]) => ({ titre, texte }));
   if (buckets.personnages) {
     data.personnages_titre = notionsTitle ? 'Notions clés' : 'Personnages';
