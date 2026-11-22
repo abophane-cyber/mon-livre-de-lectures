@@ -3,6 +3,7 @@ import { findBookByKey, getBook, saveBook } from '../db.js';
 import { parseClippings } from '../clippings.js';
 import { LANGUES, LONGUEURS, buildFixPrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
 import { copyText } from '../download.js';
+import { NOTICE_FIELDS } from '../fichea4.js';
 import { bookKey, esc, joinPassages, mergePassages, pluralize, splitPassages } from '../util.js';
 import { $, clearDraft, currentIa, loadDraft, readFileText, saveDraft, toast } from '../ui.js';
 
@@ -41,7 +42,9 @@ export async function renderAtelier(view, params) {
     length: draft.length ?? book?.length ?? 'moyen',
     passages: draft.passages ?? joinPassages(book?.passages),
     answer: draft.answer ?? '',
+    ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, draft[k] ?? book?.[k] ?? ''])),
   };
+  const hasNotice = NOTICE_FIELDS.some(([k]) => v[k]);
   const ia = currentIa();
 
   view.innerHTML = `<section class="page atelier">
@@ -68,6 +71,12 @@ export async function renderAtelier(view, params) {
           <select id="f-lang">${LANGUES.map((l) => `<option${l === v.lang ? ' selected' : ''}>${l}</option>`).join('')}</select>
         </label>
       </div>
+      <details class="notice"${hasNotice ? ' open' : ''}>
+        <summary>Notice du livre (facultatif) : éditeur, ISBN, date de lecture…</summary>
+        <div class="champs">
+          ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input id="f-${k}" value="${esc(v[k])}" autocomplete="off"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
+        </div>
+      </details>
       <fieldset class="segment">
         <legend>Longueur</legend>
         ${Object.entries(LONGUEURS)
@@ -120,6 +129,7 @@ export async function renderAtelier(view, params) {
     length: $('input[name="f-length"]:checked', view)?.value || 'moyen',
     passages: el.passages.value,
     answer: el.answer.value,
+    ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, $(`#f-${k}`, view).value.trim()])),
   });
   const updateCount = () => {
     $('#compte', view).textContent = `(${pluralize(splitPassages(el.passages.value).length, 'passage', 'passages')})`;
@@ -144,12 +154,21 @@ export async function renderAtelier(view, params) {
       el.passages.focus();
       return null;
     }
-    const meta = { title: f.title, author: f.author, pubDate: f.pubDate, lang: f.lang, length: f.length };
+    const meta = {
+      title: f.title,
+      author: f.author,
+      pubDate: f.pubDate,
+      lang: f.lang,
+      length: f.length,
+      ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, f[k]])),
+    };
     if (!book) {
       const twin = await findBookByKey(f.title, f.author);
       if (twin) {
         book = twin;
-        book = await saveBook({ ...twin, ...meta, passages: mergePassages(twin.passages, passages) });
+        // Ne pas effacer ce qui était déjà renseigné (date, ISBN…) avec des champs laissés vides.
+        const filled = Object.fromEntries(Object.entries(meta).filter(([, val]) => val !== ''));
+        book = await saveBook({ ...twin, ...filled, passages: mergePassages(twin.passages, passages) });
         toast(`Ce livre avait déjà une fiche : vos passages y ont été ajoutés.`, 'info', 6000);
       } else {
         book = await saveBook({ ...meta, passages });

@@ -1,6 +1,7 @@
 // Vue « Modifier » : retoucher à la main le texte d'une fiche.
 import { getBook, saveBook } from '../db.js';
 import { checkCitations, stripQuotes } from '../prompt.js';
+import { NOTICE_FIELDS } from '../fichea4.js';
 import { esc } from '../util.js';
 import { $, $$, toast } from '../ui.js';
 
@@ -40,6 +41,12 @@ export async function renderModifier(view, params) {
       <label>Date de parution<input name="pubDate" value="${esc(book.pubDate)}"></label>
       <label>Genre<input name="genre" value="${esc(f.genre)}"></label>
     </div>
+    <fieldset>
+      <legend>Notice du livre <span class="petit">(verso de la fiche A4, facultatif)</span></legend>
+      <div class="champs">
+        ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(book[k])}"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
+      </div>
+    </fieldset>
     <label class="bloc">Accroche (une phrase)<textarea name="accroche" rows="2">${esc(f.accroche)}</textarea></label>
     <label class="bloc">Résumé <span class="petit">(une ligne vide entre les paragraphes)</span>
       <textarea name="resume" rows="10">${esc(f.resume.join('\n\n'))}</textarea></label>
@@ -104,6 +111,7 @@ export async function renderModifier(view, params) {
       title: val('title') || book.title,
       author: val('author'),
       pubDate: val('pubDate'),
+      ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, val(k)])),
       fiche,
       ficheEditedByHand: true,
     });

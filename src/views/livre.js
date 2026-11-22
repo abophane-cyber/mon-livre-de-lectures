@@ -68,6 +68,7 @@ function renderChapter(book, index) {
     <hr class="filet">
     ${body}
     <div class="actions">
+      ${book.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}">Fiche A4 recto-verso</button>` : ''}
       <a class="btn" href="#/modifier/${esc(book.id)}">Modifier le texte</a>
       <a class="btn" href="#/livre/${esc(book.id)}">Ajouter des passages / refaire le résumé</a>
       <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">Supprimer</button>
@@ -153,6 +154,28 @@ export async function renderLivre(view, params) {
       await deleteBook(book.id);
       toast(`La fiche « ${book.title} » a été supprimée.`);
       renderLivre(view, {});
+    }
+    if (btn.dataset.action === 'fichea4') {
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Préparation…';
+      try {
+        const { downloadFichesA4, slug } = await import('../pdf.js');
+        const { small } = await downloadFichesA4([book], `fiche-${slug(book.title)}.pdf`);
+        toast(
+          small.length
+            ? 'Fiche A4 téléchargée ✓ Le texte est long : il est imprimé en petits caractères. Choisissez la longueur « Court » ou « Moyen » pour une fiche plus lisible.'
+            : 'Fiche A4 téléchargée ✓ Imprimez-la en recto-verso (retourner sur le bord long).',
+          small.length ? 'attention' : 'ok',
+          9000,
+        );
+      } catch (err) {
+        console.error(err);
+        toast("La fiche n'a pas pu être créée. Réessayez.", 'erreur');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
     }
     if (btn.dataset.action === 'corriger') {
       const bad = book.fiche.citations.filter((c) => c.introuvable).map((c) => c.texte);
