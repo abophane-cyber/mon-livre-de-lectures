@@ -6,13 +6,25 @@ import { partsOf } from '../fiches.js';
 import { BACKUP_APP, BACKUP_VERSION, makeBackup, mergeBackup, validateBackup } from '../sync.js';
 import { decryptJson, encryptJson, isEncrypted } from '../crypto.js';
 import { canShareFiles, downloadBlob, shareBlob, stamp } from '../download.js';
-import { esc, formatDate, pluralize } from '../util.js';
+import { esc, formatDate, newId, pluralize } from '../util.js';
 import { $, getPrefs, readFileText, setPrefs, toast } from '../ui.js';
 
 const MIN_LENGTH = 8;
 const FILE_PREFIX = 'mon-livre-de-lectures';
 
 const isPhone = () => /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+const deviceName = () => (isPhone() ? 'telephone' : 'ordinateur');
+const deviceLabel = (d) => (d === 'telephone' ? 'le téléphone' : d === 'ordinateur' ? "l'ordinateur" : "l'autre appareil");
+
+/** Identifiant de cet appareil, pour reconnaître un fichier créé ici même. */
+function deviceId() {
+  let id = getPrefs().deviceId;
+  if (!id) {
+    id = newId();
+    setPrefs({ deviceId: id });
+  }
+  return id;
+}
 
 /** Vérifie le mot de passe choisi ; renvoie un message d'erreur ou null. */
 function checkNewPassword(pw, confirm) {
@@ -23,7 +35,13 @@ function checkNewPassword(pw, confirm) {
 
 async function encryptedBackupBlob(password) {
   const data = makeBackup(await dumpAll());
-  const envelope = await encryptJson(data, password, { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: data.exportedAt });
+  const envelope = await encryptJson(data, password, {
+    app: BACKUP_APP,
+    version: BACKUP_VERSION,
+    exportedAt: data.exportedAt,
+    device: deviceName(),
+    deviceId: deviceId(),
+  });
   return new Blob([JSON.stringify(envelope)], { type: 'application/json' });
 }
 
@@ -51,14 +69,14 @@ function afterCreateHtml(name) {
 function readHelpHtml() {
   if (isPhone()) {
     return `<p class="petit">Touchez le bouton, puis <strong>Téléchargements</strong> (ou « Download »), et choisissez le fichier
-      <code>${FILE_PREFIX}_…</code> le plus récent.</p>
+      <code>${FILE_PREFIX}_ordinateur_…</code> le plus récent.</p>
       <p class="petit">Le fichier vient de l'ordinateur ? Copiez-le d'abord dans le dossier <strong>Download</strong> du téléphone
       (voir « Créer le fichier » sur l'ordinateur).</p>`;
   }
   return `<ol class="instructions petit">
       <li>${USB_STEP}</li>
       <li>Cliquez sur le bouton. Dans la fenêtre qui s'ouvre, allez dans <strong>Ce PC</strong> → <strong>Galaxy S24+</strong> →
-        <strong>Phone</strong> → <strong>Download</strong> et choisissez le fichier <code>${FILE_PREFIX}_…</code> le plus récent.</li>
+        <strong>Phone</strong> → <strong>Download</strong> et choisissez le fichier <code>${FILE_PREFIX}_telephone_…</code> le plus récent.</li>
     </ol>
     <p class="petit">Le téléphone n'apparaît pas dans la fenêtre ? Ouvrez ce même dossier dans l'<strong>Explorateur de fichiers</strong>
       et <strong>faites glisser le fichier</strong> dans le cadre ci-dessus.</p>`;
@@ -71,6 +89,7 @@ export async function renderSauvegarde(view) {
   const share = isPhone() && canShareFiles();
   const other = isPhone() ? "l'ordinateur" : 'le téléphone';
   let pendingFile = null; // sauvegarde chiffrée en attente du mot de passe
+  let pendingFrom = null;
 
   view.innerHTML = `<section class="page sauvegarde">
     <h1>Sauvegarde</h1>
@@ -148,11 +167,15 @@ export async function renderSauvegarde(view) {
       }
       password = pw.value;
     }
+    if (!books.length) {
+      toast("Il n'y a aucune fiche sur cet appareil : il n'y a rien à sauvegarder.", 'erreur', 8000);
+      return;
+    }
     const btns = view.querySelectorAll('#form-export button');
     btns.forEach((b) => (b.disabled = true));
     try {
       const blob = await encryptedBackupBlob(password);
-      const name = `${FILE_PREFIX}_${stamp()}.json`;
+      const name = `${FILE_PREFIX}_${deviceName()}_${stamp()}.json`;
       if (action === 'share') {
         if (!(await shareBlob(blob, name, 'Mon livre de lectures'))) {
           toast("L'envoi n'est pas disponible. Utilisez « Créer le fichier de sauvegarde ».", 'erreur');
@@ -186,8 +209,13 @@ export async function renderSauvegarde(view) {
   });
 
   // --- Lire le fichier ---
-  async function importData(incomingRaw) {
+  async function importData(incomingRaw, from) {
     const incoming = validateBackup(incomingRaw);
+    const inBooks = incoming.books.filter((b) => !b.deleted);
+    if (!inBooks.length) {
+      toast("Ce fichier est vide : il ne contient aucune fiche. Vérifiez que vous avez choisi le bon fichier.", 'erreur', 10000);
+      return;
+    }
     const merged = mergeBackup(await dumpAll(), incoming);
     await writeMerged(merged);
     setPrefs({ lastImport: Date.now() });
@@ -201,9 +229,12 @@ export async function renderSauvegarde(view) {
     await renderSauvegarde(view);
     const bilan = $('#bilan', view);
     bilan.hidden = false;
-    bilan.innerHTML = `<p><strong>Fichier lu ✓</strong></p><p>${
-      lines.length ? lines.join(' · ') : 'Tout était déjà à jour.'
-    }</p><a class="btn" href="#/">Voir mon livre</a>`;
+    const when = incoming.exportedAt ? ` le ${formatDate(incoming.exportedAt, true)}` : '';
+    bilan.innerHTML = `<p><strong>Fichier lu ✓</strong></p>
+      <p>Ce fichier a été créé sur ${deviceLabel(from)}${when}. Il contient ${pluralize(inBooks.length, 'livre', 'livres')} :
+        ${inBooks.slice(0, 8).map((b) => `<em>${esc(b.title || 'Sans titre')}</em>`).join(', ')}${inBooks.length > 8 ? '…' : ''}.</p>
+      <p>${lines.length ? lines.join(' · ') : 'Tout était déjà sur cet appareil : rien à ajouter.'}</p>
+      <a class="btn primaire" href="#/">Voir mon livre</a>`;
     bilan.scrollIntoView({ block: 'center' });
   }
 
@@ -219,11 +250,22 @@ export async function renderSauvegarde(view) {
         return;
       }
       if (data.app !== BACKUP_APP) throw new Error("Ce fichier n'est pas une sauvegarde de « Mon livre de lectures ».");
+      if (data.deviceId && data.deviceId === getPrefs().deviceId) {
+        toast(
+          isPhone()
+            ? "Ce fichier a été créé sur ce téléphone. Choisissez celui qui vient de l'ordinateur (son nom contient « ordinateur »)."
+            : "Ce fichier a été créé sur cet ordinateur. Choisissez celui du téléphone : Ce PC → Galaxy S24+ → Phone → Download (son nom contient « telephone »).",
+          'erreur',
+          12000,
+        );
+        return;
+      }
+      pendingFrom = data.device;
       // On essaie d'abord le mot de passe retenu sur cet appareil.
       if (savedPw) {
         try {
           const plain = await decryptJson(data, savedPw);
-          await importData(plain);
+          await importData(plain, data.device);
           return;
         } catch {
           /* mot de passe différent : on le demande */
@@ -267,7 +309,7 @@ export async function renderSauvegarde(view) {
       const data = await decryptJson(pendingFile, password);
       pendingFile = null;
       setPrefs({ backupPw: password });
-      await importData(data);
+      await importData(data, pendingFrom);
     } catch (err) {
       toast(err.message, 'erreur', 7000);
       btn.disabled = false;
