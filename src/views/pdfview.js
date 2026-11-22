@@ -33,6 +33,8 @@ export async function renderPdf(view) {
         .join('')}
     </fieldset>
     <p class="petit" id="aide-format"></p>
+    <label class="case-simple" id="bloc-presentation"><input type="checkbox" id="presentation"${getPrefs().presentationA4 !== false ? " checked" : ""}>
+      <span>Ajouter une <strong>page de présentation</strong> avant chaque résumé (titre, auteur, date de parution, genre)</span></label>
     <div id="couverture">
       <div class="champs">
         <label>Titre du livre (couverture)<input id="titreLivre" value="${esc(settings.titreLivre)}"></label>
@@ -77,9 +79,11 @@ export async function renderPdf(view) {
     btn.disabled = n === 0;
     $('#aide-format', view).textContent = FORMATS[format].aide;
     $('#couverture', view).hidden = format !== 'livre';
+    $('#bloc-presentation', view).hidden = format !== 'a4';
   };
   update();
   view.onchange = (e) => {
+    if (e.target.id === 'presentation') setPrefs({ presentationA4: e.target.checked });
     if (e.target.name === 'format') {
       format = e.target.value;
       setPrefs({ pdfFormat: format });
@@ -111,7 +115,7 @@ export async function renderPdf(view) {
         etat.textContent = 'Le PDF est dans votre dossier Téléchargements ✓';
       } else {
         lastName = chosen.length === 1 ? `fiche-${pdf.slug(chosen[0].title)}.pdf` : 'fiches-de-lecture-A4.pdf';
-        const { blob, small } = await pdf.downloadFichesA4(chosen, lastName);
+        const { blob, small } = await pdf.downloadFichesA4(chosen, lastName, { presentation: $("#presentation", view).checked });
         lastBlob = blob;
         etat.textContent = `Le PDF est dans votre dossier Téléchargements ✓ (${pluralize(chosen.length, 'feuille', 'feuilles')} recto-verso)`;
         if (small.length) {

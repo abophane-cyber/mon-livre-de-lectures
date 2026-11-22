@@ -73,3 +73,14 @@ test('la fiche A4 ne montre ni titre du livre, ni auteur, ni date ; le chapitre 
   assert.ok(!txt.includes('1857'));
   assert.ok(txt.includes('Chapitre 3. La dette'));
 });
+
+test('page de présentation : seule sur sa feuille, puis le résumé sur une page impaire', async () => {
+  const { items } = await fitItems([book(1, 2, 0)], countPages);
+  // présentation (1) + dos blanc (2) + recto (3) + verso références (4)
+  assert.equal(await countPages(buildFicheA4Doc(items, null, { presentation: true })), 4);
+  const sans = { ...book(1, 2, 0) };
+  delete sans.isbn;
+  const fit2 = await fitItems([sans, sans], countPages);
+  // 2 × (présentation + dos blanc + recto + dos blanc), le dernier dos blanc n'est pas ajouté
+  assert.equal(await countPages(buildFicheA4Doc(fit2.items, null, { presentation: true })), 7);
+});

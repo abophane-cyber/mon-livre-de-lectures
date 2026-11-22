@@ -50,7 +50,7 @@ export const slug = (s) => normalize(s).replace(/ /g, '-').slice(0, 60) || 'fich
  * Fiches A4 recto-verso. Renvoie { blob, tooLong, small } :
  * tooLong = fiches qui débordent même en petit, small = fiches imprimées en petits caractères.
  */
-export async function createFichesA4Blob(books) {
+export async function createFichesA4Blob(books, options = {}) {
   const pdfMake = await loadPdfMake();
   const countPages = async (doc) => {
     let n = 0;
@@ -59,12 +59,12 @@ export async function createFichesA4Blob(books) {
   };
   const { items, tooLong } = await fitItems(books, countPages);
   const small = items.filter((i) => Math.min(i.r, i.v) < 0.75).map((i) => i.book.title);
-  const blob = await pdfMake.createPdf(buildFicheA4Doc(items)).getBlob();
+  const blob = await pdfMake.createPdf(buildFicheA4Doc(items, null, options)).getBlob();
   return { blob, tooLong, small };
 }
 
-export async function downloadFichesA4(books, filename) {
-  const result = await createFichesA4Blob(books);
+export async function downloadFichesA4(books, filename, options = {}) {
+  const result = await createFichesA4Blob(books, options);
   downloadBlob(result.blob, filename);
   return result;
 }

@@ -8,9 +8,9 @@ import { parseTextAnswer } from './answer.js';
 export const LANGUES = ['français', 'anglais', 'espagnol', 'allemand', 'italien', 'portugais'];
 
 export const LONGUEURS = {
-  court: { label: 'Court', resume: '1 à 2 paragraphes', idees: '3', citations: '2 à 3' },
-  moyen: { label: 'Moyen', resume: '3 à 4 paragraphes', idees: '4 à 5', citations: '3 à 5' },
-  detaille: { label: 'Détaillé', resume: '5 à 8 paragraphes', idees: '6 à 8', citations: '5 à 8' },
+  court: { label: 'Court', resume: '2 paragraphes (150 mots environ)', idees: '3', notions: '3', citations: '2 à 3' },
+  moyen: { label: 'Moyen', resume: '3 paragraphes (220 mots environ)', idees: '4', notions: '3', citations: '3 à 5' },
+  detaille: { label: 'Détaillé', resume: '4 paragraphes (320 mots environ)', idees: '5', notions: '4', citations: '5 à 8' },
 };
 
 const MODELE = `CHAPITRE : [titre exact du chapitre, ou rien]
@@ -76,7 +76,7 @@ RÈGLES
 1. Appuie-toi sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais rien. En cas de doute, reste sur ce que dit le texte.
 2. Rédige en ${langue}.
 3. Titre du chapitre : si le texte ou les captures montrent un titre de chapitre (par exemple « Chapitre 3. La dette publique »), recopie-le exactement sur la ligne CHAPITRE. S'il n'y en a pas, écris « CHAPITRE : » sans rien après. Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé : je les ai déjà.
-4. Longueur : résumé de ${L.resume}, ${L.idees} idées clés, et les notions principales (ou les personnages principaux pour un roman : remplace alors « ## NOTIONS CLÉS » par « ## PERSONNAGES »).
+4. Longueur (tout doit tenir sur une page A4) : résumé de ${L.resume}, ${L.idees} idées clés d’une phrase chacune, et ${L.notions} notions principales expliquées en une phrase courte (ou les personnages principaux pour un roman : remplace alors « ## NOTIONS CLÉS » par « ## PERSONNAGES »).
 5. ${CONSIGNE_NEUTRE}
 6. Notice et références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a) :
 ${CONSIGNES_NOTICE}

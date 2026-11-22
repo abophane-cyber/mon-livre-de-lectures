@@ -7,8 +7,8 @@ const BOX = '#f6efe0';
 const RULE = '#e4dccb';
 
 /** Échelles essayées, de la plus grande à la plus petite, pour faire tenir une face sur une page. */
-export const SCALES = [1, 0.94, 0.88, 0.82, 0.77, 0.72, 0.67, 0.62];
-const MARGINS = [50, 46, 50, 46];
+export const SCALES = Array.from({ length: 14 }, (_, i) => Math.round((1 - i * 0.03) * 100) / 100); // 1, 0.97 … 0.61
+const MARGINS = [44, 40, 44, 40];
 
 import { NOTICE_FIELDS } from './notice.js';
 
@@ -46,8 +46,8 @@ export function recto(book, s = 1) {
       out.push({
         text: p,
         ...body,
-        fontSize: (k === 0 ? 11.5 : 10.8) * s,
-        lineHeight: 1.4,
+        fontSize: (k === 0 ? 13 : 12.5) * s,
+        lineHeight: 1.36,
         alignment: 'justify',
         margin: [0, 0, 0, 7 * s],
       });
@@ -61,8 +61,8 @@ export function recto(book, s = 1) {
         { text: String(n), width: 16 * s, fontSize: 11 * s, bold: true, color: ACCENT },
         {
           stack: [
-            { text: i.titre, bold: true, fontSize: 10.5 * s, margin: [0, 0, 0, 1] },
-            i.texte ? { text: i.texte, fontSize: 9.8 * s, lineHeight: 1.3 } : '',
+            { text: i.titre, bold: true, fontSize: 11.5 * s, margin: [0, 0, 0, 1] },
+            i.texte ? { text: i.texte, fontSize: 10.8 * s, lineHeight: 1.32 } : '',
           ],
         },
       ],
@@ -84,7 +84,7 @@ export function recto(book, s = 1) {
         body: [[{
           stack: f.personnages.map((p) => ({
             text: [{ text: p.nom, bold: true }, p.role ? { text: ` — ${p.role}` } : ''],
-            fontSize: 9.8 * s,
+            fontSize: 10.8 * s,
             lineHeight: 1.3,
             margin: [0, 0, 0, 4 * s],
           })),
@@ -149,11 +149,50 @@ export function verso(book, s = 1) {
   return out;
 }
 
-/** Document : pour chaque livre, le recto (toujours sur une page impaire), puis le verso s'il y a des références. */
-export function buildFicheA4Doc(items, onPageCount) {
+/** Page de présentation du livre : titre, auteur, date de parution, genre, date de lecture. */
+export function presentation(book) {
+  const f = book.fiche || {};
+  const details = [
+    book.pubDate && ['Date de parution', book.pubDate],
+    f.genre && ['Genre', f.genre],
+    book.editeur && ['Éditeur', book.editeur],
+    book.dateLecture && ['Lu en', book.dateLecture],
+  ].filter(Boolean);
+  return [
+    {
+      stack: [
+        { text: 'FICHE DE LECTURE', fontSize: 9, bold: true, color: ACCENT, characterSpacing: 3, alignment: 'center' },
+        { text: book.title, fontSize: 30, bold: true, lineHeight: 1.12, alignment: 'center', margin: [0, 22, 0, 0] },
+        book.author ? { text: book.author, fontSize: 16, italics: true, alignment: 'center', margin: [0, 14, 0, 0] } : '',
+        {
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 70, y2: 0, lineWidth: 1.5, lineColor: ACCENT }],
+          alignment: 'center',
+          margin: [0, 26, 0, 26],
+        },
+        ...details.map(([l, v]) => ({
+          text: [{ text: `${l.toUpperCase()}   `, fontSize: 8.5, color: GREY, characterSpacing: 1.2 }, { text: v, fontSize: 12 }],
+          alignment: 'center',
+          margin: [0, 0, 0, 9],
+        })),
+      ],
+      margin: [0, 210, 0, 0],
+    },
+  ];
+}
+
+/**
+ * Document : pour chaque livre, éventuellement la page de présentation (seule sur sa feuille),
+ * puis le recto (toujours sur une page impaire), puis le verso s'il y a des références.
+ */
+export function buildFicheA4Doc(items, onPageCount, { presentation: withPresentation = false } = {}) {
   const content = [];
   items.forEach(({ book, r = 1, v = 1 }, i) => {
-    content.push({ stack: recto(book, r), pageBreak: i ? 'beforeOdd' : undefined });
+    if (withPresentation) {
+      content.push({ stack: presentation(book), pageBreak: i ? 'beforeOdd' : undefined });
+      content.push({ stack: recto(book, r), pageBreak: 'beforeOdd' });
+    } else {
+      content.push({ stack: recto(book, r), pageBreak: i ? 'beforeOdd' : undefined });
+    }
     if (hasVerso(book)) content.push({ stack: verso(book, v), pageBreak: 'before' });
   });
   return {

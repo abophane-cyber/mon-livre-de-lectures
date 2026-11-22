@@ -174,7 +174,7 @@ export async function renderLivre(view, params) {
       btn.textContent = 'Préparation…';
       try {
         const { downloadFichesA4, slug } = await import('../pdf.js');
-        const { small } = await downloadFichesA4([book], `fiche-${slug(book.title)}.pdf`);
+        const { small } = await downloadFichesA4([book], `fiche-${slug(book.title)}.pdf`, { presentation: getPrefs().presentationA4 !== false });
         toast(
           small.length
             ? 'Fiche A4 téléchargée ✓ Le texte est long : il est imprimé en petits caractères. Choisissez la longueur « Court » ou « Moyen » pour une fiche plus lisible.'
