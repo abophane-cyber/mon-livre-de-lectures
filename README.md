@@ -14,7 +14,7 @@ Un livre = une fiche. Si j'ajoute du texte à un livre qui existe déjà, il s'a
 
 Les fiches restent **uniquement dans le navigateur de chaque appareil** : rien n'est envoyé en ligne, et ce dépôt ne contient aucune fiche.
 
-Pour passer de l'ordinateur au téléphone : **Sauvegarde → Exporter**, je copie le fichier par câble USB, puis **Sauvegarde → Importer** sur l'autre appareil. Les deux versions sont fusionnées, rien n'est écrasé.
+Pour passer d'un appareil à l'autre : **Sauvegarde → Créer le fichier de sauvegarde** sur le premier, je branche le téléphone à l'ordinateur par câble USB, puis **Sauvegarde → Lire le fichier de l'autre appareil** sur le second. Le mot de passe des sauvegardes n'est demandé qu'une fois par appareil. Les deux versions sont fusionnées, rien n'est écrasé.
 
 ⚠️ « Effacer les données de navigation » supprime les fiches : je fais des sauvegardes régulières.
 

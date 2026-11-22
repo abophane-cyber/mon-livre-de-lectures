@@ -1,14 +1,18 @@
-// Vue « Sauvegarde » : exporter / importer pour passer d'un appareil à l'autre par câble USB.
-// Le fichier de sauvegarde est chiffré avec un mot de passe choisi par l'utilisateur.
+// Vue « Sauvegarde » : passer ses fiches d'un appareil à l'autre avec un fichier.
+// Deux gestes seulement : « Créer le fichier » sur un appareil, « Lire le fichier » sur l'autre.
+// Le fichier est chiffré par un mot de passe, demandé une seule fois puis mémorisé sur l'appareil.
 import { dumpAll, liveBooks, writeMerged } from '../db.js';
 import { partsOf } from '../fiches.js';
 import { BACKUP_APP, BACKUP_VERSION, makeBackup, mergeBackup, validateBackup } from '../sync.js';
 import { decryptJson, encryptJson, isEncrypted } from '../crypto.js';
 import { canShareFiles, downloadBlob, shareBlob, stamp } from '../download.js';
-import { formatDate, pluralize } from '../util.js';
+import { esc, formatDate, pluralize } from '../util.js';
 import { $, getPrefs, readFileText, setPrefs, toast } from '../ui.js';
 
 const MIN_LENGTH = 8;
+const FILE_PREFIX = 'mon-livre-de-lectures';
+
+const isPhone = () => /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 
 /** Vérifie le mot de passe choisi ; renvoie un message d'erreur ou null. */
 function checkNewPassword(pw, confirm) {
@@ -23,96 +27,147 @@ async function encryptedBackupBlob(password) {
   return new Blob([JSON.stringify(envelope)], { type: 'application/json' });
 }
 
+const USB_STEP = `Branchez le téléphone à l'ordinateur avec le câble, <strong>déverrouillez-le</strong>, touchez la notification « USB » et choisissez <strong>Transfert de fichiers</strong>.`;
+
+function afterCreateHtml(name) {
+  if (isPhone()) {
+    return `<p><strong>Fichier créé ✓</strong> <code>${esc(name)}</code> est dans le dossier <strong>Téléchargements</strong> du téléphone.</p>
+      <p>Pour le lire sur l'ordinateur :</p>
+      <ol class="instructions">
+        <li>${USB_STEP}</li>
+        <li>Sur l'ordinateur, ouvrez l'appli, page <strong>Sauvegarde</strong>, et cliquez sur <strong>Lire le fichier de l'autre appareil</strong>.</li>
+      </ol>`;
+  }
+  return `<p><strong>Fichier créé ✓</strong> <code>${esc(name)}</code> est dans le dossier <strong>Téléchargements</strong> de l'ordinateur.</p>
+    <p>Pour le lire sur le téléphone :</p>
+    <ol class="instructions">
+      <li>${USB_STEP}</li>
+      <li>Sur l'ordinateur, ouvrez l'<strong>Explorateur de fichiers</strong> → <strong>Téléchargements</strong> et faites glisser le fichier
+        vers <strong>Ce PC</strong> → <strong>Galaxy S24+</strong> → <strong>Phone</strong> → <strong>Download</strong>.</li>
+      <li>Sur le téléphone, ouvrez l'appli, page <strong>Sauvegarde</strong>, et touchez <strong>Lire le fichier de l'autre appareil</strong>.</li>
+    </ol>`;
+}
+
+function readHelpHtml() {
+  if (isPhone()) {
+    return `<p class="petit">Touchez le bouton, puis <strong>Téléchargements</strong> (ou « Download »), et choisissez le fichier
+      <code>${FILE_PREFIX}_…</code> le plus récent.</p>
+      <p class="petit">Le fichier vient de l'ordinateur ? Copiez-le d'abord dans le dossier <strong>Download</strong> du téléphone
+      (voir « Créer le fichier » sur l'ordinateur).</p>`;
+  }
+  return `<ol class="instructions petit">
+      <li>${USB_STEP}</li>
+      <li>Cliquez sur le bouton. Dans la fenêtre qui s'ouvre, allez dans <strong>Ce PC</strong> → <strong>Galaxy S24+</strong> →
+        <strong>Phone</strong> → <strong>Download</strong> et choisissez le fichier <code>${FILE_PREFIX}_…</code> le plus récent.</li>
+    </ol>
+    <p class="petit">Le téléphone n'apparaît pas dans la fenêtre ? Ouvrez ce même dossier dans l'<strong>Explorateur de fichiers</strong>
+      et <strong>faites glisser le fichier</strong> dans le cadre ci-dessus.</p>`;
+}
+
 export async function renderSauvegarde(view) {
   const books = await liveBooks();
   const prefs = getPrefs();
-  const share = canShareFiles();
+  const savedPw = prefs.backupPw || '';
+  const share = isPhone() && canShareFiles();
+  const other = isPhone() ? "l'ordinateur" : 'le téléphone';
   let pendingFile = null; // sauvegarde chiffrée en attente du mot de passe
 
   view.innerHTML = `<section class="page sauvegarde">
-    <h1>Sauvegarde et mise à jour</h1>
-    <p>Vos fiches sont enregistrées <strong>uniquement sur cet appareil</strong> (${pluralize(books.length, 'livre', 'livres')}, ${pluralize(books.reduce((n, b) => n + partsOf(b).length, 0), 'fiche', 'fiches')}).
-      Pour retrouver les mêmes fiches sur l'ordinateur et sur le téléphone, on passe par un fichier de sauvegarde
-      <strong>protégé par un mot de passe</strong>.</p>
-    <p class="petit">Dernière sauvegarde : ${prefs.lastExport ? formatDate(prefs.lastExport, true) : 'jamais'} ·
-      Dernière importation : ${prefs.lastImport ? formatDate(prefs.lastImport, true) : 'jamais'}</p>
-
-    <form class="etape" id="form-export" autocomplete="on">
-      <h2><span class="pastille">1</span> Sur l'appareil où vous avez travaillé</h2>
-      <input type="text" name="username" value="Mon livre de lectures — sauvegarde" autocomplete="username" hidden readonly>
-      <div class="champs">
-        <label>Mot de passe de la sauvegarde
-          <input type="password" id="mdp" autocomplete="new-password" minlength="${MIN_LENGTH}" required></label>
-        <label>Retapez le mot de passe
-          <input type="password" id="mdp2" autocomplete="new-password" minlength="${MIN_LENGTH}" required></label>
-      </div>
-      <label class="case-simple"><input type="checkbox" id="voir"> Afficher le mot de passe</label>
-      <p class="petit avertissement">⚠ Notez ce mot de passe en lieu sûr. <strong>Sans lui, la sauvegarde est illisible</strong>, et personne ne peut le retrouver. Utilisez le même sur vos deux appareils.</p>
-      <div class="rangee">
-        <button class="btn primaire" type="submit">Exporter la sauvegarde</button>
-        ${share ? '<button class="btn" type="button" id="partager">Partager la sauvegarde…</button>' : ''}
-      </div>
-      <p class="petit">Un fichier <code>mon-livre-de-lectures_….json</code> est créé dans le dossier <strong>Téléchargements</strong>.</p>
-    </form>
+    <h1>Sauvegarde</h1>
+    <p>Vos fiches sont enregistrées <strong>sur cet appareil</strong>
+      (${pluralize(books.length, 'livre', 'livres')}, ${pluralize(books.reduce((n, b) => n + partsOf(b).length, 0), 'fiche', 'fiches')}).
+      Pour les avoir aussi sur ${other} : <strong>créez le fichier ici</strong>, puis <strong>lisez-le là-bas</strong>.
+      Rien n'est écrasé : les fiches des deux appareils sont réunies.</p>
 
     <div class="etape">
-      <h2><span class="pastille">2</span> Copier le fichier avec le câble USB</h2>
-      <ol class="instructions">
-        <li>Branchez le téléphone à l'ordinateur et <strong>déverrouillez-le</strong>.</li>
-        <li>Sur le téléphone, touchez la notification « USB » et choisissez <strong>Transfert de fichiers</strong>.</li>
-        <li>Sur l'ordinateur, ouvrez l'<strong>Explorateur de fichiers</strong> → <strong>Ce PC</strong> → <strong>Galaxy S24+</strong> → <strong>Phone</strong> (ou « Stockage interne ») → <strong>Download</strong>.</li>
-        <li>Copiez le fichier le plus récent <em>du téléphone vers l'ordinateur</em> (glissez-le dans votre dossier Téléchargements), ou dans l'autre sens.</li>
-      </ol>
+      <h2><span class="pastille">1</span> Créer le fichier de sauvegarde</h2>
+      <form id="form-export" autocomplete="on">
+        <input type="text" name="username" value="Mon livre de lectures — sauvegarde" autocomplete="username" hidden readonly>
+        ${savedPw ? '' : `<div class="deverrouiller">
+          <p><strong>Première fois sur cet appareil :</strong> choisissez un mot de passe qui protégera vos fichiers.
+            Il sera retenu ici, vous n'aurez plus à le taper. <strong>Prenez le même sur le téléphone et sur l'ordinateur</strong>, et notez-le.</p>
+          <div class="champs">
+            <label>Mot de passe
+              <input type="password" id="mdp" autocomplete="new-password" minlength="${MIN_LENGTH}" required></label>
+            <label>Retapez-le
+              <input type="password" id="mdp2" autocomplete="new-password" minlength="${MIN_LENGTH}" required></label>
+          </div>
+          <label class="case-simple"><input type="checkbox" id="voir"> Afficher le mot de passe</label>
+        </div>`}
+        <div class="rangee">
+          <button class="btn primaire" type="submit">Créer le fichier de sauvegarde</button>
+          ${share ? '<button class="btn" type="button" id="partager">Envoyer par Quick Share…</button>' : ''}
+        </div>
+      </form>
+      <div id="apres-creation" class="bilan" hidden></div>
+      <p class="petit">Dernier fichier créé ici : ${prefs.lastExport ? formatDate(prefs.lastExport, true) : 'jamais'}</p>
     </div>
 
     <div class="etape">
-      <h2><span class="pastille">3</span> Sur l'autre appareil</h2>
-      <label class="btn primaire" for="fichier-sauvegarde">Importer la sauvegarde</label>
+      <h2><span class="pastille">2</span> Lire le fichier de l'autre appareil</h2>
+      <label class="zone-depot" for="fichier-sauvegarde" id="zone-depot">
+        <span class="btn primaire">Lire le fichier de l'autre appareil</span>
+        ${isPhone() ? '' : '<span class="petit">ou faites glisser le fichier ici</span>'}
+      </label>
       <input type="file" id="fichier-sauvegarde" accept=".json,application/json" hidden>
+      ${readHelpHtml()}
       <form id="form-import" class="deverrouiller" hidden>
-        <p><strong id="nom-fichier"></strong> est protégé par un mot de passe.</p>
+        <p><strong id="nom-fichier"></strong> est protégé par un mot de passe. Tapez celui choisi sur l'autre appareil
+          (il sera ensuite retenu ici).</p>
         <input type="text" name="username" value="Mon livre de lectures — sauvegarde" autocomplete="username" hidden readonly>
-        <label>Mot de passe de la sauvegarde
+        <label>Mot de passe
           <input type="password" id="mdp-import" autocomplete="current-password" required></label>
         <div class="rangee">
-          <button class="btn primaire" type="submit">Déverrouiller et importer</button>
+          <button class="btn primaire" type="submit">Lire le fichier</button>
           <button class="btn" type="button" id="annuler-import">Annuler</button>
         </div>
       </form>
-      <p class="petit">Rien n'est écrasé : les deux versions sont <strong>fusionnées</strong>. Pour une même fiche, la version modifiée le plus récemment est gardée.</p>
       <div id="bilan" class="bilan" hidden></div>
+      <p class="petit">Dernier fichier lu ici : ${prefs.lastImport ? formatDate(prefs.lastImport, true) : 'jamais'}</p>
     </div>
+
+    ${savedPw ? `<p class="petit">Mot de passe des sauvegardes retenu sur cet appareil.
+      <button class="lien" type="button" id="oublier-mdp">Changer de mot de passe</button></p>` : ''}
   </section>`;
 
+  // --- Créer le fichier ---
   const pw = $('#mdp', view);
   const pw2 = $('#mdp2', view);
-  $('#voir', view).addEventListener('change', (e) => {
+  $('#voir', view)?.addEventListener('change', (e) => {
     pw.type = pw2.type = e.target.checked ? 'text' : 'password';
   });
 
   async function exportWith(action) {
-    const error = checkNewPassword(pw.value, pw2.value);
-    if (error) {
-      toast(error, 'erreur', 6000);
-      (pw.value.length < MIN_LENGTH ? pw : pw2).focus();
-      return;
+    let password = savedPw;
+    if (!password) {
+      const error = checkNewPassword(pw.value, pw2.value);
+      if (error) {
+        toast(error, 'erreur', 6000);
+        (pw.value.length < MIN_LENGTH ? pw : pw2).focus();
+        return;
+      }
+      password = pw.value;
     }
     const btns = view.querySelectorAll('#form-export button');
     btns.forEach((b) => (b.disabled = true));
     try {
-      const blob = await encryptedBackupBlob(pw.value);
-      const name = `mon-livre-de-lectures_${stamp()}.json`;
+      const blob = await encryptedBackupBlob(password);
+      const name = `${FILE_PREFIX}_${stamp()}.json`;
       if (action === 'share') {
         if (!(await shareBlob(blob, name, 'Mon livre de lectures'))) {
-          toast("Le partage n'est pas disponible. Utilisez « Exporter la sauvegarde ».", 'erreur');
+          toast("L'envoi n'est pas disponible. Utilisez « Créer le fichier de sauvegarde ».", 'erreur');
           return;
         }
       } else {
         downloadBlob(blob, name);
-        toast('Sauvegarde protégée enregistrée dans Téléchargements ✓', 'ok');
       }
-      setPrefs({ lastExport: Date.now() });
-      pw.value = pw2.value = '';
+      setPrefs({ lastExport: Date.now(), backupPw: password });
+      await renderSauvegarde(view);
+      const box = $('#apres-creation', view);
+      box.hidden = false;
+      box.innerHTML =
+        action === 'share' ? `<p><strong>Fichier envoyé ✓</strong> Sur ${other}, lisez-le avec « Lire le fichier de l'autre appareil ».</p>` : afterCreateHtml(name);
+      box.scrollIntoView({ block: 'center' });
     } finally {
       btns.forEach((b) => (b.disabled = false));
     }
@@ -124,6 +179,13 @@ export async function renderSauvegarde(view) {
   });
   $('#partager', view)?.addEventListener('click', () => exportWith('share'));
 
+  $('#oublier-mdp', view)?.addEventListener('click', async () => {
+    setPrefs({ backupPw: '' });
+    await renderSauvegarde(view);
+    $('#mdp', view)?.focus();
+  });
+
+  // --- Lire le fichier ---
   async function importData(incomingRaw) {
     const incoming = validateBackup(incomingRaw);
     const merged = mergeBackup(await dumpAll(), incoming);
@@ -139,33 +201,59 @@ export async function renderSauvegarde(view) {
     await renderSauvegarde(view);
     const bilan = $('#bilan', view);
     bilan.hidden = false;
-    bilan.innerHTML = `<p><strong>Importation réussie ✓</strong></p><p>${
+    bilan.innerHTML = `<p><strong>Fichier lu ✓</strong></p><p>${
       lines.length ? lines.join(' · ') : 'Tout était déjà à jour.'
     }</p><a class="btn" href="#/">Voir mon livre</a>`;
     bilan.scrollIntoView({ block: 'center' });
   }
 
   const formImport = $('#form-import', view);
-  $('#fichier-sauvegarde', view).addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+
+  async function openFile(file) {
     if (!file) return;
     try {
       const data = JSON.parse(await readFileText(file));
-      if (isEncrypted(data)) {
-        if (data.app !== BACKUP_APP) throw new Error("Ce fichier n'est pas une sauvegarde de « Mon livre de lectures ».");
-        pendingFile = data;
-        $('#nom-fichier', view).textContent = file.name;
-        formImport.hidden = false;
-        $('#mdp-import', view).focus();
-      } else {
-        // Ancienne sauvegarde non protégée : acceptée, mais on conseille d'en refaire une protégée.
+      if (!isEncrypted(data)) {
+        // Ancienne sauvegarde non protégée : acceptée.
         await importData(data);
-        toast('Sauvegarde importée. Pensez à supprimer ce fichier non protégé de vos Téléchargements.', 'attention', 9000);
+        return;
       }
+      if (data.app !== BACKUP_APP) throw new Error("Ce fichier n'est pas une sauvegarde de « Mon livre de lectures ».");
+      // On essaie d'abord le mot de passe retenu sur cet appareil.
+      if (savedPw) {
+        try {
+          const plain = await decryptJson(data, savedPw);
+          await importData(plain);
+          return;
+        } catch {
+          /* mot de passe différent : on le demande */
+        }
+      }
+      pendingFile = data;
+      $('#nom-fichier', view).textContent = file.name;
+      formImport.hidden = false;
+      $('#mdp-import', view).focus();
     } catch (err) {
       toast(err instanceof SyntaxError ? "Ce fichier est abîmé ou n'est pas une sauvegarde." : err.message, 'erreur', 8000);
     }
+  }
+
+  $('#fichier-sauvegarde', view).addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    openFile(file);
+  });
+
+  const zone = $('#zone-depot', view);
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.classList.add('survol');
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('survol'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('survol');
+    openFile(e.dataTransfer?.files?.[0]);
   });
 
   formImport.addEventListener('submit', async (e) => {
@@ -173,15 +261,17 @@ export async function renderSauvegarde(view) {
     if (!pendingFile) return;
     const btn = formImport.querySelector('button[type="submit"]');
     btn.disabled = true;
-    btn.textContent = 'Déverrouillage…';
+    btn.textContent = 'Lecture…';
+    const password = $('#mdp-import', view).value;
     try {
-      const data = await decryptJson(pendingFile, $('#mdp-import', view).value);
+      const data = await decryptJson(pendingFile, password);
       pendingFile = null;
+      setPrefs({ backupPw: password });
       await importData(data);
     } catch (err) {
       toast(err.message, 'erreur', 7000);
       btn.disabled = false;
-      btn.textContent = 'Déverrouiller et importer';
+      btn.textContent = 'Lire le fichier';
       $('#mdp-import', view).select();
     }
   });
