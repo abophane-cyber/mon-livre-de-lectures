@@ -96,6 +96,18 @@ function renderPart(book, part, i, n) {
   </section>`;
 }
 
+/** Sommaire : les chapitres (fiches) du livre, sous son titre. */
+function tocChapters(book) {
+  const parts = partsOf(book);
+  const items = parts
+    .map((p, i) => ({ p, ch: chapterOf(p.fiche, i, parts.length) }))
+    .filter(({ ch }) => ch.label);
+  if (!items.length) return '';
+  return `<ol class="toc-chapitres">${items
+    .map(({ p, ch }) => `<li><a href="#/?ch=${esc(book.id)}&fi=${esc(p.id)}"><span class="c">${esc(ch.label)}</span>${ch.titre ? ` ${esc(ch.titre)}` : ''}</a></li>`)
+    .join('')}</ol>`;
+}
+
 function renderBook(book) {
   const parts = partsOf(book);
   const genre = parts.find((p) => p.fiche?.genre)?.fiche.genre;
@@ -158,8 +170,9 @@ export async function renderLivre(view, params) {
               ${canDrag ? `<span class="poignee" aria-label="Déplacer">${icons.grip}</span>` : ''}
               <a href="#/?ch=${esc(b.id)}"><span class="num">${i + 1}.</span>
                 <span class="t">${esc(b.title)}</span>
-                <span class="a">${[b.author, b.pubDate, partsOf(b).length > 1 ? pluralize(partsOf(b).length, 'fiche', 'fiches') : ''].filter(Boolean).map(esc).join(' · ')}</span></a>
+                <span class="a">${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</span></a>
               ${isComplete(b) ? '' : '<span class="badge">à terminer</span>'}
+              ${tocChapters(b)}
             </li>`,
           )
           .join('')}
@@ -249,7 +262,7 @@ export async function renderLivre(view, params) {
       forceFallback: true,
       fallbackTolerance: 3,
       onEnd: async () => {
-        const ids = $$('#toc li', view).map((li) => li.dataset.id);
+        const ids = $$('#toc > li', view).map((li) => li.dataset.id);
         await setOrder(ids);
         renderLivre(view, {});
       },
