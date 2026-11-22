@@ -283,3 +283,10 @@ mark {
 @media (min-width: 820px) { .toast { bottom: 24px; } }
 .rappel-captures { margin-top: 14px; padding-top: 10px; border-top: 1px dotted var(--filet); }
 .chapitre-resume { font-family: var(--serif); font-weight: 700; font-size: 1.15rem; margin: 0 0 0.6em; text-align: left !important; }
+
+/* Plusieurs fiches dans un même livre (une par chapitre) */
+.fiche-partie { scroll-margin-top: 70px; }
+.fiche-partie + .fiche-partie { margin-top: 36px; padding-top: 28px; border-top: 2px solid var(--filet); }
+.partie-num { font: 600 0.72rem var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--encre-douce); margin: 0 0 10px; }
+.fiche-partie .actions { margin-top: 20px; }
+.actions-livre { border-top-width: 2px; }

@@ -1,6 +1,7 @@
 // Vue « PDF » : choisir le format et les fiches, puis télécharger le PDF à imprimer.
 import { getOrder, getSettings, liveBooks, setSettings } from '../db.js';
 import { sortBooks } from '../books.js';
+import { partsOf, readyFiches } from '../fiches.js';
 import { canShareFiles, shareBlob } from '../download.js';
 import { esc, formatDate, pluralize } from '../util.js';
 import { $, $$, getPrefs, setPrefs, toast } from '../ui.js';
@@ -9,7 +10,7 @@ import { $, $$, getPrefs, setPrefs, toast } from '../ui.js';
 const FORMATS = {
   a4: {
     label: 'Fiches A4 recto-verso',
-    aide: "Une feuille par livre : le résumé au recto (avec le titre du chapitre s'il y en a un) ; au verso, les références bibliographiques, seulement s'il y en a. Imprimez en recto-verso (« retourner sur le bord long »).",
+    aide: "Une feuille par fiche : le résumé au recto (avec le titre du chapitre s'il y en a un) ; au verso, les références bibliographiques, seulement s'il y en a. Imprimez en recto-verso (« retourner sur le bord long »).",
   },
   livre: {
     label: 'Livre complet',
@@ -20,7 +21,10 @@ const FORMATS = {
 export async function renderPdf(view) {
   const [books, order, settings] = await Promise.all([liveBooks(), getOrder(), getSettings()]);
   const sorted = sortBooks(books, order, getPrefs().sort);
-  const ready = sorted.filter((b) => b.fiche);
+  // Une case par fiche terminée (un livre peut en avoir plusieurs, une par chapitre).
+  const ready = readyFiches(sorted);
+  const keyOf = (b) => `${b.id}:${b.ficheId}`;
+  const waiting = sorted.reduce((n, b) => n + partsOf(b).filter((p) => !p.fiche).length, 0);
   const date = formatDate(Date.now());
   let format = FORMATS[getPrefs().pdfFormat] ? getPrefs().pdfFormat : 'a4';
 
@@ -49,13 +53,13 @@ export async function renderPdf(view) {
         ? `<div class="rangee"><button class="lien" id="tout">Tout cocher</button><button class="lien" id="rien">Tout décocher</button></div>
            ${ready
              .map(
-               (b) => `<label class="case"><input type="checkbox" value="${esc(b.id)}" checked>
-                 <span>${esc(b.title)}${b.author || b.pubDate ? ` <em>— ${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</em>` : ''}</span></label>`,
+               (b) => `<label class="case"><input type="checkbox" value="${esc(keyOf(b))}" checked>
+                 <span>${esc(b.title)}${b.ficheCount > 1 ? ` — ${esc(b.fiche.chapitre || `fiche ${b.ficheIndex + 1}`)}` : ''}${b.author || b.pubDate ? ` <em>— ${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</em>` : ''}</span></label>`,
              )
              .join('')}`
         : '<p>Aucune fiche terminée pour le moment.</p>'}
-      ${sorted.length > ready.length
-        ? `<p class="petit">${pluralize(sorted.length - ready.length, 'fiche à terminer n\'est pas incluse', 'fiches à terminer ne sont pas incluses')}.</p>`
+      ${waiting
+        ? `<p class="petit">${pluralize(waiting, 'fiche à terminer n\'est pas incluse', 'fiches à terminer ne sont pas incluses')}.</p>`
         : ''}
     </fieldset>
     <p class="petit">Les fiches suivent l'ordre choisi dans « Mon livre ».</p>
@@ -100,7 +104,7 @@ export async function renderPdf(view) {
   let lastName = '';
   $('#telecharger', view).addEventListener('click', async () => {
     const ids = new Set(boxes().filter((b) => b.checked).map((b) => b.value));
-    const chosen = ready.filter((b) => ids.has(b.id));
+    const chosen = ready.filter((b) => ids.has(keyOf(b)));
     const btn = $('#telecharger', view);
     const etat = $('#etat', view);
     btn.disabled = true;

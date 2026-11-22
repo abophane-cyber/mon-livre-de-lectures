@@ -1,10 +1,12 @@
 // Vue « Nouvelle fiche » / « Compléter une fiche » : passages → demande pour Claude → réponse.
+// Un livre peut avoir plusieurs fiches (une par chapitre) : #/livre/<livre>?f=<fiche> ou ?f=nouvelle.
 import { findBookByKey, getBook, saveBook } from '../db.js';
 import { parseClippings } from '../clippings.js';
 import { LANGUES, LONGUEURS, buildCapturesReminder, buildFixPrompt, buildNoticePrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
 import { applyNotice } from '../notice.js';
 import { copyText } from '../download.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
+import { flatten, newPart, partsOf, withPart } from '../fiches.js';
 import { bookKey, esc, joinPassages, mergePassages, pluralize, splitPassages } from '../util.js';
 import { $, clearDraft, currentIa, loadDraft, readFileText, saveDraft, toast } from '../ui.js';
 
@@ -33,16 +35,26 @@ export async function renderAtelier(view, params) {
     view.innerHTML = '<section class="page"><p>Cette fiche n\'existe plus.</p><a class="btn" href="#/">Retour au livre</a></section>';
     return;
   }
-  let draftKey = book ? book.id : 'nouveau';
+  const parts = book ? partsOf(book) : [];
+  // La fiche à compléter ; aucune quand on ajoute une nouvelle fiche (autre chapitre) au livre.
+  let part = book && params.f !== 'nouvelle' ? parts.find((p) => p.id === params.f) || (params.f ? null : parts[0]) || null : null;
+  if (book && params.f && params.f !== 'nouvelle' && !part) {
+    view.innerHTML = '<section class="page"><p>Cette fiche n’existe plus.</p><a class="btn" href="#/">Retour au livre</a></section>';
+    return;
+  }
+  const adding = !!book && !part;
+  const keyOf = () => (book ? `${book.id}:${part ? part.id : 'nouvelle'}` : 'nouveau');
+  let draftKey = keyOf();
   const draft = loadDraft(draftKey) || {};
+  const lastPart = parts[parts.length - 1];
   const v = {
     title: draft.title ?? book?.title ?? '',
     author: draft.author ?? book?.author ?? '',
     pubDate: draft.pubDate ?? book?.pubDate ?? '',
     lang: draft.lang ?? book?.lang ?? 'français',
     length: draft.length ?? book?.length ?? 'moyen',
-    captures: draft.captures ?? book?.captures ?? false,
-    passages: draft.passages ?? joinPassages(book?.passages),
+    captures: draft.captures ?? part?.captures ?? lastPart?.captures ?? false,
+    passages: draft.passages ?? joinPassages(part?.passages),
     answer: draft.answer ?? '',
     ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, draft[k] ?? book?.[k] ?? ''])),
   };
@@ -50,8 +62,10 @@ export async function renderAtelier(view, params) {
   const ia = currentIa();
 
   view.innerHTML = `<section class="page atelier">
-    <h1>${book ? `Compléter « ${esc(book.title)} »` : 'Nouvelle fiche'}</h1>
-    ${book?.fiche ? '<p class="petit">Ajoutez du texte à la fin si vous voulez, puis refaites le résumé : la nouvelle réponse remplacera la fiche actuelle.</p>' : ''}
+    <h1>${adding ? `Nouvelle fiche pour « ${esc(book.title)} »` : book ? `Compléter « ${esc(book.title)} »` : 'Nouvelle fiche'}</h1>
+    ${part?.fiche?.chapitre ? `<p class="meta">${esc(part.fiche.chapitre)}</p>` : ''}
+    ${adding ? `<p class="petit">Ce livre a déjà ${pluralize(parts.length, 'fiche', 'fiches')}. Collez ci-dessous le texte d'un autre chapitre (ou joignez ses captures) : il aura sa propre fiche, à la suite des autres.</p>` : ''}
+    ${part?.fiche ? '<p class="petit">Ajoutez du texte à la fin si vous voulez, puis refaites le résumé : la nouvelle réponse remplacera cette fiche (les autres fiches du livre ne changent pas).</p>' : ''}
 
     <div class="etape">
       <h2><span class="pastille">1</span> Le livre et le texte à résumer</h2>
@@ -111,7 +125,7 @@ export async function renderAtelier(view, params) {
         <p class="petit"><strong>${esc(ia.label)} n'a pas compris quoi faire des captures</strong> (il les décrit, ou pose une question) ? Touchez ce bouton, puis dans la même conversation, joignez à nouveau vos captures, collez ce message et envoyez.</p>
         <button class="btn" id="copier-rappel">Copier le message pour les captures</button>
       </div>
-      ${book?.fiche
+      ${part?.fiche
         ? `<div class="notice-seule">
             <p class="petit"><strong>Seulement la notice et la bibliographie ?</strong> Sans refaire le résumé : touchez ce bouton, joignez dans ${esc(ia.label)} vos captures de la page d'informations du livre (éditeur, ISBN…) ou de la bibliographie, collez, envoyez, puis recollez la réponse à l'étape 3.</p>
             <button class="btn" id="copier-notice">Copier la demande « notice et bibliographie »</button>
@@ -181,7 +195,10 @@ export async function renderAtelier(view, params) {
     el.passages.focus();
   });
 
-  /** Enregistre le livre (création, ou ajout au livre existant du même titre et auteur). */
+  /**
+   * Enregistre le livre et la fiche en cours (création, ou nouvelle fiche dans le livre existant
+   * du même titre et auteur). Renvoie la fiche « aplatie » (livre + fiche), ou null.
+   */
   async function persist() {
     const f = readForm();
     if (!f.title) {
@@ -201,32 +218,34 @@ export async function renderAtelier(view, params) {
       pubDate: f.pubDate,
       lang: f.lang,
       length: f.length,
-      captures: f.captures,
       ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, f[k]])),
     };
+    let base;
     if (!book) {
       const twin = await findBookByKey(f.title, f.author);
       if (twin) {
-        book = twin;
         // Ne pas effacer ce qui était déjà renseigné (date, ISBN…) avec des champs laissés vides.
         const filled = Object.fromEntries(Object.entries(meta).filter(([, val]) => val !== ''));
-        book = await saveBook({ ...twin, ...filled, passages: mergePassages(twin.passages, passages) });
-        toast(`Ce livre avait déjà une fiche : votre texte y a été ajouté.`, 'info', 6000);
+        base = { ...twin, ...filled };
+        toast(`Ce livre est déjà dans votre livre de lectures : cette fiche y est ajoutée, à la suite des autres.`, 'info', 7000);
       } else {
-        book = await saveBook({ ...meta, passages });
+        base = meta;
       }
     } else {
-      book = await saveBook({ ...book, ...meta, passages });
+      base = { ...book, ...meta };
     }
-    if (draftKey !== book.id) {
+    const rec = { ...(part || newPart()), passages, captures: f.captures };
+    book = await saveBook(withPart(base, rec));
+    part = partsOf(book).find((p) => p.id === rec.id);
+    if (draftKey !== keyOf()) {
       clearDraft(draftKey);
-      draftKey = book.id;
-      history.replaceState(null, '', '#/livre/' + book.id);
+      draftKey = keyOf();
+      history.replaceState(null, '', `#/livre/${book.id}?f=${part.id}`);
     }
-    el.passages.value = joinPassages(book.passages);
+    el.passages.value = joinPassages(part.passages);
     saveDraft(draftKey, readForm());
     updateCount();
-    return book;
+    return flatten(book, part);
   }
 
   $('#fichier-clippings', view).addEventListener('change', async (e) => {
@@ -247,7 +266,7 @@ export async function renderAtelier(view, params) {
     }
     saveDraft(draftKey, readForm());
     toast(`${pluralize(clippingsBooks.length, 'livre trouvé', 'livres trouvés')}. Choisissez-en un dans la liste.`, 'ok');
-    await renderAtelier(view, params.id ? params : book ? { id: book.id } : {});
+    await renderAtelier(view, book ? { id: book.id, f: part ? part.id : 'nouvelle' } : {});
     $('#choix-livre', view)?.focus();
   });
 
@@ -342,7 +361,7 @@ export async function renderAtelier(view, params) {
 
     // Réponse « notice et bibliographie seulement » : la fiche n'est pas touchée.
     if (result.partial) {
-      await saveBook({ ...saved, ...patch });
+      book = await saveBook({ ...book, ...patch });
       clearDraft(draftKey);
       toast(
         changed
@@ -362,16 +381,17 @@ export async function renderAtelier(view, params) {
     const fromCaptures = allPassages.length - saved.passages.length;
     // Avec des captures, le texte source est dans les images : les citations ne peuvent pas être vérifiées.
     const missing = saved.captures ? 0 : checkCitations(result.fiche, allPassages);
-    await saveBook({ ...saved, ...patch, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false });
+    book = await saveBook(withPart({ ...book, ...patch }, { ...part, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false }));
     clearDraft(draftKey);
+    const goTo = `#/?ch=${book.id}&fi=${part.id}`;
     const extra = (fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'extrait recopié', 'extraits recopiés')} depuis vos captures.` : '') + noticeMsg;
     if (missing) {
       toast(`Fiche ajoutée.${extra} ${missing > 1 ? `${missing} citations ne figurent` : '1 citation ne figure'} pas mot pour mot dans votre texte : ${missing > 1 ? 'elles sont signalées' : 'elle est signalée'} en orange.`, 'attention', 9000);
     } else if (result.warnings?.length) {
       toast(`Fiche ajoutée ✓ ${result.warnings.join(' ')}`, 'attention', 10000);
     } else {
-      toast(`Fiche ajoutée à votre livre ✓${extra} Pour l'imprimer : bouton « Fiche A4 » sous la fiche.`, 'ok', 8000);
+      toast(`Fiche ajoutée à votre livre ✓${extra} Pour un autre chapitre : bouton « + Ajouter une fiche » sous le livre.`, 'ok', 8000);
     }
-    location.hash = '#/?ch=' + saved.id;
+    location.hash = goTo;
   });
 }

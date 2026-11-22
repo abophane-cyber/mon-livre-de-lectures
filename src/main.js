@@ -49,8 +49,8 @@ async function route() {
   });
   try {
     if (name === 'nouveau') await renderAtelier(view, {});
-    else if (name === 'livre' && id) await renderAtelier(view, { id });
-    else if (name === 'modifier' && id) await renderModifier(view, { id });
+    else if (name === 'livre' && id) await renderAtelier(view, { id, f: params.f });
+    else if (name === 'modifier' && id) await renderModifier(view, { id, f: params.f });
     else if (name === 'sauvegarde') await renderSauvegarde(view);
     else if (name === 'pdf') await renderPdf(view);
     else if (name === 'reglages') await renderReglages(view);
@@ -59,7 +59,7 @@ async function route() {
     console.error(err);
     view.innerHTML = `<section class="page"><h1>Oups</h1><p>Un problème est survenu. Rechargez la page.</p></section>`;
   }
-  if (!params.ch) window.scrollTo(0, 0);
+  if (!params.ch && !params.fi) window.scrollTo(0, 0);
 }
 
 window.addEventListener('hashchange', route);

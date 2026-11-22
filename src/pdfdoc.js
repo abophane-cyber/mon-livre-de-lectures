@@ -13,10 +13,27 @@ const section = (label) => ({
 /** « Auteur · date de parution » (ce qui est renseigné). */
 const byline = (book) => [book.author, book.pubDate].filter(Boolean).join(' · ');
 
-function chapter(book, index) {
+/** Deux fiches consécutives du même livre ? (un livre peut avoir plusieurs fiches) */
+const sameBook = (a, b) => !!a && !!b && a.id != null && a.id === b.id;
+
+/**
+ * Une fiche. La première fiche d'un livre ouvre le chapitre (titre, sommaire) ;
+ * les suivantes commencent sur une nouvelle page ; la bibliographie vient après la dernière.
+ */
+function chapter(book, index, { first = true, last = true } = {}) {
   const f = book.fiche;
   const meta = [book.author, book.pubDate, f.genre].filter(Boolean).join(' · ');
-  const out = [
+  const rule = {
+    canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 1.2, lineColor: ACCENT }],
+    margin: [0, 10, 0, 14],
+  };
+  const out = !first
+    ? [
+        { text: `CHAPITRE ${index + 1} (SUITE)`, style: 'chapterLabel', pageBreak: 'before' },
+        { text: book.title, style: 'meta', margin: [0, 0, 0, 0] },
+        rule,
+      ]
+    : [
     { text: `CHAPITRE ${index + 1}`, style: 'chapterLabel', pageBreak: 'before' },
     // Ligne invisible qui sert uniquement d'entrée au sommaire : titre, puis auteur et date de parution.
     {
@@ -34,11 +51,9 @@ function chapter(book, index) {
     },
     { text: book.title, style: 'title' },
     { text: meta, style: 'meta' },
-    {
-      canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 1.2, lineColor: ACCENT }],
-      margin: [0, 10, 0, 14],
-    },
+    rule,
   ];
+  if (f.chapitre) out.push({ text: f.chapitre, style: 'chapterTitle' });
   if (f.accroche) out.push({ text: f.accroche, style: 'accroche' });
 
   if (f.resume?.length) {
@@ -89,7 +104,7 @@ function chapter(book, index) {
     out.push(section('Pour qui ?'));
     out.push({ text: f.pour_qui, style: 'body' });
   }
-  if (book.bibliographie?.length) {
+  if (last && book.bibliographie?.length) {
     out.push(section('Bibliographie'));
     out.push({ ul: book.bibliographie.map((r) => ({ text: r, fontSize: 9.5, margin: [0, 0, 0, 3] })), markerColor: ACCENT });
   }
@@ -123,7 +138,14 @@ export function buildDocDefinition(books, cover) {
       },
       pageBreak: 'before',
     },
-    ...books.flatMap((b, i) => chapter(b, i)),
+    ...(() => {
+      let index = -1;
+      return books.flatMap((b, i) => {
+        const first = !sameBook(books[i - 1], b);
+        if (first) index++;
+        return chapter(b, index, { first, last: !sameBook(b, books[i + 1]) });
+      });
+    })(),
   ];
 
   return {
@@ -152,6 +174,7 @@ export function buildDocDefinition(books, cover) {
       tocNumber: { fontSize: 11, color: GREY },
       chapterLabel: { fontSize: 8.5, color: ACCENT, characterSpacing: 2, margin: [0, 0, 0, 6] },
       title: { fontSize: 22, bold: true, lineHeight: 1.15 },
+      chapterTitle: { fontSize: 15, bold: true, lineHeight: 1.2, margin: [0, 0, 0, 10] },
       meta: { fontSize: 10.5, italics: true, color: GREY, margin: [0, 4, 0, 0] },
       accroche: { fontSize: 12.5, italics: true, lineHeight: 1.4, margin: [0, 0, 0, 6] },
       section: { fontSize: 8.5, bold: true, color: ACCENT, characterSpacing: 1.6, margin: [0, 16, 0, 7] },

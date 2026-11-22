@@ -1,6 +1,7 @@
 // Stockage local dans le navigateur (IndexedDB). Les fiches ne quittent jamais l'appareil.
 import { openDB } from 'idb';
 import { reconcileOrder } from './sync.js';
+import { bookOnly, normalizeBook } from './fiches.js';
 import { bookKey, newId } from './util.js';
 
 const dbPromise = openDB('mon-livre-de-lectures', 1, {
@@ -21,7 +22,7 @@ function askPersistence() {
 }
 
 export async function allBooks() {
-  return (await dbPromise).getAll('books');
+  return (await (await dbPromise).getAll('books')).map(normalizeBook);
 }
 
 export async function liveBooks() {
@@ -30,7 +31,7 @@ export async function liveBooks() {
 
 export async function getBook(id) {
   const b = await (await dbPromise).get('books', id);
-  return b && !b.deleted ? b : null;
+  return b && !b.deleted ? normalizeBook(b) : null;
 }
 
 export async function findBookByKey(title, author) {
@@ -42,13 +43,11 @@ export async function saveBook(book) {
   askPersistence();
   const now = Date.now();
   const rec = {
-    passages: [],
-    fiche: null,
-    ficheEditedByHand: false,
+    fiches: [],
     lang: 'français',
     length: 'moyen',
     pubDate: '',
-    ...book,
+    ...bookOnly(book),
     id: book.id || newId(),
     createdAt: book.createdAt || now,
     updatedAt: now,

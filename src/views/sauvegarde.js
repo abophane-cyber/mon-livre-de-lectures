@@ -1,6 +1,7 @@
 // Vue « Sauvegarde » : exporter / importer pour passer d'un appareil à l'autre par câble USB.
 // Le fichier de sauvegarde est chiffré avec un mot de passe choisi par l'utilisateur.
 import { dumpAll, liveBooks, writeMerged } from '../db.js';
+import { partsOf } from '../fiches.js';
 import { BACKUP_APP, BACKUP_VERSION, makeBackup, mergeBackup, validateBackup } from '../sync.js';
 import { decryptJson, encryptJson, isEncrypted } from '../crypto.js';
 import { canShareFiles, downloadBlob, shareBlob, stamp } from '../download.js';
@@ -30,7 +31,7 @@ export async function renderSauvegarde(view) {
 
   view.innerHTML = `<section class="page sauvegarde">
     <h1>Sauvegarde et mise à jour</h1>
-    <p>Vos fiches sont enregistrées <strong>uniquement sur cet appareil</strong> (${pluralize(books.length, 'fiche', 'fiches')}).
+    <p>Vos fiches sont enregistrées <strong>uniquement sur cet appareil</strong> (${pluralize(books.length, 'livre', 'livres')}, ${pluralize(books.reduce((n, b) => n + partsOf(b).length, 0), 'fiche', 'fiches')}).
       Pour retrouver les mêmes fiches sur l'ordinateur et sur le téléphone, on passe par un fichier de sauvegarde
       <strong>protégé par un mot de passe</strong>.</p>
     <p class="petit">Dernière sauvegarde : ${prefs.lastExport ? formatDate(prefs.lastExport, true) : 'jamais'} ·

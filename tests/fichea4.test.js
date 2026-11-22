@@ -84,3 +84,12 @@ test('page de présentation : seule sur sa feuille, puis le résumé sur une pag
   // 2 × (présentation + dos blanc + recto + dos blanc), le dernier dos blanc n'est pas ajouté
   assert.equal(await countPages(buildFicheA4Doc(fit2.items, null, { presentation: true })), 7);
 });
+
+test('deux fiches du même livre : une seule présentation, bibliographie après la dernière', () => {
+  const b = { ...book(1, 1, 0), id: 'L', bibliographie: ['Réf.'] };
+  const doc = buildFicheA4Doc([{ book: b }, { book: b }, { book: { ...b, id: 'M' } }], null, { presentation: true });
+  // L : présentation, recto, recto, verso ; M : présentation, recto, verso.
+  assert.equal(doc.content.length, 7);
+  const n = buildFicheA4Doc([{ book: b }, { book: b }], null, { presentation: false });
+  assert.equal(n.content.length, 3);
+});

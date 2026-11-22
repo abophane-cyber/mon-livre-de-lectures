@@ -1,5 +1,6 @@
 // Vue « Mon livre » : sommaire puis toutes les fiches, comme un livre.
-import { deleteBook, getOrder, getSettings, liveBooks, setOrder } from '../db.js';
+import { deleteBook, getOrder, getSettings, liveBooks, saveBook, setOrder } from '../db.js';
+import { flatten, isComplete, partsOf, readyFiches, withoutPart } from '../fiches.js';
 import { SORTS, filterBooks, sortBooks } from '../books.js';
 import { buildFixPrompt } from '../prompt.js';
 import { NOTICE_FIELDS } from '../notice.js';
@@ -10,6 +11,7 @@ import { $, $$, currentIa, getPrefs, icons, setPrefs, toast } from '../ui.js';
 let searchQuery = '';
 let sortable;
 
+/** Le contenu d'une fiche (book = livre « aplati » sur cette fiche). */
 function renderFiche(book) {
   const f = book.fiche;
   const parts = [];
@@ -49,11 +51,17 @@ function renderFiche(book) {
   if (bad.length) {
     parts.push(
       `<p class="note-alerte">${pluralize(bad.length, 'citation est', 'citations sont')} à vérifier.
-      <button class="lien" data-action="corriger" data-id="${esc(book.id)}">Copier une demande de correction pour ${esc(currentIa().label)}</button></p>`,
+      <button class="lien" data-action="corriger" data-id="${esc(book.id)}" data-fi="${esc(book.ficheId)}">Copier une demande de correction pour ${esc(currentIa().label)}</button></p>`,
     );
   }
   if (f.a_retenir) parts.push(`<h3 class="section">À retenir</h3><p>${esc(f.a_retenir)}</p>`);
   if (f.pour_qui) parts.push(`<h3 class="section">Pour qui ?</h3><p>${esc(f.pour_qui)}</p>`);
+  return parts.join('');
+}
+
+/** Notice et bibliographie : une seule fois par livre, après toutes ses fiches. */
+function renderNotice(book) {
+  const parts = [];
   const notice = NOTICE_FIELDS.filter(([k]) => book[k]);
   if (notice.length) {
     parts.push(
@@ -68,23 +76,42 @@ function renderFiche(book) {
   return parts.join('');
 }
 
+function renderPart(book, part, i, n) {
+  const fb = flatten(book, part);
+  const q = `${esc(book.id)}?f=${esc(part.id)}`;
+  const body = part.fiche
+    ? renderFiche(fb)
+    : `<div class="attente"><p>Cette fiche attend encore son résumé${part.passages?.length ? ' (texte enregistré)' : ''}.</p>
+       <a class="btn primaire" href="#/livre/${q}">Terminer la fiche</a></div>`;
+  return `<section class="fiche-partie" id="fi-${esc(part.id)}">
+    ${n > 1 ? `<p class="partie-num">Fiche ${i + 1} sur ${n}</p>` : ''}
+    ${body}
+    <div class="actions">
+      ${part.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Fiche A4</button>` : ''}
+      ${part.fiche ? `<a class="btn" href="#/modifier/${q}">Modifier le texte</a>` : ''}
+      <a class="btn" href="#/livre/${q}">Compléter le texte / refaire le résumé</a>
+      ${n > 1 ? `<button class="btn danger" data-action="supprimer-fiche" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Supprimer cette fiche</button>` : ''}
+    </div>
+  </section>`;
+}
+
 function renderChapter(book, index) {
-  const meta = [book.author, book.pubDate, book.fiche?.genre].filter(Boolean).map(esc).join(' · ');
-  const body = book.fiche
-    ? renderFiche(book)
-    : `<div class="attente"><p>Cette fiche attend encore son résumé${book.passages.length ? ' (texte enregistré)' : ''}.</p>
-       <a class="btn primaire" href="#/livre/${esc(book.id)}">Terminer la fiche</a></div>`;
+  const parts = partsOf(book);
+  const genre = parts.find((p) => p.fiche?.genre)?.fiche.genre;
+  const meta = [book.author, book.pubDate, genre].filter(Boolean).map(esc).join(' · ');
+  const ready = parts.filter((p) => p.fiche).length;
   return `<article class="chapitre page" id="ch-${esc(book.id)}">
     <p class="chapitre-num">Chapitre ${index + 1}</p>
     <h2>${esc(book.title)}</h2>
     ${meta ? `<p class="meta">${meta}</p>` : ''}
     <hr class="filet">
-    ${body}
-    <div class="actions">
-      ${book.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}">Fiche A4</button>` : ''}
-      <a class="btn" href="#/modifier/${esc(book.id)}">Modifier le texte</a>
-      <a class="btn" href="#/livre/${esc(book.id)}">Compléter le texte / refaire le résumé</a>
-      <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">Supprimer</button>
+    ${parts.length ? parts.map((p, i) => renderPart(book, p, i, parts.length)).join('') : '<p class="attente">Ce livre n\'a pas encore de fiche.</p>'}
+    ${renderNotice(book)}
+    <div class="actions actions-livre">
+      <a class="btn primaire" href="#/livre/${esc(book.id)}?f=nouvelle">+ Ajouter une fiche (autre chapitre)</a>
+      ${ready > 1 ? `<button class="btn" data-action="fichea4" data-id="${esc(book.id)}">Toutes les fiches A4 du livre (${ready})</button>` : ''}
+      ${!parts.some((p) => p.fiche) ? `<a class="btn" href="#/modifier/${esc(book.id)}">Modifier titre et notice</a>` : ''}
+      <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">${parts.length > 1 ? 'Supprimer le livre et ses fiches' : 'Supprimer'}</button>
     </div>
   </article>`;
 }
@@ -131,14 +158,14 @@ export async function renderLivre(view, params) {
               ${canDrag ? `<span class="poignee" aria-label="Déplacer">${icons.grip}</span>` : ''}
               <a href="#/?ch=${esc(b.id)}"><span class="num">${i + 1}.</span>
                 <span class="t">${esc(b.title)}</span>
-                <span class="a">${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</span></a>
-              ${b.fiche ? '' : '<span class="badge">à terminer</span>'}
+                <span class="a">${[b.author, b.pubDate, partsOf(b).length > 1 ? pluralize(partsOf(b).length, 'fiche', 'fiches') : ''].filter(Boolean).map(esc).join(' · ')}</span></a>
+              ${isComplete(b) ? '' : '<span class="badge">à terminer</span>'}
             </li>`,
           )
           .join('')}
       </ol>
       ${shown.length ? '' : '<p>Aucune fiche ne correspond à votre recherche.</p>'}
-      <p class="petit">${pluralize(books.length, 'fiche', 'fiches')} dans votre livre.</p>
+      <p class="petit">${pluralize(books.length, 'livre', 'livres')} et ${pluralize(books.reduce((n, b) => n + partsOf(b).length, 0), 'fiche', 'fiches')} dans votre livre de lectures.</p>
     </section>
     <div id="chapitres">${shown.map(renderChapter).join('')}</div>`;
 
@@ -162,11 +189,21 @@ export async function renderLivre(view, params) {
     if (!btn) return;
     const book = books.find((b) => b.id === btn.dataset.id);
     if (!book) return;
+    const part = btn.dataset.fi ? partsOf(book).find((p) => p.id === btn.dataset.fi) : null;
     if (btn.dataset.action === 'supprimer') {
-      if (!confirm(`Supprimer définitivement la fiche « ${book.title} » ?`)) return;
+      const n = partsOf(book).length;
+      if (!confirm(n > 1 ? `Supprimer définitivement le livre « ${book.title} » et ses ${n} fiches ?` : `Supprimer définitivement la fiche « ${book.title} » ?`)) return;
       await deleteBook(book.id);
-      toast(`La fiche « ${book.title} » a été supprimée.`);
+      toast(`« ${book.title} » a été supprimé.`);
       renderLivre(view, {});
+    }
+    if (btn.dataset.action === 'supprimer-fiche' && part) {
+      const i = partsOf(book).indexOf(part) + 1;
+      const nom = part.fiche?.chapitre ? `« ${part.fiche.chapitre} »` : `n° ${i}`;
+      if (!confirm(`Supprimer définitivement la fiche ${nom} du livre « ${book.title} » ? Les autres fiches du livre sont gardées.`)) return;
+      await saveBook(withoutPart(book, part.id));
+      toast(`La fiche ${nom} a été supprimée.`);
+      renderLivre(view, { ch: book.id });
     }
     if (btn.dataset.action === 'fichea4') {
       const label = btn.textContent;
@@ -174,7 +211,9 @@ export async function renderLivre(view, params) {
       btn.textContent = 'Préparation…';
       try {
         const { downloadFichesA4, slug } = await import('../pdf.js');
-        const { small } = await downloadFichesA4([book], `fiche-${slug(book.title)}.pdf`, { presentation: getPrefs().presentationA4 !== false });
+        const list = part ? [flatten(book, part)] : readyFiches([book]);
+        const name = part && partsOf(book).length > 1 ? `fiche-${slug(book.title)}-${partsOf(book).indexOf(part) + 1}.pdf` : `fiche-${slug(book.title)}.pdf`;
+        const { small } = await downloadFichesA4(list, name, { presentation: getPrefs().presentationA4 !== false });
         toast(
           small.length
             ? 'Fiche A4 téléchargée ✓ Le texte est long : il est imprimé en petits caractères. Choisissez la longueur « Court » ou « Moyen » pour une fiche plus lisible.'
@@ -190,8 +229,8 @@ export async function renderLivre(view, params) {
         btn.textContent = label;
       }
     }
-    if (btn.dataset.action === 'corriger') {
-      const bad = book.fiche.citations.filter((c) => c.introuvable).map((c) => c.texte);
+    if (btn.dataset.action === 'corriger' && part?.fiche) {
+      const bad = part.fiche.citations.filter((c) => c.introuvable).map((c) => c.texte);
       const ok = await copyText(buildFixPrompt({ badCitations: bad }));
       toast(ok ? `Demande copiée. Collez-la dans la conversation ${currentIa().label} de ce livre, puis recollez la réponse dans « Compléter le texte / refaire le résumé ».` : 'La copie a échoué.', ok ? 'ok' : 'erreur', 8000);
     }
@@ -217,6 +256,7 @@ export async function renderLivre(view, params) {
   }
 
   if (params.ch) {
-    requestAnimationFrame(() => document.getElementById('ch-' + params.ch)?.scrollIntoView({ block: 'start' }));
+    const target = (params.fi && document.getElementById('fi-' + params.fi)) || document.getElementById('ch-' + params.ch);
+    requestAnimationFrame(() => target?.scrollIntoView({ block: 'start' }));
   }
 }

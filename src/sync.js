@@ -1,9 +1,11 @@
 // Sauvegarde et fusion entre l'ordinateur et le téléphone (par fichier, via le câble USB).
 // Fonctions pures : aucune dépendance au navigateur, pour pouvoir les tester.
-import { bookKey, mergePassages } from './util.js';
+import { bookKey } from './util.js';
+import { mergeParts, normalizeBook } from './fiches.js';
 
 export const BACKUP_APP = 'mon-livre-de-lectures';
-export const BACKUP_VERSION = 1;
+// Version 2 : un livre peut contenir plusieurs fiches.
+export const BACKUP_VERSION = 2;
 
 export function makeBackup({ books, order, settings }) {
   return {
@@ -29,14 +31,11 @@ export function validateBackup(data) {
 /** Combine deux fiches du même livre créées séparément sur les deux appareils. */
 function combine(keep, other) {
   const newer = (other.updatedAt || 0) > (keep.updatedAt || 0) ? other : keep;
-  const withFiche = [keep, other].filter((b) => b.fiche).sort((a, b) => b.updatedAt - a.updatedAt)[0];
   return {
     ...newer,
     id: keep.id,
     createdAt: Math.min(keep.createdAt || Infinity, other.createdAt || Infinity),
-    passages: mergePassages(keep.passages, other.passages),
-    fiche: withFiche ? withFiche.fiche : null,
-    ficheEditedByHand: withFiche ? !!withFiche.ficheEditedByHand : false,
+    fiches: mergeParts(keep.fiches, other.fiches),
     updatedAt: Math.max(keep.updatedAt || 0, other.updatedAt || 0),
     deleted: false,
   };
@@ -57,15 +56,16 @@ export function reconcileOrder(orderIds, liveBooks) {
  * Fusionne la sauvegarde importée avec les données locales.
  * - Même fiche (même identifiant) : la version modifiée le plus récemment l'emporte.
  * - Fiche supprimée d'un côté : la suppression l'emporte si elle est plus récente.
- * - Même livre créé séparément sur les deux appareils : les passages sont réunis.
+ * - Même livre modifié des deux côtés : ses fiches sont réunies (pour chaque fiche, la plus récente l'emporte).
+ * - Même livre créé séparément sur les deux appareils : ses fiches sont réunies dans un seul livre.
  * Renvoie { books, order, settings, report }.
  */
 export function mergeBackup(local, incoming) {
   const report = { ajoutees: 0, misesAJour: 0, supprimees: 0, reunies: 0 };
-  const byId = new Map(local.books.map((b) => [b.id, { ...b }]));
+  const byId = new Map(local.books.map((b) => [b.id, normalizeBook({ ...b })]));
   const keyOf = (b) => bookKey(b.title, b.author);
 
-  const sortedIncoming = [...incoming.books].sort((a, b) => Number(!!a.deleted) - Number(!!b.deleted));
+  const sortedIncoming = incoming.books.map((b) => normalizeBook(b)).sort((a, b) => Number(!!a.deleted) - Number(!!b.deleted));
   for (const inc of sortedIncoming) {
     const cur = byId.get(inc.id);
     if (inc.deleted) {
@@ -83,10 +83,19 @@ export function mergeBackup(local, incoming) {
       continue;
     }
     if (cur) {
-      if ((inc.updatedAt || 0) > (cur.updatedAt || 0)) {
-        if (cur.deleted) report.ajoutees++;
-        else report.misesAJour++;
-        byId.set(inc.id, { ...inc });
+      const newer = (inc.updatedAt || 0) > (cur.updatedAt || 0);
+      if (cur.deleted) {
+        if (newer) {
+          report.ajoutees++;
+          byId.set(inc.id, { ...inc });
+        }
+        continue;
+      }
+      // Fiches ajoutées des deux côtés au même livre : on garde tout.
+      const fiches = mergeParts(cur.fiches, inc.fiches);
+      if (newer || JSON.stringify(fiches) !== JSON.stringify(cur.fiches)) {
+        report.misesAJour++;
+        byId.set(inc.id, { ...(newer ? inc : cur), fiches, updatedAt: Math.max(inc.updatedAt || 0, cur.updatedAt || 0) });
       }
       continue;
     }

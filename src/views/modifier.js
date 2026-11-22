@@ -1,7 +1,8 @@
-// Vue « Modifier » : retoucher à la main le texte d'une fiche.
+// Vue « Modifier » : retoucher à la main le texte d'une fiche (#/modifier/<livre>?f=<fiche>) et la notice du livre.
 import { getBook, saveBook } from '../db.js';
 import { checkCitations, stripQuotes } from '../prompt.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
+import { partsOf, withPart } from '../fiches.js';
 import { esc } from '../util.js';
 import { $, $$, toast } from '../ui.js';
 
@@ -31,16 +32,26 @@ export async function renderModifier(view, params) {
     view.innerHTML = '<section class="page"><p>Cette fiche n\'existe plus.</p><a class="btn" href="#/">Retour au livre</a></section>';
     return;
   }
-  const f = { ...emptyFiche(), ...(book.fiche || {}) };
+  const parts = partsOf(book);
+  const part = parts.find((p) => p.id === params.f) || (params.f ? null : parts.find((p) => p.fiche)) || null;
+  if (params.f && !part) {
+    view.innerHTML = '<section class="page"><p>Cette fiche n’existe plus.</p><a class="btn" href="#/">Retour au livre</a></section>';
+    return;
+  }
+  // Sans fiche terminée : seuls le titre, l'auteur et la notice du livre sont modifiables.
+  const withFiche = !!part?.fiche;
+  const f = { ...emptyFiche(), ...(part?.fiche || {}) };
+  const num = parts.length > 1 && part ? ` — fiche ${parts.indexOf(part) + 1} sur ${parts.length}` : '';
 
   view.innerHTML = `<form class="page modifier" id="form">
-    <h1>Modifier « ${esc(book.title)} »</h1>
+    <h1>Modifier « ${esc(book.title)} »${esc(num)}</h1>
+    ${parts.length > 1 ? '<p class="petit">Le titre, l’auteur, la date et la notice sont communs à toutes les fiches de ce livre.</p>' : ''}
     <div class="champs">
       <label>Titre<input name="title" required value="${esc(book.title)}"></label>
       <label>Auteur<input name="author" value="${esc(book.author)}"></label>
       <label>Date de parution<input name="pubDate" value="${esc(book.pubDate)}"></label>
-      <label>Genre<input name="genre" value="${esc(f.genre)}"></label>
-      <label>Titre du chapitre <span class="petit">(en haut de la fiche A4)</span><input name="chapitre" value="${esc(f.chapitre)}"></label>
+      ${withFiche ? `<label>Genre<input name="genre" value="${esc(f.genre)}"></label>
+      <label>Titre du chapitre <span class="petit">(en haut de la fiche A4)</span><input name="chapitre" value="${esc(f.chapitre)}"></label>` : ''}
     </div>
     <fieldset>
       <legend>Notice du livre <span class="petit">(verso de la fiche A4, facultatif)</span></legend>
@@ -50,7 +61,7 @@ export async function renderModifier(view, params) {
       <label class="bloc">Bibliographie <span class="petit">(une référence par ligne)</span>
         <textarea name="bibliographie" rows="5">${esc((book.bibliographie || []).join('\n'))}</textarea></label>
     </fieldset>
-    <label class="bloc">Accroche (une phrase)<textarea name="accroche" rows="2">${esc(f.accroche)}</textarea></label>
+    ${withFiche ? `<label class="bloc">Accroche (une phrase)<textarea name="accroche" rows="2">${esc(f.accroche)}</textarea></label>
     <label class="bloc">Résumé <span class="petit">(une ligne vide entre les paragraphes)</span>
       <textarea name="resume" rows="10">${esc(f.resume.join('\n\n'))}</textarea></label>
     ${Object.entries(LISTS)
@@ -69,9 +80,9 @@ export async function renderModifier(view, params) {
       )
       .join('')}
     <label class="bloc">À retenir<textarea name="a_retenir" rows="4">${esc(f.a_retenir)}</textarea></label>
-    <label class="bloc">Pour qui ?<textarea name="pour_qui" rows="3">${esc(f.pour_qui)}</textarea></label>
+    <label class="bloc">Pour qui ?<textarea name="pour_qui" rows="3">${esc(f.pour_qui)}</textarea></label>` : ''}
     <div class="rangee collante">
-      <a class="btn" href="#/?ch=${esc(book.id)}">Annuler</a>
+      <a class="btn" href="#/?ch=${esc(book.id)}${part ? `&fi=${esc(part.id)}` : ''}">Annuler</a>
       <button class="btn primaire" type="submit">Enregistrer</button>
     </div>
   </form>`;
@@ -91,6 +102,21 @@ export async function renderModifier(view, params) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const val = (n) => form.elements[n].value.trim();
+    const bookFields = {
+      ...book,
+      title: val('title') || book.title,
+      author: val('author'),
+      pubDate: val('pubDate'),
+      ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, val(k)])),
+      bibliographie: form.elements.bibliographie.value.split('\n').map((s) => s.trim()).filter(Boolean),
+    };
+    const back = '#/?ch=' + book.id + (part ? '&fi=' + part.id : '');
+    if (!withFiche) {
+      await saveBook(bookFields);
+      toast('Modifications enregistrées ✓', 'ok');
+      location.hash = back;
+      return;
+    }
     const fiche = {
       genre: val('genre'),
       chapitre: val('chapitre'),
@@ -109,18 +135,9 @@ export async function renderModifier(view, params) {
         .filter((x) => x[L.a[0]] || x[L.b[0]]);
     }
     fiche.citations = fiche.citations.map((c) => ({ ...c, texte: stripQuotes(c.texte) }));
-    checkCitations(fiche, book.passages);
-    await saveBook({
-      ...book,
-      title: val('title') || book.title,
-      author: val('author'),
-      pubDate: val('pubDate'),
-      ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, val(k)])),
-      bibliographie: form.elements.bibliographie.value.split('\n').map((s) => s.trim()).filter(Boolean),
-      fiche,
-      ficheEditedByHand: true,
-    });
+    checkCitations(fiche, part.passages);
+    await saveBook(withPart(bookFields, { ...part, fiche, ficheEditedByHand: true }));
     toast('Modifications enregistrées ✓', 'ok');
-    location.hash = '#/?ch=' + book.id;
+    location.hash = back;
   });
 }

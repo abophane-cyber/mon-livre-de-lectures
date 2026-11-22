@@ -186,14 +186,19 @@ export function presentation(book) {
  */
 export function buildFicheA4Doc(items, onPageCount, { presentation: withPresentation = false } = {}) {
   const content = [];
+  // Plusieurs fiches d'un même livre à la suite : une seule page de présentation (avant la première)
+  // et les références bibliographiques au verso de la dernière seulement.
+  const same = (a, b) => !!a && !!b && a.book.id != null && a.book.id === b.book.id;
   items.forEach(({ book, r = 1, v = 1 }, i) => {
-    if (withPresentation) {
+    const first = !same(items[i - 1], items[i]);
+    const last = !same(items[i], items[i + 1]);
+    if (withPresentation && first) {
       content.push({ stack: presentation(book), pageBreak: i ? 'beforeOdd' : undefined });
       content.push({ stack: recto(book, r), pageBreak: 'beforeOdd' });
     } else {
       content.push({ stack: recto(book, r), pageBreak: i ? 'beforeOdd' : undefined });
     }
-    if (hasVerso(book)) content.push({ stack: verso(book, v), pageBreak: 'before' });
+    if (last && hasVerso(book)) content.push({ stack: verso(book, v), pageBreak: 'before' });
   });
   return {
     pageSize: 'A4',

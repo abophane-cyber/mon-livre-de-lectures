@@ -4,6 +4,7 @@ import { parseClippings, parseTitleLine } from '../src/clippings.js';
 import { parseAnswer, checkCitations, buildPrompt, buildNoticePrompt } from '../src/prompt.js';
 import { applyNotice } from '../src/notice.js';
 import { mergeBackup } from '../src/sync.js';
+import { flatten, mergeParts, normalizeBook, partsOf, readyFiches, withPart, withoutPart } from '../src/fiches.js';
 import { mergePassages, splitPassages, yearOf } from '../src/util.js';
 
 const CLIPPINGS = `﻿Madame Bovary (French Edition) (Flaubert, Gustave)
@@ -139,7 +140,7 @@ test('mergeBackup : ajout, mise à jour, suppression', () => {
   ], order: { value: ['a'], updatedAt: 1 } };
   const r = mergeBackup(local, incoming);
   assert.deepEqual(r.report, { ajoutees: 1, misesAJour: 1, supprimees: 1, reunies: 0 });
-  assert.deepEqual(r.books.find((b) => b.id === 'a').passages, ['nouveau']);
+  assert.deepEqual(partsOf(r.books.find((b) => b.id === 'a'))[0].passages, ['nouveau']);
   assert.deepEqual(r.order.value, ['b', 'a', 'd']);
 });
 
@@ -151,12 +152,50 @@ test('mergeBackup : même livre créé sur les deux appareils, dans les deux sen
   const live = onPc.books.filter((b) => !b.deleted);
   assert.equal(live.length, 1);
   assert.equal(live[0].id, 'x1');
-  assert.deepEqual(live[0].passages, ['un', 'deux']);
+  // Les deux fiches sont gardées dans le même livre.
+  assert.deepEqual(partsOf(live[0]).map((p) => p.passages), [['un'], ['deux']]);
   assert.deepEqual(onPc.order.value, ['x1']);
   // Le téléphone importe ensuite la sauvegarde du PC.
   const onTel = mergeBackup(tel, { books: onPc.books, order: onPc.order });
   const liveTel = onTel.books.filter((b) => !b.deleted);
   assert.equal(liveTel.length, 1);
   assert.equal(liveTel[0].id, 'x1');
-  assert.deepEqual(liveTel[0].passages, ['un', 'deux']);
+  assert.deepEqual(partsOf(liveTel[0]).map((p) => p.passages), [['un'], ['deux']]);
+});
+
+test('plusieurs fiches par livre : ancien format, ajout, suppression, aplatissement', () => {
+  const old = book('b1', { fiche: { resume: ['R'] }, captures: true, isbn: '123' });
+  const n = normalizeBook(old);
+  assert.equal(n.fiche, undefined);
+  assert.equal(n.passages, undefined);
+  assert.deepEqual(partsOf(n).map((p) => p.id), ['p-b1']);
+  assert.equal(partsOf(n)[0].captures, true);
+  const deux = withPart(n, { id: 'c2', passages: ['chap 2'], fiche: null, createdAt: 5 });
+  assert.equal(partsOf(deux).length, 2);
+  const f2 = flatten(deux, partsOf(deux)[1]);
+  assert.deepEqual([f2.id, f2.ficheId, f2.ficheIndex, f2.ficheCount, f2.isbn], ['b1', 'c2', 1, 2, '123']);
+  assert.deepEqual(f2.passages, ['chap 2']);
+  assert.equal(readyFiches([deux]).length, 1);
+  // Remplacer une fiche ne touche pas aux autres.
+  const remplie = withPart(f2, { ...partsOf(deux)[1], fiche: { resume: ['R2'] } });
+  assert.equal(remplie.fiche, undefined);
+  assert.deepEqual(readyFiches([remplie]).map((x) => x.fiche.resume[0]), ['R', 'R2']);
+  const sans = withoutPart(remplie, 'p-b1');
+  assert.deepEqual(partsOf(sans).map((p) => p.id), ['c2']);
+  assert.equal(sans.fiches.length, 2);
+});
+
+test('mergeBackup : fiches ajoutées au même livre sur les deux appareils', () => {
+  const base = normalizeBook(book('L', { fiche: { resume: ['R'] } }));
+  const pc = withPart(base, { id: 'pc', passages: ['chap 2'], createdAt: 10 });
+  const tel = { ...withPart(base, { id: 'tel', passages: ['chap 3'], createdAt: 20 }), updatedAt: 99 };
+  const r = mergeBackup({ books: [{ ...pc, updatedAt: 50 }], order: { value: ['L'], updatedAt: 1 } }, { books: [tel], order: { value: ['L'], updatedAt: 1 } });
+  const L = r.books.find((b) => b.id === 'L');
+  assert.deepEqual(partsOf(L).map((p) => p.id), ['p-L', 'pc', 'tel']);
+  assert.equal(r.report.misesAJour, 1);
+  // Fiche supprimée sur un appareil : la suppression plus récente l'emporte.
+  const a = [{ id: 'x', passages: ['v1'], createdAt: 1, updatedAt: 1 }];
+  const b = [{ id: 'x', deleted: true, createdAt: 1, updatedAt: 2 }];
+  assert.equal(mergeParts(a, b)[0].deleted, true);
+  assert.equal(mergeParts(b, a)[0].deleted, true);
 });
