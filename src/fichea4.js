@@ -6,6 +6,9 @@ const ACCENT = '#8a5a14';
 const GREY = '#5c5c5c';
 const BOX = '#f6efe0';
 const RULE = '#e4dccb';
+// Page de présentation : vert forêt (bande et titre) et vert plus clair (intitulés, filet).
+const FOREST = '#344C2D';
+const SAGE = '#5E7F3A';
 
 /** Échelles essayées, de la plus grande à la plus petite, pour faire tenir une face sur une page. */
 export const SCALES = Array.from({ length: 14 }, (_, i) => Math.round((1 - i * 0.03) * 100) / 100); // 1, 0.97 … 0.61
@@ -153,24 +156,30 @@ export function presentation(book) {
     ...NOTICE_FIELDS.filter(([k]) => k !== 'dateLecture' && book[k]).map(([k, l]) => [l, book[k]]),
     book.dateLecture && ['Lu en', book.dateLecture],
   ].filter(Boolean);
+  // Style « vert forêt » : bande verticale à gauche, titre en capitales, détails alignés à gauche.
   return [
     {
+      canvas: [{ type: 'rect', x: 0, y: 0, w: 8, h: 818, color: FOREST }],
+      absolutePosition: { x: 12, y: 12 },
+    },
+    {
       stack: [
-        { text: 'FICHE DE LECTURE', fontSize: 9, bold: true, color: ACCENT, characterSpacing: 3, alignment: 'center' },
-        { text: book.title, fontSize: 30, bold: true, lineHeight: 1.12, alignment: 'center', margin: [0, 22, 0, 0] },
-        book.author ? { text: book.author, fontSize: 16, italics: true, alignment: 'center', margin: [0, 14, 0, 0] } : '',
+        { text: 'FICHE DE LECTURE', fontSize: 11, bold: true, color: SAGE, characterSpacing: 2.5 },
+        { text: book.title.toUpperCase(), fontSize: 36, bold: true, color: FOREST, lineHeight: 1.1, margin: [0, 22, 0, 0] },
+        book.author ? { text: book.author, fontSize: 21, italics: true, margin: [0, 16, 0, 0] } : '',
         {
-          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 70, y2: 0, lineWidth: 1.5, lineColor: ACCENT }],
-          alignment: 'center',
-          margin: [0, 26, 0, 26],
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 445, y2: 0, lineWidth: 1.2, lineColor: SAGE }],
+          margin: [0, 26, 0, 30],
         },
         ...details.map(([l, v]) => ({
-          text: [{ text: `${l.toUpperCase()}   `, fontSize: 8.5, color: GREY, characterSpacing: 1.2 }, { text: v, fontSize: 12 }],
-          alignment: 'center',
-          margin: [0, 0, 0, 9],
+          text: [
+            { text: `${l.toUpperCase()} : `, fontSize: 10.5, bold: true, color: SAGE, characterSpacing: 1.2 },
+            { text: v, fontSize: 15 },
+          ],
+          margin: [0, 0, 0, 16],
         })),
       ],
-      margin: [0, 210, 0, 0],
+      margin: [46, 56, 24, 0],
     },
   ];
 }
