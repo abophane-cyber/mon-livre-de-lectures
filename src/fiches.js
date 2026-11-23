@@ -39,7 +39,9 @@ export function bookOnly(book) {
 /** Les fiches du livre (sans celles supprimées), dans l'ordre. */
 export function partsOf(book) {
   // « p-undefined » : fiche vide créée par erreur avec les livres neufs (ancienne version de l'appli).
-  return (normalizeBook(book)?.fiches || []).filter((p) => !p.deleted && !(p.id === 'p-undefined' && !p.fiche && !p.passages?.length));
+  return (normalizeBook(book)?.fiches || [])
+    .filter((p) => !p.deleted && !(p.id === 'p-undefined' && !p.fiche && !p.passages?.length))
+    .map((p) => (p.fiche ? { ...p, fiche: unescapeFiche(p.fiche) } : p));
 }
 
 /**
@@ -67,7 +69,8 @@ export function flatten(book, part) {
  * Enlève les « \ » laissés par certaines IA (« \- Dette publique ») dans les fiches déjà enregistrées.
  */
 function unescapeFiche(v) {
-  if (typeof v === 'string') return v.replace(/^\\[-*+]\s*/, '').replace(/\\([-*_#+.!()[\]`>|~=])/g, '$1').replace(/\\(?=\s|$)/g, '');
+  // Un texte de fiche n'a jamais besoin de « \ » : on les enlève tous (après « \- » en début de ligne).
+  if (typeof v === 'string') return v.replace(/^\\[-*+]\s*/, '').replace(/\\/g, '').trim();
   if (Array.isArray(v)) return v.map(unescapeFiche);
   if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, unescapeFiche(x)]));
   return v;

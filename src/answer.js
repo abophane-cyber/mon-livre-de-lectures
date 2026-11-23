@@ -217,6 +217,8 @@ export function parseTextAnswer(text) {
     .replace(/\\([-*_#+.!()[\]`>|~=])/g, '$1')
     // « \ » en fin de ligne (retour à la ligne forcé) ou suivi d'une espace : on l'enlève aussi.
     .replace(/\\(?=\s|$)/gm, '')
+    // Tout autre « \ » restant n'a rien à faire dans une fiche.
+    .replace(/\\/g, '')
     .split('\n')
     .filter((l) => !/^\s*```/.test(l) && !/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(l));
   // _pre = texte avant le premier titre ; _autre = rubriques que l'on ne reconnaît pas.
