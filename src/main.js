@@ -55,7 +55,7 @@ async function route() {
   try {
     if (name === 'nouveau') await renderAtelier(view, {});
     else if (name === 'livre' && id) await renderAtelier(view, { id, f: params.f });
-    else if (name === 'modifier' && id) await renderModifier(view, { id, f: params.f });
+    else if (name === 'modifier' && id) await renderModifier(view, { id, f: params.f, notice: params.notice === '1' });
     else if (name === 'general' && id) await renderGeneral(view, { id });
     else if (name === 'sauvegarde') await renderSauvegarde(view);
     else if (name === 'pdf') await renderPdf(view);

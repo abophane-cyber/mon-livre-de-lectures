@@ -94,8 +94,8 @@ export async function renderAtelier(view, params) {
         <div class="champs">
           ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input id="f-${k}" value="${esc(v[k])}" autocomplete="off"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
         </div>
-        <button class="btn" id="ajouter-notice" type="button">Ajouter ces informations au livre</button>
-        <p class="petit">Elles apparaîtront sur la page de présentation du livre dans les PDF.</p>
+        <button class="btn" id="ajouter-notice" type="button">Enregistrer les informations du livre</button>
+        <p class="petit">Enregistre seulement ces informations, sans créer de fiche. Elles apparaîtront sur la page de présentation du livre dans les PDF. Vous les retrouvez aussi sous le livre : bouton « Informations du livre ».</p>
       </details>
       <fieldset class="segment">
         <legend>Longueur</legend>
@@ -212,7 +212,7 @@ export async function renderAtelier(view, params) {
    * Enregistre le livre et la fiche en cours (création, ou nouvelle fiche dans le livre existant
    * du même titre et auteur). Renvoie la fiche « aplatie » (livre + fiche), ou null.
    */
-  async function persist({ noticeOnly = false } = {}) {
+  async function persist() {
     const f = readForm();
     if (!f.title) {
       toast('Indiquez le titre du livre.', 'erreur');
@@ -220,8 +220,7 @@ export async function renderAtelier(view, params) {
       return null;
     }
     const passages = splitPassages(f.passages);
-    // « Ajouter ces informations au livre » : le texte à résumer peut venir plus tard.
-    if (!noticeOnly && !passages.length && !f.captures) {
+    if (!passages.length && !f.captures) {
       toast("Collez le texte à résumer, ou cochez « J'ai des captures d'écran ».", 'erreur', 6000);
       el.passages.focus();
       return null;
@@ -303,10 +302,38 @@ export async function renderAtelier(view, params) {
     toast(`${pluralize(merged.length - before.length, 'nouvel extrait ajouté', 'nouveaux extraits ajoutés')}.`, 'ok');
   });
 
+  // Enregistre seulement le livre (titre, auteur, informations) : aucune fiche n'est créée.
   $('#ajouter-notice', view).addEventListener('click', async () => {
-    if (await persist({ noticeOnly: true })) {
-      toast('Informations ajoutées au livre ✓ Elles seront sur la page de présentation des PDF.', 'ok', 6000);
+    const f = readForm();
+    if (!f.title) {
+      toast('Indiquez le titre du livre.', 'erreur');
+      el.title.focus();
+      return;
     }
+    const meta = {
+      title: f.title,
+      author: f.author,
+      pubDate: f.pubDate,
+      lang: f.lang,
+      length: f.length,
+      ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, f[k]])),
+    };
+    let base;
+    if (book) {
+      base = { ...((await getBook(book.id)) || book), ...meta };
+    } else {
+      const twin = await findBookByKey(f.title, f.author);
+      // Livre déjà présent : ne pas effacer ce qui y était déjà renseigné avec des cases vides.
+      base = twin ? { ...twin, ...Object.fromEntries(Object.entries(meta).filter(([, val]) => val !== '')) } : meta;
+    }
+    book = await saveBook(base);
+    if (draftKey !== keyOf()) {
+      clearDraft(draftKey);
+      draftKey = keyOf();
+      history.replaceState(null, '', `#/livre/${book.id}?f=${part ? part.id : 'nouvelle'}`);
+    }
+    saveDraft(draftKey, readForm());
+    toast('Informations du livre enregistrées ✓ (aucune fiche créée). Elles seront sur la page de présentation des PDF.', 'ok', 7000);
   });
 
   $('#enregistrer', view).addEventListener('click', async () => {

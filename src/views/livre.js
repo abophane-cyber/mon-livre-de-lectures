@@ -226,7 +226,7 @@ function renderBook(book) {
         : `<a class="btn${isComplete(book) ? '' : ' primaire'}" href="#/livre/${esc(book.id)}?f=nouvelle">+ Ajouter une fiche${parts.length ? " (autre chapitre)" : ""}</a>`}
       ${ready > 1 ? `<button class="btn" data-action="fichea4" data-id="${esc(book.id)}">Toutes les fiches A4 du livre (${ready})</button>` : ''}
       ${ready && !book.resumeGeneral ? `<a class="btn" href="#/general/${esc(book.id)}">Résumé général de toutes les fiches</a>` : ''}
-      ${!parts.some((p) => p.fiche) ? `<a class="btn" href="#/modifier/${esc(book.id)}">Modifier titre et notice</a>` : ''}
+      <a class="btn" href="#/modifier/${esc(book.id)}?notice=1">Informations du livre (ISBN, éditeur…)</a>
       <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">${parts.length > 1 ? 'Supprimer le livre et ses fiches' : parts.length ? 'Supprimer le livre et sa fiche' : 'Supprimer le livre'}</button>
     </div>
   </article>`;

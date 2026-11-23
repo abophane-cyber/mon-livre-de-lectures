@@ -34,8 +34,9 @@ export async function renderModifier(view, params) {
     return;
   }
   const parts = partsOf(book);
-  const part = parts.find((p) => p.id === params.f) || (params.f ? null : parts.find((p) => p.fiche)) || null;
-  if (params.f && !part) {
+  // ?notice=1 : seulement le titre, l'auteur et les informations du livre (aucune fiche).
+  const part = params.notice ? null : parts.find((p) => p.id === params.f) || (params.f ? null : parts.find((p) => p.fiche)) || null;
+  if (params.f && !part && !params.notice) {
     view.innerHTML = '<section class="page"><p>Cette fiche n’existe plus.</p><a class="btn" href="#/">Retour au livre</a></section>';
     return;
   }
@@ -45,7 +46,7 @@ export async function renderModifier(view, params) {
   const num = parts.length > 1 && part ? ` — fiche ${parts.indexOf(part) + 1} sur ${parts.length}` : '';
 
   view.innerHTML = `<form class="page modifier" id="form">
-    <h1>Modifier « ${esc(book.title)} »${esc(num)}</h1>
+    <h1>${params.notice ? `Informations du livre « ${esc(book.title)} »` : `Modifier « ${esc(book.title)} »${esc(num)}`}</h1>
     ${parts.length > 1 ? '<p class="petit">Le titre, l’auteur, la date et la notice sont communs à toutes les fiches de ce livre.</p>' : ''}
     <div class="champs">
       <label>Titre<input name="title" required value="${esc(book.title)}"></label>
