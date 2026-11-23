@@ -110,17 +110,23 @@ export function recto(book, s = 1) {
 /** Champs de notice qui viennent du livre lui-même (la date de lecture seule ne justifie pas un verso). */
 const PUBLICATION_FIELDS = NOTICE_FIELDS.filter(([k]) => k !== 'dateLecture');
 
-/** Le verso n'existe que s'il y a des références : bibliographie ou informations d'édition. */
-export function hasVerso(book) {
-  return !!(book.bibliographie?.length || PUBLICATION_FIELDS.some(([k]) => book[k]));
+/**
+ * Le verso n'existe que s'il y a des références : la bibliographie du chapitre, et pour la dernière
+ * fiche du livre (`full`), la notice d'édition et la bibliographie générale.
+ */
+export function hasVerso(book, full = true) {
+  return !!(
+    book.bibliographie?.length ||
+    (full && (book.bibliographieGenerale?.length || PUBLICATION_FIELDS.some(([k]) => book[k])))
+  );
 }
 
-/** Verso : références bibliographiques (notice d'édition et bibliographie). */
-export function verso(book, s = 1) {
+/** Verso : références bibliographiques (bibliographie du chapitre ; notice et bibliographie générale si `full`). */
+export function verso(book, s = 1, full = true) {
   const out = [...header(s, 'Références bibliographiques')];
 
   // Informations d'édition seulement (titre, auteur et date sont sur la page de présentation).
-  const rows = NOTICE_FIELDS.map(([k, l]) => [l, book[k]]).filter(([, v]) => v);
+  const rows = full ? NOTICE_FIELDS.map(([k, l]) => [l, book[k]]).filter(([, v]) => v) : [];
   if (rows.length) out.push(label('Notice', s, { margin: [0, 0, 0, 4 * s] }));
   if (rows.length) out.push({
     table: {
@@ -141,13 +147,18 @@ export function verso(book, s = 1) {
     margin: [0, 0, 0, 16 * s],
   });
 
-  if (book.bibliographie?.length) {
-    out.push(label('Bibliographie', s, { margin: [0, 0, 0, 7 * s] }));
+  const chap = book.bibliographie || [];
+  const gen = full ? book.bibliographieGenerale || [] : [];
+  const list = (title, refs, last) => {
+    out.push(label(title, s, { margin: [0, 0, 0, 7 * s] }));
     out.push({
-      ul: book.bibliographie.map((r) => ({ text: r, fontSize: 9.8 * s, lineHeight: 1.32, margin: [0, 0, 0, 4 * s] })),
+      ul: refs.map((r) => ({ text: r, fontSize: 9.8 * s, lineHeight: 1.32, margin: [0, 0, 0, 4 * s] })),
       markerColor: ACCENT,
+      margin: [0, 0, 0, last ? 0 : 14 * s],
     });
-  }
+  };
+  if (chap.length) list('Bibliographie', chap, !gen.length);
+  if (gen.length) list(chap.length ? 'Bibliographie générale du livre' : 'Bibliographie', gen, true);
   return out;
 }
 
@@ -188,8 +199,9 @@ export function presentation(book) {
  */
 export function buildFicheA4Doc(items, onPageCount, { presentation: withPresentation = false } = {}) {
   const content = [];
-  // Plusieurs fiches d'un même livre à la suite : une seule page de présentation (avant la première)
-  // et les références bibliographiques au verso de la dernière seulement.
+  // Plusieurs fiches d'un même livre à la suite : une seule page de présentation (avant la première).
+  // Chaque fiche a au verso la bibliographie de son chapitre ; la dernière, aussi la notice et la
+  // bibliographie générale du livre.
   const same = (a, b) => !!a && !!b && a.book.id != null && a.book.id === b.book.id;
   items.forEach(({ book, r = 1, v = 1 }, i) => {
     const first = !same(items[i - 1], items[i]);
@@ -200,7 +212,7 @@ export function buildFicheA4Doc(items, onPageCount, { presentation: withPresenta
     } else {
       content.push({ stack: recto(book, r), pageBreak: i ? 'beforeOdd' : undefined });
     }
-    if (last && hasVerso(book)) content.push({ stack: verso(book, v), pageBreak: 'before' });
+    if (hasVerso(book, last)) content.push({ stack: verso(book, v, last), pageBreak: 'before' });
   });
   return {
     pageSize: 'A4',
@@ -234,9 +246,12 @@ export async function fitItems(books, countPages) {
   };
   const items = [];
   const tooLong = [];
-  for (const book of books) {
+  for (const [i, book] of books.entries()) {
+    // Dernière fiche de son livre dans la liste : le verso porte aussi la notice.
+    const next = books[i + 1];
+    const last = !(next && book.id != null && next.id === book.id);
     const r = await fit(recto, book);
-    const v = hasVerso(book) ? await fit(verso, book) : { scale: 1, ok: true };
+    const v = hasVerso(book, last) ? await fit((b, s) => verso(b, s, last), book) : { scale: 1, ok: true };
     if (!r.ok || !v.ok) tooLong.push(book.title);
     items.push({ book, r: r.scale, v: v.scale });
   }

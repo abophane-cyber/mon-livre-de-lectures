@@ -103,7 +103,7 @@ export async function renderAtelier(view, params) {
       </fieldset>
       <label class="case-simple captures"><input type="checkbox" id="f-captures"${v.captures ? ' checked' : ''}>
         <span>J'ai des <strong>captures d'écran</strong> du texte à résumer (je les joindrai dans ${esc(ia.label)})</span></label>
-      <p class="petit" id="aide-captures" ${v.captures ? '' : 'hidden'}>${esc(ia.label)} résumera <strong>tout le texte visible</strong> sur vos captures, surligné ou non. Ajoutez aussi, si vous voulez, une capture de la page d'informations du livre (éditeur, ISBN) ou de la bibliographie : elles iront au verso de la fiche A4.</p>
+      <p class="petit" id="aide-captures" ${v.captures ? '' : 'hidden'}>${esc(ia.label)} résumera <strong>tout le texte visible</strong> sur vos captures, surligné ou non. Ajoutez aussi, si vous voulez, une capture de la page d'informations du livre (éditeur, ISBN) ou de la bibliographie du chapitre : elles iront au verso de la fiche A4 de ce chapitre.</p>
       <button class="lien" id="montrer-passages" type="button" ${v.captures && !v.passages.trim() ? '' : 'hidden'}>+ Ajouter aussi du texte copié-collé</button>
       <label class="bloc" id="bloc-passages" ${v.captures && !v.passages.trim() ? 'hidden' : ''}>Le texte à résumer <span class="petit" id="compte"></span>
         <textarea id="f-passages" rows="12" placeholder="Collez ici le texte à résumer : un extrait, un chapitre, vos passages préférés…">${esc(v.passages)}</textarea>
@@ -374,12 +374,14 @@ export async function renderAtelier(view, params) {
     }
     const saved = await persist();
     if (!saved) return;
-    const { patch, changed } = applyNotice(saved, result.notice, result.bibliographie);
+    // `saved` est la fiche aplatie : sa bibliographie est celle du chapitre, où vont les nouvelles références.
+    const { patch: { bibliographie: chapBiblio, ...patch }, changed } = applyNotice(saved, result.notice, result.bibliographie);
+    const chap = chapBiblio ? { bibliographie: chapBiblio } : {};
     const noticeMsg = changed ? ` Notice complétée (${pluralize(changed, 'information', 'informations')}).` : '';
 
     // Réponse « notice et bibliographie seulement » : la fiche n'est pas touchée.
     if (result.partial) {
-      book = await saveBook({ ...book, ...patch });
+      book = await saveBook(withPart({ ...book, ...patch }, { ...part, ...chap }));
       clearDraft(draftKey);
       toast(
         changed
@@ -388,7 +390,7 @@ export async function renderAtelier(view, params) {
         changed ? 'ok' : 'attention',
         8000,
       );
-      location.hash = '#/?ch=' + saved.id;
+      location.hash = `#/?ch=${saved.id}&fi=${part.id}`;
       return;
     }
 
@@ -399,7 +401,7 @@ export async function renderAtelier(view, params) {
     const fromCaptures = allPassages.length - saved.passages.length;
     // Avec des captures, le texte source est dans les images : les citations ne peuvent pas être vérifiées.
     const missing = saved.captures ? 0 : checkCitations(result.fiche, allPassages);
-    book = await saveBook(withPart({ ...book, ...patch }, { ...part, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false }));
+    book = await saveBook(withPart({ ...book, ...patch }, { ...part, ...chap, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false }));
     clearDraft(draftKey);
     const goTo = `#/?ch=${book.id}&fi=${part.id}`;
     const extra = (fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'extrait recopié', 'extraits recopiés')} depuis vos captures.` : '') + noticeMsg;

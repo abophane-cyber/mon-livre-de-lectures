@@ -86,11 +86,24 @@ test('page de présentation : seule sur sa feuille, puis le résumé sur une pag
   assert.equal(await countPages(buildFicheA4Doc(fit2.items, null, { presentation: true })), 7);
 });
 
-test('deux fiches du même livre : une seule présentation, bibliographie après la dernière', () => {
-  const b = { ...book(1, 1, 0), id: 'L', bibliographie: ['Réf.'] };
+test('deux fiches du même livre : une seule présentation, bibliographie générale après la dernière', () => {
+  const b = { ...book(1, 1, 0), id: 'L', bibliographieGenerale: ['Réf.'] };
   const doc = buildFicheA4Doc([{ book: b }, { book: b }, { book: { ...b, id: 'M' } }], null, { presentation: true });
   // L : présentation, recto, recto, verso ; M : présentation, recto, verso.
   assert.equal(doc.content.length, 7);
   const n = buildFicheA4Doc([{ book: b }, { book: b }], null, { presentation: false });
   assert.equal(n.content.length, 3);
+});
+
+test('bibliographie d’un chapitre : au verso de sa propre fiche, notice seulement sur la dernière', () => {
+  const base = { ...book(1, 1, 0), id: 'L' };
+  const ch1 = { ...base, bibliographie: ['Réf. du chapitre 1'] };
+  const ch2 = { ...base, bibliographie: [] };
+  const doc = buildFicheA4Doc([{ book: ch1 }, { book: ch2 }]);
+  // recto 1, verso 1 (bibliographie du chapitre 1), recto 2, verso 2 (notice du livre)
+  assert.equal(doc.content.length, 4);
+  const v1 = JSON.stringify(doc.content[1]);
+  assert.ok(v1.includes('Réf. du chapitre 1'));
+  assert.ok(!v1.includes('ISBN'));
+  assert.ok(!JSON.stringify(doc.content[3]).includes('Réf. du chapitre 1'));
 });

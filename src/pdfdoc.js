@@ -19,7 +19,7 @@ const sameBook = (a, b) => !!a && !!b && a.id != null && a.id === b.id;
 
 /**
  * Une fiche. La première fiche d'un livre ouvre le chapitre (titre, sommaire) ;
- * les suivantes commencent sur une nouvelle page ; la bibliographie vient après la dernière.
+ * les suivantes commencent sur une nouvelle page ; chacune finit par la bibliographie de son chapitre.
  */
 function chapter(book, { first = true, last = true } = {}) {
   const f = book.fiche;
@@ -106,9 +106,15 @@ function chapter(book, { first = true, last = true } = {}) {
     out.push(section('Pour qui ?'));
     out.push({ text: f.pour_qui, style: 'body' });
   }
-  if (last && book.bibliographie?.length) {
+  const refs = (list) => ({ ul: list.map((r) => ({ text: r, fontSize: 9.5, margin: [0, 0, 0, 3] })), markerColor: ACCENT });
+  // Bibliographie du chapitre à la fin de sa fiche ; bibliographie générale après la dernière fiche du livre.
+  if (book.bibliographie?.length) {
     out.push(section('Bibliographie'));
-    out.push({ ul: book.bibliographie.map((r) => ({ text: r, fontSize: 9.5, margin: [0, 0, 0, 3] })), markerColor: ACCENT });
+    out.push(refs(book.bibliographie));
+  }
+  if (last && book.bibliographieGenerale?.length) {
+    out.push(section(book.ficheCount > 1 || book.bibliographie?.length ? 'Bibliographie générale du livre' : 'Bibliographie'));
+    out.push(refs(book.bibliographieGenerale));
   }
   return out;
 }

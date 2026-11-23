@@ -79,10 +79,14 @@ function renderFiche(book) {
   }
   if (f.a_retenir) parts.push(`<h3 class="section">À retenir</h3><p>${esc(f.a_retenir)}</p>`);
   if (f.pour_qui) parts.push(`<h3 class="section">Pour qui ?</h3><p>${esc(f.pour_qui)}</p>`);
+  if (book.bibliographie?.length) {
+    const titre = partsOf(book).some((p) => p.bibliographie?.length) || partsOf(book).length > 1 ? 'Bibliographie générale du livre' : 'Bibliographie';
+    parts.push(`<h3 class="section">${titre}</h3><ul class="biblio">${book.bibliographie.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`);
+  }
   return parts.join('');
 }
 
-/** Notice et bibliographie : une seule fois par livre, après toutes ses fiches. */
+/** Notice et bibliographie générale : une seule fois par livre, après toutes ses fiches. */
 function renderNotice(book) {
   const parts = [];
   const notice = NOTICE_FIELDS.filter(([k]) => book[k]);
@@ -94,7 +98,8 @@ function renderNotice(book) {
     );
   }
   if (book.bibliographie?.length) {
-    parts.push(`<h3 class="section">Bibliographie</h3><ul class="biblio">${book.bibliographie.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`);
+    const titre = partsOf(book).some((p) => p.bibliographie?.length) || partsOf(book).length > 1 ? 'Bibliographie générale du livre' : 'Bibliographie';
+    parts.push(`<h3 class="section">${titre}</h3><ul class="biblio">${book.bibliographie.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`);
   }
   return parts.join('');
 }

@@ -58,8 +58,12 @@ export async function renderModifier(view, params) {
       <div class="champs">
         ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(book[k])}"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
       </div>
-      <label class="bloc">Bibliographie <span class="petit">(une référence par ligne)</span>
-        <textarea name="bibliographie" rows="5">${esc((book.bibliographie || []).join('\n'))}</textarea></label>
+      ${part ? `<label class="bloc">Bibliographie de ce chapitre <span class="petit">(une référence par ligne ; au verso de la fiche A4 de ce chapitre)</span>
+        <textarea name="bibliographieChapitre" rows="5">${esc((part.bibliographie || []).join('\n'))}</textarea></label>` : ''}
+      ${!part || book.bibliographie?.length
+        ? `<label class="bloc">${part ? 'Bibliographie générale du livre' : 'Bibliographie'} <span class="petit">(une référence par ligne${part ? ' ; pour la mettre dans ce chapitre, déplacez les lignes dans le cadre au-dessus' : ''})</span>
+        <textarea name="bibliographie" rows="5">${esc((book.bibliographie || []).join('\n'))}</textarea></label>`
+        : ''}
     </fieldset>
     ${withFiche ? `<label class="bloc">Accroche (une phrase)<textarea name="accroche" rows="2">${esc(f.accroche)}</textarea></label>
     <label class="bloc">Résumé <span class="petit">(une ligne vide entre les paragraphes)</span>
@@ -102,17 +106,20 @@ export async function renderModifier(view, params) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const val = (n) => form.elements[n].value.trim();
+    // Liste « une référence par ligne » (undefined si le cadre n'est pas affiché).
+    const lines = (n) => form.elements[n]?.value.split('\n').map((s) => s.trim()).filter(Boolean);
     const bookFields = {
       ...book,
       title: val('title') || book.title,
       author: val('author'),
       pubDate: val('pubDate'),
       ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, val(k)])),
-      bibliographie: form.elements.bibliographie.value.split('\n').map((s) => s.trim()).filter(Boolean),
+      bibliographie: lines('bibliographie') ?? book.bibliographie ?? [],
     };
+    const chap = part ? { bibliographie: lines('bibliographieChapitre') ?? part.bibliographie ?? [] } : {};
     const back = '#/?ch=' + book.id + (part ? '&fi=' + part.id : '');
     if (!withFiche) {
-      await saveBook(bookFields);
+      await saveBook(part ? withPart(bookFields, { ...part, ...chap }) : bookFields);
       toast('Modifications enregistrées ✓', 'ok');
       location.hash = back;
       return;
@@ -136,7 +143,7 @@ export async function renderModifier(view, params) {
     }
     fiche.citations = fiche.citations.map((c) => ({ ...c, texte: stripQuotes(c.texte) }));
     checkCitations(fiche, part.passages);
-    await saveBook(withPart(bookFields, { ...part, fiche, ficheEditedByHand: true }));
+    await saveBook(withPart(bookFields, { ...part, ...chap, fiche, ficheEditedByHand: true }));
     toast('Modifications enregistrées ✓', 'ok');
     location.hash = back;
   });

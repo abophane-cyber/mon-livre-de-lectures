@@ -32,7 +32,7 @@ export function normalizeBook(book) {
 /** Retire d'un livre les champs propres à une fiche (cas d'un objet « aplati »). */
 export function bookOnly(book) {
   const rest = { ...normalizeBook(book) };
-  for (const k of [...PART_KEYS, 'ficheId', 'ficheIndex', 'ficheCount']) delete rest[k];
+  for (const k of [...PART_KEYS, 'ficheId', 'ficheIndex', 'ficheCount', 'bibliographieGenerale']) delete rest[k];
   return rest;
 }
 
@@ -54,6 +54,9 @@ export function flatten(book, part) {
     captures: !!part.captures,
     fiche: part.fiche || null,
     ficheEditedByHand: !!part.ficheEditedByHand,
+    // La bibliographie du chapitre (celle de la fiche) ; celle du livre devient « générale ».
+    bibliographie: part.bibliographie || [],
+    bibliographieGenerale: book.bibliographie || [],
     ficheId: part.id,
     ficheIndex: parts.findIndex((p) => p.id === part.id),
     ficheCount: parts.length,
