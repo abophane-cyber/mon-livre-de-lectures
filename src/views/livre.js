@@ -209,9 +209,14 @@ function renderBook(book) {
   const meta = [book.author, book.pubDate, genre].filter(Boolean).map(esc).join(' · ');
   const ready = parts.filter((p) => p.fiche).length;
   return `<article class="chapitre page" id="ch-${esc(book.id)}">
-    <h2>${esc(book.title)}</h2>
-    ${meta ? `<p class="meta">${meta}</p>` : ''}
-    ${renderInfos(book)}
+    <div class="tete-livre">
+      ${book.cover ? `<a href="#/modifier/${esc(book.id)}?notice=1" title="Couverture et informations du livre"><img class="couv-livre" src="${esc(book.cover)}" alt="Couverture de « ${esc(book.title)} »"></a>` : ''}
+      <div>
+        <h2>${esc(book.title)}</h2>
+        ${meta ? `<p class="meta">${meta}</p>` : ''}
+        ${renderInfos(book)}
+      </div>
+    </div>
     <hr class="filet">
     ${parts.length > 1
       ? `<div class="replier"><button class="lien" data-action="deplier" data-id="${esc(book.id)}">Tout déplier</button> · <button class="lien" data-action="replier" data-id="${esc(book.id)}">Tout replier</button></div>`

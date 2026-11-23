@@ -54,14 +54,18 @@ export function wireRemplir(root, { field, context, onChange = () => {} }) {
       const val = res.notice[k];
       if (input && val && !input.value.trim()) {
         input.value = val;
+        // Surligne quelques secondes les cases qui viennent d'être remplies.
+        input.classList.add('vient-rempli');
+        setTimeout(() => input.classList.remove('vient-rempli'), 4000);
         filled.push(label === label.toUpperCase() ? label : label.toLowerCase());
       }
     }
     onChange();
     const warn = res.byTitle ? " Trouvé avec le titre : vérifiez que c'est bien votre édition (poche, grand format…)." : '';
+    const who = [res.notice.editeur, res.notice.collection].filter(Boolean).join(', ');
     say(filled.length
-      ? `Rempli : ${filled.join(', ')}.${warn} Les cases restées vides n'ont pas été trouvées.`
-      : `Rien de nouveau : les cases trouvées étaient déjà remplies.`);
+      ? `✓ Livre trouvé${who ? ` (${who})` : ''}. Cases remplies (surlignées) : ${filled.join(', ')}.${warn} Les cases restées vides n'ont pas été trouvées.`
+      : `✓ Livre trouvé${who ? ` (${who})` : ''}. Ses informations étaient déjà toutes dans les cases : rien n'a changé.`);
     if (filled.length) toast(`${pluralize(filled.length, 'information ajoutée', 'informations ajoutées')} ✓`, 'ok');
   });
 }

@@ -277,20 +277,28 @@ mark {
 .remplir { display: grid; gap: 8px; margin: 10px 0 4px; padding: 12px; border: 1px dashed var(--filet); border-radius: 10px; }
 .remplir .btn { justify-self: start; }
 .remplir p { margin: 0; }
-.couverture-bloc { display: flex; gap: 14px; align-items: flex-start; margin: 10px 0; }
+.couverture-bloc { display: flex; gap: 16px; align-items: flex-start; margin: 10px 0; padding: 12px; border: 1px dashed var(--filet); border-radius: 10px; }
+.couverture-texte { flex: 1; min-width: 0; }
+.couverture-texte .rangee { margin: 8px 0 0; }
+.tete-livre { display: flex; gap: 18px; align-items: flex-start; }
+.tete-livre > div { flex: 1; min-width: 0; }
+.couv-livre { display: block; width: 92px; height: auto; border-radius: 3px; box-shadow: 0 2px 8px rgb(0 0 0 / .25); }
+@media (min-width: 600px) { .couv-livre { width: 120px; } }
 .couverture-bloc p { margin: 0 0 8px; }
-.couverture-apercu { flex: 0 0 86px; }
-.couverture-apercu img { display: block; width: 86px; height: auto; border-radius: 3px; box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
-.couverture-defaut { position: relative; width: 86px; aspect-ratio: 210 / 297; background: #fff; color: #171717; border-radius: 2px;
+.couverture-apercu { flex: 0 0 110px; }
+.couverture-apercu img { display: block; width: 110px; height: auto; border-radius: 3px; box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
+.couverture-defaut { position: relative; width: 110px; aspect-ratio: 210 / 297; background: #fff; color: #171717; border-radius: 2px;
   padding: 11px 6px 8px 14px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; font-family: Literata, serif;
   box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
 .couverture-defaut::before { content: ""; position: absolute; left: 2px; top: 2px; bottom: 2px; width: 3px; background: #344C2D;
   clip-path: polygon(100% 0, 100% 100%, 0 98%, 0 2%); }
-.couverture-defaut small { font: 700 4.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: #718052; }
-.couverture-defaut span { font-weight: 700; font-size: 8.5px; line-height: 1.15; text-transform: uppercase; color: #18331D; overflow-wrap: anywhere; }
-.couverture-defaut em { font-size: 7px; }
+.couverture-defaut small { font: 700 5.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: #718052; }
+.couverture-defaut span { font-weight: 700; font-size: 10.5px; line-height: 1.15; text-transform: uppercase; color: #18331D; overflow-wrap: anywhere; }
+.couverture-defaut em { font-size: 8.5px; }
 .couverture-defaut hr { border: 0; border-top: 1px solid #718052; margin: 2px 0 0; width: 100%; }
 .notice #ajouter-notice { margin-top: 2px; }
+/* Cases que « Remplir automatiquement » vient de remplir : surlignées quelques secondes. */
+input.vient-rempli { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--papier)); transition: background 1s; }
 /* Informations déjà enregistrées : bouton gris (il redevient coloré dès qu'on modifie une case). */
 .notice #ajouter-notice:disabled { background: var(--filet); border-color: var(--filet); color: var(--encre-douce); opacity: 1; cursor: default; }
 .notice #ajouter-notice + .petit { margin: 6px 0 0; }

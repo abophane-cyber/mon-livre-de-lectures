@@ -9,6 +9,7 @@ import { NOTICE_FIELDS } from '../fichea4.js';
 import { flatten, newPart, partsOf, withPart } from '../fiches.js';
 import { bookKey, esc, joinPassages, mergePassages, pluralize, splitPassages } from '../util.js';
 import { remplirHtml, wireRemplir } from './remplir.js';
+import { couvertureHtml, wireCouverture } from './couverture.js';
 import { $, clearDraft, currentIa, loadDraft, readFileText, saveDraft, toast } from '../ui.js';
 
 // Livres trouvés dans le dernier My Clippings.txt importé. Gardés pendant la session, même si
@@ -91,6 +92,7 @@ export async function renderAtelier(view, params) {
       <details class="notice"${hasNotice ? ' open' : ''}>
         <summary>Informations sur le livre (facultatif, communes à toutes ses fiches) : éditeur, ISBN, date de lecture…</summary>
         ${remplirHtml()}
+        ${couvertureHtml()}
         <div class="champs">
           ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input id="f-${k}" value="${esc(v[k])}" autocomplete="off"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
         </div>
@@ -181,12 +183,23 @@ export async function renderAtelier(view, params) {
     $('#compte', view).textContent = mots ? `(${pluralize(mots.toLocaleString('fr-FR'), 'mot', 'mots')})` : '';
   };
   updateCount();
+  const couv = wireCouverture(view, {
+    initial: book?.cover ? { cover: book.cover, coverRatio: book.coverRatio } : null,
+    isbn: () => $('#f-isbn', view).value,
+    label: () => ({ title: el.title.value, author: el.author.value }),
+    saveWord: 'Enregistrer les informations du livre',
+    onChange: () => updateNoticeBtn(),
+  });
+  el.title.addEventListener('input', () => couv.refresh());
+  el.author.addEventListener('input', () => couv.refresh());
   wireRemplir(view, {
     field: (k) => $(`#f-${k}`, view),
     context: () => ({ title: el.title.value, author: el.author.value }),
     onChange: () => {
       saveDraft(draftKey, readForm());
       updateNoticeBtn();
+      // Après « Remplir automatiquement » : chercher aussi la couverture s'il n'y en a pas.
+      if (!couv.get()) couv.search(true);
     },
   });
   // Bouton « Enregistrer les informations du livre » : grisé tant que rien n'a changé depuis
@@ -195,7 +208,8 @@ export async function renderAtelier(view, params) {
   const noticeBtn = $('#ajouter-notice', view);
   function updateNoticeBtn() {
     const f = readForm();
-    const saved = !!book && INFO_KEYS.every((k) => (f[k] || '') === String(book[k] ?? '').trim());
+    const saved = !!book && INFO_KEYS.every((k) => (f[k] || '') === String(book[k] ?? '').trim()) &&
+      (couv.get()?.cover || '') === (book.cover || '');
     noticeBtn.disabled = saved;
     noticeBtn.textContent = saved ? 'Informations du livre enregistrées ✓' : 'Enregistrer les informations du livre';
   }
@@ -247,6 +261,8 @@ export async function renderAtelier(view, params) {
       lang: f.lang,
       length: f.length,
       ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, f[k]])),
+      cover: couv.get()?.cover || '',
+      coverRatio: couv.get()?.coverRatio || 0,
     };
     let base;
     if (!book) {
@@ -266,6 +282,7 @@ export async function renderAtelier(view, params) {
     // Une nouvelle fiche dans un livre marqué « terminé » : le livre redevient en cours.
     if (!part && base.termine) base = { ...base, termine: 0 };
     book = await saveBook(withPart(base, rec));
+    couv.markSaved();
     updateNoticeBtn();
     part = partsOf(book).find((p) => p.id === rec.id);
     if (draftKey !== keyOf()) {
@@ -333,6 +350,8 @@ export async function renderAtelier(view, params) {
       lang: f.lang,
       length: f.length,
       ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, f[k]])),
+      cover: couv.get()?.cover || '',
+      coverRatio: couv.get()?.coverRatio || 0,
     };
     let base;
     if (book) {
@@ -349,6 +368,7 @@ export async function renderAtelier(view, params) {
       history.replaceState(null, '', `#/livre/${book.id}?f=${part ? part.id : 'nouvelle'}`);
     }
     saveDraft(draftKey, readForm());
+    couv.markSaved();
     updateNoticeBtn();
     toast('Informations du livre enregistrées ✓ (aucune fiche créée). Elles seront sur la page de présentation des PDF.', 'ok', 7000);
   });
