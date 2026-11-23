@@ -5,6 +5,7 @@ import { SORTS, filterBooks, sortBooks } from '../books.js';
 import { buildFixPrompt } from '../prompt.js';
 import { NOTICE_FIELDS } from '../notice.js';
 import { copyText } from '../download.js';
+import { isDesktopApp } from '../native.js';
 import { esc, pluralize } from '../util.js';
 import { $, $$, currentIa, getPrefs, icons, setPrefs, toast } from '../ui.js';
 
@@ -255,7 +256,9 @@ export async function renderLivre(view, params) {
   );
   const canDrag = mode === 'perso' && !searchQuery && filtre === 'tous';
   const week = 7 * 24 * 3600 * 1000;
-  const reminder = Date.now() - (prefs.lastExport || 0) > week;
+  // Logiciel Windows : la sauvegarde automatique (dans Téléchargements) compte comme une sauvegarde.
+  const lastSave = Math.max(prefs.lastExport || 0, isDesktopApp && prefs.autoBackup !== false ? prefs.lastAuto || 0 : 0);
+  const reminder = Date.now() - lastSave > week;
 
   view.innerHTML = `
     ${reminder ? `<div class="bandeau">Pensez à faire une sauvegarde : vos fiches ne sont enregistrées que sur cet appareil. <a href="#/sauvegarde">Sauvegarder</a></div>` : ''}

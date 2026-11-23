@@ -6,7 +6,8 @@ import { partsOf } from '../fiches.js';
 import { BACKUP_APP, BACKUP_VERSION, makeBackup, mergeBackup, validateBackup } from '../sync.js';
 import { decryptJson, encryptJson, isEncrypted } from '../crypto.js';
 import { canShareFiles, downloadBlob, shareBlob } from '../download.js';
-import { isAndroidApp } from '../native.js';
+import { isAndroidApp, isDesktopApp } from '../native.js';
+import { AUTO_FOLDER, autoBackupSupported, runAutoBackup } from '../autobackup.js';
 import { esc, formatDate, newId, pluralize } from '../util.js';
 import { $, getPrefs, readFileText, setPrefs, toast } from '../ui.js';
 
@@ -47,8 +48,8 @@ function checkNewPassword(pw, confirm) {
   return null;
 }
 
-async function encryptedBackupBlob(password) {
-  const data = makeBackup(await dumpAll());
+export async function encryptedBackupBlob(password, dump) {
+  const data = makeBackup(dump || (await dumpAll()));
   const envelope = await encryptJson(data, password, {
     app: BACKUP_APP,
     version: BACKUP_VERSION,
@@ -94,6 +95,37 @@ function readHelpHtml() {
     </ol>
     <p class="petit">Le téléphone n'apparaît pas dans la fenêtre ? Ouvrez ce même dossier dans l'<strong>Explorateur de fichiers</strong>
       et <strong>faites glisser le fichier</strong> dans le cadre ci-dessus.</p>`;
+}
+
+/** Encadré « Sauvegarde automatique » (logiciel Windows et appli Android). */
+function autoHtml(prefs, savedPw) {
+  const where = isDesktopApp
+    ? `<strong>Téléchargements</strong> → <strong>${esc(AUTO_FOLDER)}</strong>`
+    : `<strong>Download</strong> → <strong>${esc(AUTO_FOLDER)}</strong>`;
+  let etat;
+  if (!savedPw) {
+    etat = `<p><strong>Pas encore active.</strong> Elle démarrera dès que vous aurez créé votre premier fichier de sauvegarde
+      ci-dessus (c'est là que vous choisissez le mot de passe qui protège vos fichiers).</p>`;
+  } else if (prefs.autoBackup === false) {
+    etat = `<p><strong>Arrêtée.</strong></p>`;
+  } else {
+    etat = `<p><strong>Active ✓</strong> Dernière sauvegarde automatique :
+      <span id="auto-date">${prefs.lastAuto ? formatDate(prefs.lastAuto, true) : 'pas encore (dans quelques secondes)'}</span>.</p>
+      ${prefs.autoError ? `<p class="petit">⚠️ La dernière tentative n'a pas marché (${esc(prefs.autoError)}). Elle sera refaite au prochain changement.</p>` : ''}`;
+  }
+  return `<div class="etape">
+      <h2><span class="pastille">✓</span> Sauvegarde automatique</h2>
+      ${etat}
+      <p class="petit">À chaque changement dans vos fiches, l'appli enregistre toute seule un fichier de sauvegarde protégé
+        par votre mot de passe, dans ${where}. Les 10 plus récents sont gardés.
+        Si l'appli est un jour effacée ou réinstallée, lisez le plus récent avec « Lire le fichier de l'autre appareil ».</p>
+      ${isAndroidApp ? `<p class="petit">Ces fichiers restent sur le téléphone : s'il est perdu, ils le sont aussi.
+        Pensez à copier de temps en temps une sauvegarde sur l'ordinateur.</p>` : ''}
+      <div class="rangee">
+        ${isDesktopApp ? '<button class="btn" type="button" id="ouvrir-dossier">Ouvrir le dossier des sauvegardes</button>' : ''}
+        ${savedPw ? `<button class="lien" type="button" id="auto-onoff">${prefs.autoBackup === false ? 'Réactiver la sauvegarde automatique' : 'Arrêter la sauvegarde automatique'}</button>` : ''}
+      </div>
+    </div>`;
 }
 
 export async function renderSauvegarde(view) {
@@ -159,6 +191,8 @@ export async function renderSauvegarde(view) {
       <p class="petit">Dernier fichier lu ici : ${prefs.lastImport ? formatDate(prefs.lastImport, true) : 'jamais'}</p>
     </div>
 
+    ${autoBackupSupported() ? autoHtml(prefs, savedPw) : ''}
+
     ${savedPw ? `<p class="petit">Mot de passe des sauvegardes retenu sur cet appareil.
       <button class="lien" type="button" id="oublier-mdp">Changer de mot de passe</button></p>` : ''}
   </section>`;
@@ -200,6 +234,7 @@ export async function renderSauvegarde(view) {
         savedName = await downloadBlob(blob, name);
       }
       setPrefs({ lastExport: Date.now(), backupPw: password });
+      await runAutoBackup(); // le mot de passe est maintenant connu : la sauvegarde automatique démarre
       await renderSauvegarde(view);
       const box = $('#apres-creation', view);
       box.hidden = false;
@@ -216,6 +251,19 @@ export async function renderSauvegarde(view) {
     exportWith('download');
   });
   $('#partager', view)?.addEventListener('click', () => exportWith('share'));
+
+  // Sauvegarde automatique en cours : afficher sa date dès qu'elle est finie.
+  Promise.resolve(runAutoBackup()).then(() => {
+    const el = $('#auto-date', view);
+    if (el && getPrefs().lastAuto) el.textContent = formatDate(getPrefs().lastAuto, true);
+  });
+  $('#ouvrir-dossier', view)?.addEventListener('click', () => window.lecturesPC?.openBackupFolder());
+  $('#auto-onoff', view)?.addEventListener('click', async () => {
+    const on = getPrefs().autoBackup === false;
+    setPrefs({ autoBackup: on, autoSig: '' });
+    if (on) await runAutoBackup();
+    await renderSauvegarde(view);
+  });
 
   $('#oublier-mdp', view)?.addEventListener('click', async () => {
     setPrefs({ backupPw: '' });

@@ -14,6 +14,7 @@ import { renderGeneral } from './views/general.js';
 import { renderSauvegarde } from './views/sauvegarde.js';
 import { renderPdf } from './views/pdfview.js';
 import { renderReglages } from './views/reglages.js';
+import { startAutoBackup } from './autobackup.js';
 
 // Chaque fonction a sa couleur (voir style.css, --c-livre, --c-nouveau…).
 const NAV = [
@@ -72,6 +73,7 @@ window.addEventListener('hashchange', route);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme());
 applyTheme();
 route();
+startAutoBackup();
 
 // Fonctionne hors connexion et se met à jour toute seule.
 // (Inutile dans les versions installées .exe et .apk, qui contiennent déjà tout.)
