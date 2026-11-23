@@ -8,7 +8,9 @@ const BOX = '#f6efe0';
 const RULE = '#e4dccb';
 // Page de présentation : vert forêt (bande et titre) et vert plus clair (intitulés, filet).
 const FOREST = '#344C2D';
-const SAGE = '#5E7F3A';
+const SAGE = '#718052';
+const TITLE_GREEN = '#18331D';
+const INK = '#171717';
 
 /** Échelles essayées, de la plus grande à la plus petite, pour faire tenir une face sur une page. */
 export const SCALES = Array.from({ length: 14 }, (_, i) => Math.round((1 - i * 0.03) * 100) / 100); // 1, 0.97 … 0.61
@@ -156,30 +158,40 @@ export function presentation(book) {
     ...NOTICE_FIELDS.filter(([k]) => k !== 'dateLecture' && book[k]).map(([k, l]) => [l, book[k]]),
     book.dateLecture && ['Lu en', book.dateLecture],
   ].filter(Boolean);
-  // Style « vert forêt » : bande verticale à gauche, titre en capitales, détails alignés à gauche.
+  // Style « vert forêt » (d'après le modèle HTML de l'utilisateur, 765 px de large ramenés à la
+  // largeur A4) : bande biseautée à gauche, titre en capitales, détails alignés à gauche.
+  const H = 820; // hauteur de la bande (page de 842 pt, 11 pt en haut et en bas)
   return [
     {
-      canvas: [{ type: 'rect', x: 0, y: 0, w: 8, h: 818, color: FOREST }],
-      absolutePosition: { x: 12, y: 12 },
+      canvas: [{
+        type: 'polyline',
+        closePath: true,
+        points: [{ x: 15, y: 0 }, { x: 15, y: H }, { x: 0, y: H * 0.98 }, { x: 0, y: H * 0.02 }],
+        color: FOREST,
+        lineColor: FOREST,
+        lineWidth: 0,
+      }],
+      absolutePosition: { x: 10, y: 11 },
     },
     {
       stack: [
-        { text: 'FICHE DE LECTURE', fontSize: 11, bold: true, color: SAGE, characterSpacing: 2.5 },
-        { text: book.title.toUpperCase(), fontSize: 36, bold: true, color: FOREST, lineHeight: 1.1, margin: [0, 22, 0, 0] },
-        book.author ? { text: book.author, fontSize: 21, italics: true, margin: [0, 16, 0, 0] } : '',
+        { text: 'FICHE DE LECTURE', fontSize: 14.5, bold: true, color: SAGE, characterSpacing: 3 },
+        { text: book.title.toUpperCase(), fontSize: 38, bold: true, color: TITLE_GREEN, lineHeight: 1.15, margin: [0, 40, 0, 0] },
+        book.author ? { text: book.author, fontSize: 30, italics: true, color: INK, margin: [0, 35, 0, 0] } : '',
         {
-          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 445, y2: 0, lineWidth: 1.2, lineColor: SAGE }],
-          margin: [0, 26, 0, 30],
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 442, y2: 0, lineWidth: 2.3, lineColor: SAGE }],
+          margin: [0, 43, 0, 56],
         },
         ...details.map(([l, v]) => ({
           text: [
-            { text: `${l.toUpperCase()} : `, fontSize: 10.5, bold: true, color: SAGE, characterSpacing: 1.2 },
-            { text: v, fontSize: 15 },
+            { text: `${l.toUpperCase()} : `, fontSize: 15.5, bold: true, color: SAGE, characterSpacing: 1.5 },
+            { text: v, fontSize: 21, color: INK },
           ],
-          margin: [0, 0, 0, 16],
+          margin: [0, 0, 0, 22],
         })),
       ],
-      margin: [46, 56, 24, 0],
+      // Marges de la page : 87 pt à gauche, 89 en haut, 66 à droite.
+      margin: [47, 45, 26, 0],
     },
   ];
 }
