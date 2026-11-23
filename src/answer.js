@@ -212,6 +212,8 @@ function notice(lines) {
 export function parseTextAnswer(text) {
   const lines = String(text ?? '')
     .replace(/\r\n?/g, '\n')
+    // Caractères « échappés » par certaines IA (« \- », « \* », « \# »…) : on enlève la barre « \ ».
+    .replace(/\\([-*_#+.!()[\]`>|~=])/g, '$1')
     .split('\n')
     .filter((l) => !/^\s*```/.test(l) && !/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(l));
   // _pre = texte avant le premier titre ; _autre = rubriques que l'on ne reconnaît pas.

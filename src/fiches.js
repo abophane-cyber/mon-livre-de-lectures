@@ -52,7 +52,7 @@ export function flatten(book, part) {
     ...bookOnly(book),
     passages: part.passages || [],
     captures: !!part.captures,
-    fiche: part.fiche || null,
+    fiche: unescapeFiche(part.fiche) || null,
     ficheEditedByHand: !!part.ficheEditedByHand,
     // La bibliographie du chapitre (celle de la fiche) ; celle du livre devient « générale ».
     bibliographie: part.bibliographie || [],
@@ -61,6 +61,16 @@ export function flatten(book, part) {
     ficheIndex: parts.findIndex((p) => p.id === part.id),
     ficheCount: parts.length,
   };
+}
+
+/**
+ * Enlève les « \ » laissés par certaines IA (« \- Dette publique ») dans les fiches déjà enregistrées.
+ */
+function unescapeFiche(v) {
+  if (typeof v === 'string') return v.replace(/^\\[-*+]\s*/, '').replace(/\\([-*_#+.!()[\]`>|~=])/g, '$1');
+  if (Array.isArray(v)) return v.map(unescapeFiche);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, unescapeFiche(x)]));
+  return v;
 }
 
 /** Toutes les fiches terminées des livres donnés, dans l'ordre des livres. */

@@ -292,3 +292,18 @@ Deuxième paragraphe.
   assert.match(p, /\*\*Notion B\*\* : explication B\./);
   assert.match(p, /4 à 6 idées clés/);
 });
+
+test('les « \- » échappés par l’IA ne laissent pas de barre « \ »', () => {
+  const r = parseAnswer(`CHAPITRE : Une dette
+GENRE : Essai
+## RÉSUMÉ
+Le texte du résumé.
+## IDÉES CLÉS
+\- **Une idée** : explication.
+## NOTIONS CLÉS
+\- **Dette publique** — Ensemble des emprunts de l\'État.
+\- **Discipline budgétaire** — Règles.`);
+  assert.equal(r.ok, true);
+  assert.ok(!JSON.stringify(r.fiche).includes('\\'));
+  assert.match(JSON.stringify(r.fiche), /Dette publique/);
+});
