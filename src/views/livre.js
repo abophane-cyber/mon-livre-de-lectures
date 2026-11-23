@@ -103,7 +103,7 @@ function tocChapters(book) {
     .map((p, i) => ({ p, ch: chapterOf(p.fiche, i, parts.length) }))
     .filter(({ ch }) => ch.label);
   if (!items.length) return '';
-  return `<ol class="toc-chapitres">${items
+  return `<p class="sommaire-titre toc-sommaire">Sommaire</p><ol class="toc-chapitres">${items
     .map(({ p, ch }) => `<li><a href="#/?ch=${esc(book.id)}&fi=${esc(p.id)}"><span class="c">${esc(ch.label)}</span>${ch.titre ? ` ${esc(ch.titre)}` : ''}</a></li>`)
     .join('')}</ol>`;
 }
@@ -161,7 +161,6 @@ export async function renderLivre(view, params) {
             .join('')}</select>
         </label>
       </div>
-      <h2 class="sommaire-titre">Sommaire</h2>
       ${canDrag && shown.length > 1 ? '<p class="petit aide">Pour changer l\'ordre, faites glisser la poignée ⠿ (au doigt ou à la souris).</p>' : ''}
       <ol class="toc${canDrag ? ' deplacable' : ''}" id="toc">
         ${shown
