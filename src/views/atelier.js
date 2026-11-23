@@ -184,11 +184,26 @@ export async function renderAtelier(view, params) {
   wireRemplir(view, {
     field: (k) => $(`#f-${k}`, view),
     context: () => ({ title: el.title.value, author: el.author.value }),
-    onChange: () => saveDraft(draftKey, readForm()),
+    onChange: () => {
+      saveDraft(draftKey, readForm());
+      updateNoticeBtn();
+    },
   });
+  // Bouton « Enregistrer les informations du livre » : grisé tant que rien n'a changé depuis
+  // le dernier enregistrement ; il redevient actif dès qu'on modifie une case.
+  const INFO_KEYS = ['title', 'author', 'pubDate', ...NOTICE_FIELDS.map(([k]) => k)];
+  const noticeBtn = $('#ajouter-notice', view);
+  function updateNoticeBtn() {
+    const f = readForm();
+    const saved = !!book && INFO_KEYS.every((k) => (f[k] || '') === String(book[k] ?? '').trim());
+    noticeBtn.disabled = saved;
+    noticeBtn.textContent = saved ? 'Informations du livre enregistrées ✓' : 'Enregistrer les informations du livre';
+  }
+  updateNoticeBtn();
   view.oninput = () => {
     saveDraft(draftKey, readForm());
     updateCount();
+    updateNoticeBtn();
   };
   $('#f-captures', view).addEventListener('change', (e) => {
     const on = e.target.checked;
@@ -251,6 +266,7 @@ export async function renderAtelier(view, params) {
     // Une nouvelle fiche dans un livre marqué « terminé » : le livre redevient en cours.
     if (!part && base.termine) base = { ...base, termine: 0 };
     book = await saveBook(withPart(base, rec));
+    updateNoticeBtn();
     part = partsOf(book).find((p) => p.id === rec.id);
     if (draftKey !== keyOf()) {
       clearDraft(draftKey);
@@ -333,6 +349,7 @@ export async function renderAtelier(view, params) {
       history.replaceState(null, '', `#/livre/${book.id}?f=${part ? part.id : 'nouvelle'}`);
     }
     saveDraft(draftKey, readForm());
+    updateNoticeBtn();
     toast('Informations du livre enregistrées ✓ (aucune fiche créée). Elles seront sur la page de présentation des PDF.', 'ok', 7000);
   });
 

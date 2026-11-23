@@ -291,6 +291,8 @@ mark {
 .couverture-defaut em { font-size: 7px; }
 .couverture-defaut hr { border: 0; border-top: 1px solid #718052; margin: 2px 0 0; width: 100%; }
 .notice #ajouter-notice { margin-top: 2px; }
+/* Informations déjà enregistrées : bouton gris (il redevient coloré dès qu'on modifie une case). */
+.notice #ajouter-notice:disabled { background: var(--filet); border-color: var(--filet); color: var(--encre-douce); opacity: 1; cursor: default; }
 .notice #ajouter-notice + .petit { margin: 6px 0 0; }
 .case-simple { flex-direction: row; align-items: center; gap: 10px; font-weight: 400; }
 .case-simple input { width: 20px; height: 20px; min-height: 0; flex: none; accent-color: var(--accent); }
