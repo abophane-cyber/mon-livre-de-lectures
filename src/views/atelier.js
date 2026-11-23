@@ -94,6 +94,8 @@ export async function renderAtelier(view, params) {
         <div class="champs">
           ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input id="f-${k}" value="${esc(v[k])}" autocomplete="off"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
         </div>
+        <button class="btn" id="ajouter-notice" type="button">Ajouter ces informations au livre</button>
+        <p class="petit">Elles apparaîtront sur la page de présentation du livre dans les PDF.</p>
       </details>
       <fieldset class="segment">
         <legend>Longueur</legend>
@@ -210,7 +212,7 @@ export async function renderAtelier(view, params) {
    * Enregistre le livre et la fiche en cours (création, ou nouvelle fiche dans le livre existant
    * du même titre et auteur). Renvoie la fiche « aplatie » (livre + fiche), ou null.
    */
-  async function persist() {
+  async function persist({ noticeOnly = false } = {}) {
     const f = readForm();
     if (!f.title) {
       toast('Indiquez le titre du livre.', 'erreur');
@@ -218,7 +220,8 @@ export async function renderAtelier(view, params) {
       return null;
     }
     const passages = splitPassages(f.passages);
-    if (!passages.length && !f.captures) {
+    // « Ajouter ces informations au livre » : le texte à résumer peut venir plus tard.
+    if (!noticeOnly && !passages.length && !f.captures) {
       toast("Collez le texte à résumer, ou cochez « J'ai des captures d'écran ».", 'erreur', 6000);
       el.passages.focus();
       return null;
@@ -298,6 +301,12 @@ export async function renderAtelier(view, params) {
     saveDraft(draftKey, readForm());
     updateCount();
     toast(`${pluralize(merged.length - before.length, 'nouvel extrait ajouté', 'nouveaux extraits ajoutés')}.`, 'ok');
+  });
+
+  $('#ajouter-notice', view).addEventListener('click', async () => {
+    if (await persist({ noticeOnly: true })) {
+      toast('Informations ajoutées au livre ✓ Elles seront sur la page de présentation des PDF.', 'ok', 6000);
+    }
   });
 
   $('#enregistrer', view).addEventListener('click', async () => {

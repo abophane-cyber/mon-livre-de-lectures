@@ -144,3 +144,16 @@ test('résumé général : environ 450 mots par page A4', async () => {
     assert.ok(n >= p - 1 && n <= p, `${p} → ${n}`);
   }
 });
+
+test('PDF livre complet : informations du livre sous le titre', async () => {
+  const { noticeBlock, buildDocDefinition } = await import('../src/pdfdoc.js');
+  assert.deepEqual(noticeBlock({ title: 'X' }), []);
+  const [block] = noticeBlock({ editeur: 'Seuil', collection: 'Documents', isbn: '9782021611014', pages: '219', dateLecture: 'novembre 2026' });
+  const txt = block.text.map((t) => t.text).join('');
+  assert.match(txt, /ÉDITEUR Seuil/);
+  assert.match(txt, /COLLECTION Documents/);
+  assert.match(txt, /ISBN 9782021611014/);
+  assert.match(txt, /LU EN novembre 2026/);
+  const doc = buildDocDefinition([{ id: 'a', title: 'Riches ensemble !', editeur: 'Seuil', fiche: { resume: ['Texte.'] } }], { titreLivre: 'T', date: '' });
+  assert.ok(JSON.stringify(doc.content).includes('Seuil'));
+});

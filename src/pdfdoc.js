@@ -1,5 +1,6 @@
 // Mise en page du PDF à imprimer (A4). Fonction pure : décrit le document pour pdfmake.
 import { chapterOf, partOf } from './fiches.js';
+import { NOTICE_FIELDS } from './notice.js';
 
 const ACCENT = '#8a5a14';
 const GREY = '#5c5c5c';
@@ -13,6 +14,25 @@ const section = (label) => ({
 
 /** « Auteur · date de parution » (ce qui est renseigné). */
 const byline = (book) => [book.author, book.pubDate].filter(Boolean).join(' · ');
+
+/**
+ * Informations sur le livre (éditeur, collection, ISBN…) sous le titre, sur la première page du livre :
+ * « ÉDITEUR Seuil   COLLECTION Documents   … », en petit.
+ */
+export function noticeBlock(book) {
+  const items = NOTICE_FIELDS.filter(([k]) => String(book[k] || '').trim()).map(([k, l]) => [k === 'dateLecture' ? 'Lu en' : l, book[k]]);
+  if (!items.length) return [];
+  return [
+    {
+      text: items.flatMap(([l, v], i) => [
+        { text: `${i ? '     ' : ''}${l.toUpperCase()} `, fontSize: 7.5, color: GREY, characterSpacing: 1 },
+        { text: String(v), fontSize: 9.5 },
+      ]),
+      lineHeight: 1.5,
+      margin: [0, 8, 0, 0],
+    },
+  ];
+}
 
 /** Deux fiches consécutives du même livre ? (un livre peut avoir plusieurs fiches) */
 const sameBook = (a, b) => !!a && !!b && a.id != null && a.id === b.id;
@@ -52,6 +72,7 @@ function chapter(book, { first = true, last = true } = {}) {
     },
     { text: book.title, style: 'title' },
     { text: meta, style: 'meta' },
+    ...noticeBlock(book),
     rule,
   ];
   // Partie du livre, avant le chapitre : « PARTIE 1 · LES ORIGINES ».

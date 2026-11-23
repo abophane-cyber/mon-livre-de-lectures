@@ -277,6 +277,8 @@ mark {
 .remplir { display: grid; gap: 8px; margin: 10px 0 4px; padding: 12px; border: 1px dashed var(--filet); border-radius: 10px; }
 .remplir .btn { justify-self: start; }
 .remplir p { margin: 0; }
+.notice #ajouter-notice { margin-top: 2px; }
+.notice #ajouter-notice + .petit { margin: 6px 0 0; }
 .case-simple { flex-direction: row; align-items: center; gap: 10px; font-weight: 400; }
 .case-simple input { width: 20px; height: 20px; min-height: 0; flex: none; accent-color: var(--accent); }
 .captures { margin: 14px 0 6px; align-items: flex-start; }

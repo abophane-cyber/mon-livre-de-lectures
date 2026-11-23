@@ -14,7 +14,7 @@ const FORMATS = {
   },
   livre: {
     label: 'Livre complet',
-    aide: 'Couverture, sommaire avec numéros de page, puis une fiche par page.',
+    aide: 'Couverture, sommaire avec numéros de page, puis une fiche par page. Sous le titre de chaque livre : éditeur, collection, ISBN… (s\'ils sont renseignés).',
   },
 };
 
@@ -38,7 +38,7 @@ export async function renderPdf(view) {
     </fieldset>
     <p class="petit" id="aide-format"></p>
     <label class="case-simple" id="bloc-presentation"><input type="checkbox" id="presentation"${getPrefs().presentationA4 !== false ? " checked" : ""}>
-      <span>Ajouter une <strong>page de présentation</strong> avant chaque résumé (titre, auteur, date de parution, genre)</span></label>
+      <span>Ajouter une <strong>page de présentation</strong> avant chaque résumé (titre, auteur, date de parution, genre, éditeur, ISBN…)</span></label>
     <div id="couverture">
       <div class="champs">
         <label>Titre du livre (couverture)<input id="titreLivre" value="${esc(settings.titreLivre)}"></label>
