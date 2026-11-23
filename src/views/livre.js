@@ -86,17 +86,16 @@ function renderFiche(book) {
   return parts.join('');
 }
 
-/** Notice et bibliographie générale : une seule fois par livre, après toutes ses fiches. */
+/** Notice : informations générales du livre (éditeur, ISBN…), sous son titre, pas dans une fiche. */
+function renderInfos(book) {
+  const notice = NOTICE_FIELDS.filter(([k]) => k !== 'dateLecture' && book[k]);
+  if (!notice.length) return '';
+  return `<dl class="notice-liste infos-livre">${notice.map(([k, l]) => `<dt>${esc(l)}</dt><dd>${esc(book[k])}</dd>`).join('')}</dl>`;
+}
+
+/** Bibliographie générale : une seule fois par livre, après toutes ses fiches. */
 function renderNotice(book) {
   const parts = [];
-  const notice = NOTICE_FIELDS.filter(([k]) => book[k]);
-  if (notice.length) {
-    parts.push(
-      `<h3 class="section">Notice</h3><dl class="notice-liste">${notice
-        .map(([k, l]) => `<dt>${esc(l)}</dt><dd>${esc(book[k])}</dd>`)
-        .join('')}</dl>`,
-    );
-  }
   if (book.bibliographie?.length) {
     const titre = partsOf(book).some((p) => p.bibliographie?.length) || partsOf(book).length > 1 ? 'Bibliographie générale du livre' : 'Bibliographie';
     parts.push(`<h3 class="section">${titre}</h3><ul class="biblio">${book.bibliographie.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`);
@@ -180,6 +179,7 @@ function renderBook(book) {
   return `<article class="chapitre page" id="ch-${esc(book.id)}">
     <h2>${esc(book.title)}</h2>
     ${meta ? `<p class="meta">${meta}</p>` : ''}
+    ${renderInfos(book)}
     <hr class="filet">
     ${parts.length > 1
       ? `<div class="replier"><button class="lien" data-action="deplier" data-id="${esc(book.id)}">Tout déplier</button> · <button class="lien" data-action="replier" data-id="${esc(book.id)}">Tout replier</button></div>`

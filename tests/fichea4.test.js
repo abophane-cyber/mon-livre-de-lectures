@@ -36,21 +36,24 @@ const book = (paras, ideas, cits) => ({
   },
 });
 
+// Une fiche avec des références a un verso (la notice, elle, n'est pas sur les fiches).
+const avecRefs = (b) => ({ ...b, bibliographie: ['Flaubert, Correspondance, Gallimard, 1973.'] });
+
 test('fiche courte : taille normale, exactement 2 pages', async () => {
-  const { items, tooLong } = await fitItems([book(2, 3, 3)], countPages);
+  const { items, tooLong } = await fitItems([avecRefs(book(2, 3, 3))], countPages);
   assert.deepEqual(tooLong, []);
   assert.equal(items[0].r, 1);
   assert.equal(await countPages(buildFicheA4Doc(items)), 2);
 });
 
 test('fiche longue : texte réduit pour tenir sur une page par face', async () => {
-  const { items } = await fitItems([book(6, 8, 6)], countPages);
+  const { items } = await fitItems([avecRefs(book(6, 8, 6))], countPages);
   assert.ok(items[0].r < 1);
   assert.equal(await countPages(buildFicheA4Doc(items)), 2);
 });
 
 test('plusieurs fiches : chaque recto commence sur une page impaire', async () => {
-  const { items } = await fitItems([book(2, 3, 3), book(3, 4, 2), book(1, 2, 1)], countPages);
+  const { items } = await fitItems([book(2, 3, 3), book(3, 4, 2), book(1, 2, 1)].map(avecRefs), countPages);
   assert.equal(await countPages(buildFicheA4Doc(items)), 6);
 });
 
@@ -77,8 +80,10 @@ test('la fiche A4 ne montre ni titre du livre, ni auteur, ni date ; le chapitre 
 
 test('page de présentation : seule sur sa feuille, puis le résumé sur une page impaire', async () => {
   const { items } = await fitItems([book(1, 2, 0)], countPages);
-  // présentation (1) + dos blanc (2) + recto (3) + verso références (4)
-  assert.equal(await countPages(buildFicheA4Doc(items, null, { presentation: true })), 4);
+  // présentation (1) + dos blanc (2) + recto (3) : la notice est sur la présentation, pas au verso
+  const doc1 = buildFicheA4Doc(items, null, { presentation: true });
+  assert.equal(await countPages(doc1), 3);
+  assert.ok(JSON.stringify(doc1.content[0]).includes('ISBN'));
   const sans = { ...book(1, 2, 0) };
   delete sans.isbn;
   const fit2 = await fitItems([sans, sans], countPages);
@@ -95,17 +100,16 @@ test('deux fiches du même livre : une seule présentation, bibliographie géné
   assert.equal(n.content.length, 3);
 });
 
-test('bibliographie d’un chapitre : au verso de sa propre fiche, notice seulement sur la dernière', () => {
+test('bibliographie d’un chapitre : au verso de sa propre fiche, jamais la notice', () => {
   const base = { ...book(1, 1, 0), id: 'L' };
   const ch1 = { ...base, bibliographie: ['Réf. du chapitre 1'] };
   const ch2 = { ...base, bibliographie: [] };
   const doc = buildFicheA4Doc([{ book: ch1 }, { book: ch2 }]);
-  // recto 1, verso 1 (bibliographie du chapitre 1), recto 2, verso 2 (notice du livre)
-  assert.equal(doc.content.length, 4);
+  // recto 1, verso 1 (bibliographie du chapitre 1), recto 2 (pas de verso : la notice n'est pas sur les fiches)
+  assert.equal(doc.content.length, 3);
   const v1 = JSON.stringify(doc.content[1]);
   assert.ok(v1.includes('Réf. du chapitre 1'));
-  assert.ok(!v1.includes('ISBN'));
-  assert.ok(!JSON.stringify(doc.content[3]).includes('Réf. du chapitre 1'));
+  assert.ok(!JSON.stringify(doc.content).includes('ISBN'));
 });
 
 test('résumé général : environ 450 mots par page A4', async () => {

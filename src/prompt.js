@@ -78,7 +78,7 @@ RÈGLES
 3. Titre du chapitre : si le texte ou les captures montrent un titre de chapitre (par exemple « Chapitre 3. La dette publique »), recopie-le exactement sur la ligne CHAPITRE. S'il n'y en a pas, écris « CHAPITRE : » sans rien après. Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé : je les ai déjà.
 4. Longueur (tout doit tenir sur une page A4) : résumé de ${L.resume}, ${L.idees} idées clés d’une phrase chacune, et ${L.notions} notions principales expliquées en une phrase courte (ou les personnages principaux pour un roman : remplace alors « ## NOTIONS CLÉS » par « ## PERSONNAGES »).
 5. ${CONSIGNE_NEUTRE}
-6. Notice et références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a) :
+6. Notice et références bibliographiques (la notice va dans les informations générales du livre, les références au verso de ma fiche, seulement s'il y en a) :
 ${CONSIGNES_NOTICE}
 7. ${CONSIGNE_FORMAT}
 
@@ -133,7 +133,7 @@ RÈGLES
 3. Ligne CHAPITRE : garde le titre du chapitre déjà indiqué ci-dessous (s'il est vide et que les captures montrent un titre de chapitre, recopie-le exactement). Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé.
 4. Longueur (tout doit tenir sur une page A4) : résumé de ${L.resume}, plus 1 ou 2 paragraphes si la suite apporte beaucoup de choses nouvelles ; ${L.idees} à ${Number(L.idees) + 2} idées clés pour tout le chapitre (garde celles du début et ajoute celles de la suite), d’une phrase chacune ; ${L.notions} à ${Number(L.notions) + 2} notions principales (ou personnages principaux pour un roman) en une phrase courte.
 5. ${CONSIGNE_NEUTRE}
-6. Notice et références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a) :
+6. Notice et références bibliographiques (la notice va dans les informations générales du livre, les références au verso de ma fiche, seulement s'il y en a) :
 ${CONSIGNES_NOTICE}
 7. ${CONSIGNE_FORMAT}
 

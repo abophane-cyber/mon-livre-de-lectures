@@ -107,45 +107,18 @@ export function recto(book, s = 1) {
   return out;
 }
 
-/** Champs de notice qui viennent du livre lui-même (la date de lecture seule ne justifie pas un verso). */
-const PUBLICATION_FIELDS = NOTICE_FIELDS.filter(([k]) => k !== 'dateLecture');
-
 /**
  * Le verso n'existe que s'il y a des références : la bibliographie du chapitre, et pour la dernière
- * fiche du livre (`full`), la notice d'édition et la bibliographie générale.
+ * fiche du livre (`full`), la bibliographie générale. La notice (éditeur, ISBN…) n'est pas sur les
+ * fiches : elle est dans les informations du livre (page de présentation).
  */
 export function hasVerso(book, full = true) {
-  return !!(
-    book.bibliographie?.length ||
-    (full && (book.bibliographieGenerale?.length || PUBLICATION_FIELDS.some(([k]) => book[k])))
-  );
+  return !!(book.bibliographie?.length || (full && book.bibliographieGenerale?.length));
 }
 
-/** Verso : références bibliographiques (bibliographie du chapitre ; notice et bibliographie générale si `full`). */
+/** Verso : références bibliographiques (bibliographie du chapitre ; bibliographie générale si `full`). */
 export function verso(book, s = 1, full = true) {
   const out = [...header(s, 'Références bibliographiques')];
-
-  // Informations d'édition seulement (titre, auteur et date sont sur la page de présentation).
-  const rows = full ? NOTICE_FIELDS.map(([k, l]) => [l, book[k]]).filter(([, v]) => v) : [];
-  if (rows.length) out.push(label('Notice', s, { margin: [0, 0, 0, 4 * s] }));
-  if (rows.length) out.push({
-    table: {
-      widths: [110, '*'],
-      body: rows.map(([l, v]) => [
-        { text: l, fontSize: 9 * s, color: GREY },
-        { text: v, fontSize: 10.5 * s },
-      ]),
-    },
-    layout: {
-      hLineWidth: (i, node) => (i === 0 || i === node.table.body.length ? 0 : 0.5),
-      hLineColor: () => RULE,
-      vLineWidth: () => 0,
-      paddingLeft: () => 0,
-      paddingTop: () => 4 * s,
-      paddingBottom: () => 4 * s,
-    },
-    margin: [0, 0, 0, 16 * s],
-  });
 
   const chap = book.bibliographie || [];
   const gen = full ? book.bibliographieGenerale || [] : [];
@@ -162,13 +135,13 @@ export function verso(book, s = 1, full = true) {
   return out;
 }
 
-/** Page de présentation du livre : titre, auteur, date de parution, genre, date de lecture. */
+/** Page de présentation du livre : titre, auteur, date de parution, genre, notice, date de lecture. */
 export function presentation(book) {
   const f = book.fiche || {};
   const details = [
     book.pubDate && ['Date de parution', book.pubDate],
     f.genre && ['Genre', f.genre],
-    book.editeur && ['Éditeur', book.editeur],
+    ...NOTICE_FIELDS.filter(([k]) => k !== 'dateLecture' && book[k]).map(([k, l]) => [l, book[k]]),
     book.dateLecture && ['Lu en', book.dateLecture],
   ].filter(Boolean);
   return [
@@ -200,8 +173,8 @@ export function presentation(book) {
 export function buildFicheA4Doc(items, onPageCount, { presentation: withPresentation = false } = {}) {
   const content = [];
   // Plusieurs fiches d'un même livre à la suite : une seule page de présentation (avant la première).
-  // Chaque fiche a au verso la bibliographie de son chapitre ; la dernière, aussi la notice et la
-  // bibliographie générale du livre.
+  // Chaque fiche a au verso la bibliographie de son chapitre ; la dernière, aussi la bibliographie
+  // générale du livre.
   const same = (a, b) => !!a && !!b && a.book.id != null && a.book.id === b.book.id;
   items.forEach(({ book, r = 1, v = 1 }, i) => {
     const first = !same(items[i - 1], items[i]);
@@ -247,7 +220,7 @@ export async function fitItems(books, countPages) {
   const items = [];
   const tooLong = [];
   for (const [i, book] of books.entries()) {
-    // Dernière fiche de son livre dans la liste : le verso porte aussi la notice.
+    // Dernière fiche de son livre dans la liste : le verso porte aussi la bibliographie générale.
     const next = books[i + 1];
     const last = !(next && book.id != null && next.id === book.id);
     const r = await fit(recto, book);

@@ -1,4 +1,4 @@
-// Notice bibliographique du livre (verso de la fiche A4) et bibliographie.
+// Notice du livre (informations générales et page de présentation) et bibliographie.
 
 /** [clé, libellé, rempli par Claude depuis les captures ?] */
 export const NOTICE_FIELDS = [
