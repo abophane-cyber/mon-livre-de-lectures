@@ -317,9 +317,10 @@ mark {
 details[open] > .fiche-tete::after { transform: rotate(-90deg); }
 .fiche-tete:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .fiche-tete .partie-num { margin: 0; }
-.fiche-tete .chapitre-resume { margin: 0; font-size: 1.4rem; line-height: 1.25; }
+/* Titre sur une ligne si possible ; sinon, lignes de longueur équilibrée. */
+.fiche-tete .chapitre-resume { margin: 0; font-size: 1.28rem; line-height: 1.3; text-wrap: balance; }
 .fiche-tete .badge { align-self: flex-start; }
-.fiche-corps { padding-top: 18px; }
+.fiche-corps { padding-top: 6px; }
 .replier { font: 0.88rem var(--sans); color: var(--encre-douce); margin: 0 0 12px; }
 .actions-livre { border-top-width: 2px; }
 .badge-ok { color: var(--ok); border-color: var(--ok); }
