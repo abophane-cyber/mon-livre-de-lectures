@@ -11,6 +11,30 @@ import { $, $$, currentIa, getPrefs, icons, setPrefs, toast } from '../ui.js';
 let searchQuery = '';
 let sortable;
 
+// Fiches dépliées / repliées (gardé pendant la session). Par défaut : dépliée seulement
+// si c'est la seule fiche du livre.
+const OPEN_KEY = 'mll:fiches-ouvertes';
+const openState = (() => {
+  try {
+    return JSON.parse(sessionStorage.getItem(OPEN_KEY) || '{}');
+  } catch {
+    return {};
+  }
+})();
+function setOpen(id, open) {
+  openState[id] = open;
+  try {
+    sessionStorage.setItem(OPEN_KEY, JSON.stringify(openState));
+  } catch {
+    /* rien */
+  }
+}
+const isOpen = (id, n) => openState[id] ?? n === 1;
+
+export const FILTRES = { tous: 'Tous les livres', encours: 'En cours', termines: 'Terminés' };
+/** Livres terminés : marqués « Livre terminé » et sans fiche en attente. */
+export const isFinished = (b) => !!b.termine && isComplete(b);
+
 /** Le contenu d'une fiche (book = livre « aplati » sur cette fiche). */
 function renderFiche(book) {
   const f = book.fiche;
@@ -83,9 +107,15 @@ function renderPart(book, part, i, n) {
     ? renderFiche(fb)
     : `<div class="attente"><p>Cette fiche attend encore son résumé${part.passages?.length ? ' (texte enregistré)' : ''}.</p>
        <a class="btn primaire" href="#/livre/${q}">Terminer la fiche</a></div>`;
-  return `<section class="fiche-partie" id="fi-${esc(part.id)}">
-    ${ch.label ? `<p class="partie-num">${esc(ch.label)}</p>` : ''}
-    ${ch.titre ? `<h3 class="chapitre-resume">${esc(ch.titre)}</h3>` : ''}
+  const tete = ch.label || ch.titre ? '' : 'Fiche';
+  return `<details class="fiche-partie" id="fi-${esc(part.id)}" data-fi="${esc(part.id)}"${isOpen(part.id, n) ? ' open' : ''}>
+    <summary class="fiche-tete">
+      ${ch.label ? `<span class="partie-num">${esc(ch.label)}</span>` : ''}
+      ${ch.titre ? `<span class="chapitre-resume">${esc(ch.titre)}</span>` : ''}
+      ${tete ? `<span class="chapitre-resume">${tete}</span>` : ''}
+      ${part.fiche ? '' : '<span class="badge">à terminer</span>'}
+    </summary>
+    <div class="fiche-corps">
     ${body}
     <div class="actions">
       ${part.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Fiche A4</button>` : ''}
@@ -93,7 +123,8 @@ function renderPart(book, part, i, n) {
       <a class="btn" href="#/livre/${q}">Compléter (suite du chapitre) / refaire le résumé</a>
       ${n > 1 ? `<button class="btn danger" data-action="supprimer-fiche" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Supprimer cette fiche</button>` : ''}
     </div>
-  </section>`;
+    </div>
+  </details>`;
 }
 
 /** Sommaire : les chapitres (fiches) du livre, sous son titre. */
@@ -117,6 +148,9 @@ function renderBook(book) {
     <h2>${esc(book.title)}</h2>
     ${meta ? `<p class="meta">${meta}</p>` : ''}
     <hr class="filet">
+    ${parts.length > 1
+      ? `<div class="replier"><button class="lien" data-action="deplier" data-id="${esc(book.id)}">Tout déplier</button> · <button class="lien" data-action="replier" data-id="${esc(book.id)}">Tout replier</button></div>`
+      : ''}
     ${parts.length ? parts.map((p, i) => renderPart(book, p, i, parts.length)).join('') : '<p class="attente">Ce livre n\'a pas encore de fiche.</p>'}
     ${renderNotice(book)}
     ${book.termine ? `<p class="livre-termine">✓ Livre terminé${book.dateLecture ? ` — lu le ${esc(book.dateLecture)}` : ''}</p>` : ''}
@@ -136,6 +170,8 @@ export async function renderLivre(view, params) {
   const [books, order, settings] = await Promise.all([liveBooks(), getOrder(), getSettings()]);
   const prefs = getPrefs();
   const mode = SORTS[prefs.sort] ? prefs.sort : 'perso';
+  const filtre = FILTRES[prefs.filtre] ? prefs.filtre : 'tous';
+  if (params.fi) setOpen(params.fi, true);
 
   if (!books.length) {
     view.innerHTML = `<section class="page vide">
@@ -148,8 +184,10 @@ export async function renderLivre(view, params) {
   }
 
   const sorted = sortBooks(books, order, mode);
-  const shown = filterBooks(sorted, searchQuery);
-  const canDrag = mode === 'perso' && !searchQuery;
+  const shown = filterBooks(sorted, searchQuery).filter((b) =>
+    filtre === 'termines' ? isFinished(b) : filtre === 'encours' ? !isFinished(b) : true,
+  );
+  const canDrag = mode === 'perso' && !searchQuery && filtre === 'tous';
   const week = 7 * 24 * 3600 * 1000;
   const reminder = Date.now() - (prefs.lastExport || 0) > week;
 
@@ -162,6 +200,11 @@ export async function renderLivre(view, params) {
         <label class="tri">Trier par
           <select id="tri">${Object.entries(SORTS)
             .map(([k, v]) => `<option value="${k}"${k === mode ? ' selected' : ''}>${v}</option>`)
+            .join('')}</select>
+        </label>
+        <label class="tri">Afficher
+          <select id="filtre">${Object.entries(FILTRES)
+            .map(([k, v]) => `<option value="${k}"${k === filtre ? ' selected' : ''}>${v}</option>`)
             .join('')}</select>
         </label>
       </div>
@@ -180,7 +223,11 @@ export async function renderLivre(view, params) {
           )
           .join('')}
       </ol>
-      ${shown.length ? '' : '<p>Aucune fiche ne correspond à votre recherche.</p>'}
+      ${shown.length
+        ? ''
+        : searchQuery
+          ? '<p>Aucune fiche ne correspond à votre recherche.</p>'
+          : `<p>${filtre === 'termines' ? 'Aucun livre terminé pour l’instant. En bas d’un livre dont toutes les fiches sont faites, touchez « ✓ Livre terminé ».' : 'Aucun livre en cours : ils sont tous terminés.'}</p>`}
       <p class="petit">${pluralize(books.length, 'livre', 'livres')} et ${pluralize(books.reduce((n, b) => n + partsOf(b).length, 0), 'fiche', 'fiches')} dans votre livre de lectures.</p>
     </section>
     <div id="chapitres">${shown.map((b) => renderBook(b)).join('')}</div>`;
@@ -199,6 +246,13 @@ export async function renderLivre(view, params) {
     setPrefs({ sort: e.target.value });
     renderLivre(view, {});
   });
+  $('#filtre', view).addEventListener('change', (e) => {
+    setPrefs({ filtre: e.target.value });
+    renderLivre(view, {});
+  });
+  for (const d of $$('details.fiche-partie', view)) {
+    d.addEventListener('toggle', () => setOpen(d.dataset.fi, d.open));
+  }
 
   view.onclick = async (e) => {
     const btn = e.target.closest('[data-action]');
@@ -206,6 +260,10 @@ export async function renderLivre(view, params) {
     const book = books.find((b) => b.id === btn.dataset.id);
     if (!book) return;
     const part = btn.dataset.fi ? partsOf(book).find((p) => p.id === btn.dataset.fi) : null;
+    if (btn.dataset.action === 'deplier' || btn.dataset.action === 'replier') {
+      const open = btn.dataset.action === 'deplier';
+      for (const d of $$(`#ch-${CSS.escape(book.id)} details.fiche-partie`, view)) d.open = open;
+    }
     if (btn.dataset.action === 'supprimer') {
       const n = partsOf(book).length;
       if (!confirm(n > 1 ? `Supprimer définitivement le livre « ${book.title} » et ses ${n} fiches ?` : `Supprimer définitivement la fiche « ${book.title} » ?`)) return;

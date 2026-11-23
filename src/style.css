@@ -200,7 +200,7 @@ legend { font-weight: 600; font-size: 0.92rem; padding: 0 6px; }
 
 /* Sommaire */
 .outils { display: grid; gap: 10px; margin-bottom: 20px; }
-@media (min-width: 600px) { .outils { grid-template-columns: 1fr auto; align-items: end; } }
+@media (min-width: 600px) { .outils { grid-template-columns: 1fr auto auto; align-items: end; } }
 .tri { flex-direction: row; align-items: center; gap: 8px; white-space: nowrap; }
 .tri select { width: auto; }
 .sommaire-titre { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); font-family: var(--sans); font-weight: 600; }
@@ -292,9 +292,17 @@ mark {
 
 /* Plusieurs fiches dans un même livre (une par chapitre) */
 .fiche-partie { scroll-margin-top: 70px; }
-.fiche-partie + .fiche-partie { margin-top: 36px; padding-top: 28px; border-top: 2px solid var(--filet); }
+.fiche-partie + .fiche-partie { margin-top: 18px; padding-top: 14px; border-top: 2px solid var(--filet); }
 .partie-num { font: 600 0.72rem var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
 .fiche-partie .actions { margin-top: 20px; }
+.fiche-tete { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 6px 0 6px 26px; position: relative; }
+.fiche-tete::-webkit-details-marker { display: none; }
+.fiche-tete::before { content: '›'; position: absolute; left: 4px; top: 2px; font: 700 1.3rem var(--sans); color: var(--accent); transition: transform 0.15s; }
+details[open] > .fiche-tete::before { transform: rotate(90deg); }
+.fiche-tete .partie-num { margin: 0; flex-basis: 100%; }
+.fiche-tete .chapitre-resume { margin: 0; }
+.fiche-corps { padding-top: 10px; }
+.replier { font: 0.88rem var(--sans); color: var(--encre-douce); margin: 0 0 12px; }
 .actions-livre { border-top-width: 2px; }
 .badge-ok { color: var(--ok); border-color: var(--ok); }
 .livre-termine { font: 600 0.95rem var(--sans); color: var(--ok); margin: 24px 0 0; }
