@@ -450,3 +450,16 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 }
 .btn.danger { border-color: color-mix(in srgb, var(--danger) 45%, var(--filet)); background: color-mix(in srgb, var(--danger) 6%, var(--page)); }
 .btn.danger:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--page)); }
+
+/* Thèmes (étiquettes) et extraits trouvés par la recherche, dans le sommaire. */
+.toc .themes { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 5px; padding: 0 4px 9px; margin-top: -4px; }
+.theme { font: 500 0.75rem var(--sans); color: var(--accent); background: transparent; border: 1px solid var(--filet);
+  border-radius: 999px; padding: 2px 9px; cursor: pointer; }
+.theme:hover, .theme.actif { border-color: var(--accent); background: var(--accent); color: var(--page); }
+.toc .extraits { flex-basis: 100%; list-style: none; margin: -4px 0 10px; padding: 0 4px; display: grid; gap: 4px; }
+.toc .extraits li { display: block; border: 0; background: none; }
+.toc .extraits a { display: block; padding: 6px 10px; font-size: 0.9rem; line-height: 1.4; color: var(--encre-douce);
+  border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); border-radius: 0 6px 6px 0; }
+.toc .extraits .ou { display: block; font: 600 0.72rem var(--sans); color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.toc .extraits mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--encre); border-radius: 2px; padding: 0 1px; }
+.themes-choix { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }

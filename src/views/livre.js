@@ -1,7 +1,7 @@
 // Vue « Mon livre » : sommaire puis toutes les fiches, comme un livre.
 import { deleteBook, getOrder, getSettings, liveBooks, saveBook, setOrder } from '../db.js';
 import { chapterOf, flatten, isComplete, partOf, partsOf, readyFiches, withoutPart } from '../fiches.js';
-import { SORTS, filterBooks, sortBooks } from '../books.js';
+import { SORTS, allThemes, hasTheme, searchBook, sortBooks, themesOf } from '../books.js';
 import { buildFixPrompt } from '../prompt.js';
 import { NOTICE_FIELDS } from '../notice.js';
 import { copyText } from '../download.js';
@@ -250,11 +250,34 @@ export async function renderLivre(view, params) {
     return;
   }
 
+  const themes = allThemes(books);
+  const theme = themes.find((t) => t === prefs.filtreTheme) || '';
   const sorted = sortBooks(books, order, mode);
-  const shown = filterBooks(sorted, searchQuery).filter((b) =>
-    filtre === 'termines' ? isFinished(b) : filtre === 'encours' ? !isFinished(b) : true,
+  // Recherche dans tout le contenu : on garde les extraits trouvés pour les montrer sous le livre.
+  const found = new Map();
+  for (const b of sorted) {
+    const r = searchBook(b, searchQuery);
+    if (r) found.set(b.id, r.hits);
+  }
+  const shown = sorted.filter((b) =>
+    found.has(b.id) &&
+    (!theme || hasTheme(b, theme)) &&
+    (filtre === 'termines' ? isFinished(b) : filtre === 'encours' ? !isFinished(b) : true),
   );
-  const canDrag = mode === 'perso' && !searchQuery && filtre === 'tous';
+  const canDrag = mode === 'perso' && !searchQuery && filtre === 'tous' && !theme;
+  const tags = (b) => {
+    const list = themesOf(b);
+    return list.length
+      ? `<span class="themes">${list.map((t) => `<button type="button" class="theme${theme === t ? ' actif' : ''}" data-theme="${esc(t)}" title="Afficher les livres de ce thème">${esc(t)}</button>`).join('')}</span>`
+      : '';
+  };
+  const hitsHtml = (b) => {
+    const hits = searchQuery ? found.get(b.id) || [] : [];
+    return hits.length
+      ? `<ul class="extraits">${hits.map((h) => `<li><a href="#/?ch=${esc(b.id)}${h.fi ? `&fi=${esc(h.fi)}` : ''}"><span class="ou">${esc(h.where)}</span>
+          ${esc(h.before)}<mark>${esc(h.match)}</mark>${esc(h.after)}</a></li>`).join('')}</ul>`
+      : '';
+  };
   const week = 7 * 24 * 3600 * 1000;
   // Logiciel Windows : la sauvegarde automatique (dans Téléchargements) compte comme une sauvegarde.
   const lastSave = Math.max(prefs.lastExport || 0, isDesktopApp && prefs.autoBackup !== false ? prefs.lastAuto || 0 : 0);
@@ -265,12 +288,17 @@ export async function renderLivre(view, params) {
     <section class="page sommaire">
       <h1>${esc(settings.titreLivre)}</h1>
       <div class="outils">
-        <input type="search" id="recherche" placeholder="Rechercher un titre ou un auteur" value="${esc(searchQuery)}" aria-label="Rechercher">
+        <input type="search" id="recherche" placeholder="Rechercher : titre, auteur, mot dans les fiches, thème…" value="${esc(searchQuery)}" aria-label="Rechercher">
         <label class="tri">Trier par
           <select id="tri">${Object.entries(SORTS)
             .map(([k, v]) => `<option value="${k}"${k === mode ? ' selected' : ''}>${v}</option>`)
             .join('')}</select>
         </label>
+        ${themes.length ? `<label class="tri">Thème
+          <select id="filtre-theme"><option value="">Tous les thèmes</option>${themes
+            .map((t) => `<option${t === theme ? ' selected' : ''}>${esc(t)}</option>`)
+            .join('')}</select>
+        </label>` : ''}
         <label class="tri">Afficher
           <select id="filtre">${Object.entries(FILTRES)
             .map(([k, v]) => `<option value="${k}"${k === filtre ? ' selected' : ''}>${v}</option>`)
@@ -287,6 +315,8 @@ export async function renderLivre(view, params) {
                 <span class="t">${esc(b.title)}</span>
                 <span class="a">${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</span></a>
               ${isComplete(b) ? (b.termine ? '<span class="badge badge-ok">terminé ✓</span>' : '') : '<span class="badge">à terminer</span>'}
+              ${tags(b)}
+              ${hitsHtml(b)}
               ${tocChapters(b)}
             </li>`,
           )
@@ -295,7 +325,9 @@ export async function renderLivre(view, params) {
       ${shown.length
         ? ''
         : searchQuery
-          ? '<p>Aucune fiche ne correspond à votre recherche.</p>'
+          ? '<p>Aucune fiche ne contient ces mots. Essayez avec moins de mots, ou un mot plus court (« économ » trouve aussi « économie »).</p>'
+          : theme
+          ? `<p>Aucun livre du thème « ${esc(theme)} » ici. <button class="lien" type="button" data-theme="">Voir tous les thèmes</button></p>`
           : `<p>${filtre === 'termines' ? 'Aucun livre terminé pour l’instant. En bas d’un livre dont toutes les fiches sont faites, touchez « ✓ Livre terminé ».' : 'Aucun livre en cours : ils sont tous terminés.'}</p>`}
       <p class="petit">${pluralize(books.length, 'livre', 'livres')} et ${pluralize(books.reduce((n, b) => n + partsOf(b).length, 0), 'fiche', 'fiches')} dans votre livre de lectures.</p>
     </section>
@@ -315,6 +347,10 @@ export async function renderLivre(view, params) {
     setPrefs({ sort: e.target.value });
     renderLivre(view, {});
   });
+  $('#filtre-theme', view)?.addEventListener('change', (e) => {
+    setPrefs({ filtreTheme: e.target.value });
+    renderLivre(view, {});
+  });
   $('#filtre', view).addEventListener('change', (e) => {
     setPrefs({ filtre: e.target.value });
     renderLivre(view, {});
@@ -324,6 +360,14 @@ export async function renderLivre(view, params) {
   }
 
   view.onclick = async (e) => {
+    // Clic sur un thème : n'afficher que les livres de ce thème (re-clic : tous).
+    const th = e.target.closest('[data-theme]');
+    if (th) {
+      setPrefs({ filtreTheme: th.dataset.theme === theme ? '' : th.dataset.theme });
+      await renderLivre(view, {});
+      window.scrollTo(0, 0);
+      return;
+    }
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const book = books.find((b) => b.id === btn.dataset.id);

@@ -1,5 +1,6 @@
 // Vue « Modifier » : retoucher à la main le texte d'une fiche (#/modifier/<livre>?f=<fiche>) et la notice du livre.
-import { getBook, saveBook } from '../db.js';
+import { getBook, liveBooks, saveBook } from '../db.js';
+import { allThemes, parseThemes } from '../books.js';
 import { checkCitations, stripQuotes } from '../prompt.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
 import { partsOf, withPart } from '../fiches.js';
@@ -35,6 +36,7 @@ export async function renderModifier(view, params) {
     return;
   }
   const parts = partsOf(book);
+  const known = allThemes(await liveBooks());
   // ?notice=1 : seulement le titre, l'auteur et les informations du livre (aucune fiche).
   const part = params.notice ? null : parts.find((p) => p.id === params.f) || (params.f ? null : parts.find((p) => p.fiche)) || null;
   if (params.f && !part && !params.notice) {
@@ -53,6 +55,11 @@ export async function renderModifier(view, params) {
       <label>Titre<input name="title" required value="${esc(book.title)}"></label>
       <label>Auteur<input name="author" value="${esc(book.author)}"></label>
       <label>Date de parution<input name="pubDate" value="${esc(book.pubDate)}"></label>
+      <label class="bloc">Thèmes <span class="petit">(séparés par des virgules, par exemple « Économie, Histoire » ; pour trier et retrouver vos livres)</span>
+        <input name="themes" value="${esc((book.themes || []).join(', '))}" autocomplete="off">
+        ${known.length ? `<span class="themes-choix" aria-label="Thèmes déjà utilisés">${known
+          .map((t) => `<button type="button" class="theme" data-ajout-theme="${esc(t)}">+ ${esc(t)}</button>`)
+          .join('')}</span>` : ''}</label>
       ${withFiche ? `<label>Genre<input name="genre" value="${esc(f.genre)}"></label>
       <label>Partie du livre <span class="petit">(facultatif, par exemple « Première partie. Les origines »)</span><input name="partie" list="parties-livre" value="${esc(f.partie)}" autocomplete="off"></label>
       <datalist id="parties-livre">${[...new Set(parts.map((p) => p.fiche?.partie).filter(Boolean))].map((t) => `<option value="${esc(t)}">`).join('')}</datalist>
@@ -178,6 +185,13 @@ export async function renderModifier(view, params) {
     }
   });
   form.addEventListener('click', (e) => {
+    const th = e.target.closest('[data-ajout-theme]');
+    if (th) {
+      e.preventDefault();
+      const input = form.elements.themes;
+      input.value = parseThemes(`${input.value}, ${th.dataset.ajoutTheme}`).join(', ');
+      return;
+    }
     const add = e.target.closest('[data-ajouter]');
     if (add) {
       const name = add.dataset.ajouter;
@@ -198,6 +212,7 @@ export async function renderModifier(view, params) {
       title: val('title') || book.title,
       author: val('author'),
       pubDate: val('pubDate'),
+      themes: parseThemes(val('themes')),
       ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, val(k)])),
       bibliographie: lines('bibliographie') ?? book.bibliographie ?? [],
       cover: cover?.cover || '',
