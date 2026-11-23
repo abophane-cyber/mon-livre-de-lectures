@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractIsbn, fromOpenLibrary, lookupBook, mergeNotices, normalizeIsbn } from '../src/booklookup.js';
+import { extractIsbn, fromBnf, fromOpenLibrary, parseBnf, lookupBook, mergeNotices, normalizeIsbn } from '../src/booklookup.js';
 
 test('ISBN 10 et 13, avec ou sans tirets', () => {
   assert.equal(normalizeIsbn('2070360024'), '9782070360024');
@@ -55,4 +55,17 @@ test('Recherche par ISBN et par titre (réseau simulé)', async () => {
   assert.equal(b.notice.pages, '185');
   assert.equal(b.notice.edition, 'Gallimard, 1972');
   assert.match((await lookupBook({}, fake)).error, /titre/);
+});
+
+test('Notices BnF (Dublin Core) : deux notices combinées', async () => {
+  const xml = `<srw:records><srw:record><dc:title>Riches ensemble !</dc:title><dc:publisher>Seuil</dc:publisher>
+    <dc:description>Collection : Documents</dc:description><dc:identifier>ISBN 9782021611014</dc:identifier></srw:record>
+    <srw:record><dc:title>Riches ensemble !</dc:title><dc:publisher>Seuil (Paris cedex 19)</dc:publisher><dc:date>2026</dc:date>
+    <dc:identifier>ISBN 9782021611014</dc:identifier><dc:format>1 volume 219 p ; 21 cm</dc:format></srw:record></srw:records>`;
+  const r = await lookupBook({ query: '978-2021611014' }, async (url) => (url.includes('bnf.fr') ? xml : null));
+  assert.deepEqual(r.notice, { editeur: 'Seuil', collection: 'Documents', edition: 'Documents, 2026', pages: '219', isbn: '9782021611014' });
+  const [sapiens] = parseBnf(`<srw:record><dc:title>Sapiens / Yuval Noah Harari ; traduit de l'anglais par Pierre-Emmanuel Dauzat</dc:title></srw:record>`);
+  assert.equal(fromBnf(sapiens).traduction, "traduit de l'anglais par Pierre-Emmanuel Dauzat");
+  const [other] = parseBnf(`<srw:record><dc:contributor>Dauzat, Pierre-Emmanuel (1958-....). Traducteur</dc:contributor></srw:record>`);
+  assert.equal(fromBnf(other).traduction, 'traduit par Pierre-Emmanuel Dauzat');
 });

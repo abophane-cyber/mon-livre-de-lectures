@@ -1,6 +1,7 @@
 // Remplissage automatique de la notice (éditeur, collection, pages…) à partir d'un ISBN,
 // d'un lien vers une librairie en ligne (Amazon, Decitre…) ou du titre et de l'auteur.
-// Sources gratuites et ouvertes : Open Library et Google Books. Seuls l'ISBN, ou le titre et
+// Sources gratuites et ouvertes : la BnF (la plus complète pour les livres français),
+// Open Library et Google Books. Seuls l'ISBN, ou le titre et
 // l'auteur, sont envoyés ; aucune fiche ni aucun texte du livre.
 
 const digits = (s) => String(s || '').replace(/[^0-9Xx]/g, '').toUpperCase();
@@ -117,13 +118,54 @@ export function mergeNotices(...list) {
   return out;
 }
 
+const XML_ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+const unxml = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, e) =>
+  e[0] === '#' ? String.fromCodePoint(e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : XML_ENT[e] ?? m);
+
+/** Notices Dublin Core d'une réponse SRU de la BnF : [{ title: [...], publisher: [...], … }]. */
+export function parseBnf(xml) {
+  return String(xml || '')
+    .split(/<srw:record>/)
+    .slice(1)
+    .map((rec) => {
+      const out = {};
+      for (const m of rec.matchAll(/<dc:(\w+)>([^<]*)<\/dc:\1>/g)) (out[m[1]] ||= []).push(clean(unxml(m[2])));
+      return out;
+    });
+}
+
+/** Notice lue dans une notice BnF (Dublin Core). */
+export function fromBnf(rec) {
+  if (!rec) return {};
+  const out = {};
+  const publisher = clean((rec.publisher?.[0] || '').replace(/\s*\([^)]*\)\s*$/, ''));
+  if (publisher) out.editeur = publisher;
+  const coll = (rec.description || []).map((d) => d.match(/^Collection\s*:\s*(.+)$/i)?.[1]).find(Boolean);
+  if (coll) out.collection = clean(coll.replace(/^collection\s+/i, ''));
+  const year = yearOf(rec.date?.[0]);
+  if (year) out.edition = `${out.collection || publisher ? `${out.collection || publisher}, ` : ''}${year}`;
+  const pages = (rec.format?.[0] || '').match(/(\d+)\s*p\b/);
+  if (pages) out.pages = pages[1];
+  const t = (rec.title?.[0] || '').match(/tradu[^;/]*/i);
+  if (t) out.traduction = clean(t[0]).replace(/[\s,.]+$/, '');
+  else {
+    const who = (rec.contributor || []).find((c) => /traduct/i.test(c));
+    const name = who?.match(/^([^,(]+),\s*([^(.]+)/);
+    if (name) out.traduction = `traduit par ${clean(name[2])} ${clean(name[1])}`;
+  }
+  const isbn = (rec.identifier || []).map((i) => normalizeIsbn(i.match(/^ISBN\s+(.+)$/i)?.[1])).find(Boolean);
+  if (isbn) out.isbn = isbn;
+  return out;
+}
+
 async function defaultFetchJson(url) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
+  const timer = setTimeout(() => ctrl.abort(), 15000);
   try {
     const res = await fetch(url, { signal: ctrl.signal, referrerPolicy: 'no-referrer', credentials: 'omit' });
     if (!res.ok) return null;
-    return await res.json();
+    // La BnF répond en XML : renvoyé tel quel (texte).
+    return url.startsWith(BNF) ? await res.text() : await res.json();
   } catch {
     return null;
   } finally {
@@ -133,29 +175,42 @@ async function defaultFetchJson(url) {
 
 const OL = 'https://openlibrary.org';
 const GB = 'https://www.googleapis.com/books/v1/volumes';
+const BNF = 'https://catalogue.bnf.fr/api/SRU';
+const bnfUrl = (cql, max) =>
+  `${BNF}?version=1.2&operation=searchRetrieve&recordSchema=dublincore&maximumRecords=${max}&query=${encodeURIComponent(cql)}`;
+const cqlText = (s) => s.replace(/["\\]/g, ' ').replace(/\s+/g, ' ').trim();
 
 async function byIsbn(isbn, fetchJson) {
-  const [ol, gb] = await Promise.all([
+  const [bnf, ol, gb] = await Promise.all([
+    fetchJson(bnfUrl(`bib.isbn adj "${isbn}"`, 5)),
     fetchJson(`${OL}/isbn/${isbn}.json`),
     fetchJson(`${GB}?q=isbn:${isbn}&maxResults=1`),
   ]);
-  return mergeNotices(fromOpenLibrary(ol), fromGoogleBooks(gb?.items?.[0]?.volumeInfo), { isbn });
+  // La BnF a souvent deux notices pour un même livre (annonce et notice définitive) : on les combine.
+  return mergeNotices(...parseBnf(bnf).map(fromBnf), fromOpenLibrary(ol), fromGoogleBooks(gb?.items?.[0]?.volumeInfo), { isbn });
 }
 
 async function byTitle(title, author, fetchJson) {
   const q = (s) => encodeURIComponent(s.replace(/["()]/g, ' ').trim());
   // Google Books : éditions en français d'abord.
   const gbQuery = `intitle:${q(title)}${author ? `+inauthor:${q(author)}` : ''}`;
-  const olQuery = `title:"${title.replace(/"/g, ' ')}"${author ? ` author:(${author.replace(/[()"]/g, ' ')})` : ''} language:fre`;
-  const [gb, ol] = await Promise.all([
+  const bnfQuery = `bib.title all "${cqlText(title)}"${author ? ` and bib.author all "${cqlText(author)}"` : ''} and bib.doctype any "a"`;
+  const [gb, bnf] = await Promise.all([
     fetchJson(`${GB}?q=${gbQuery}&langRestrict=fr&maxResults=10&printType=books`),
-    fetchJson(`${OL}/search.json?q=${encodeURIComponent(olQuery)}&limit=1&fields=key,editions,editions.key`),
+    fetchJson(bnfUrl(bnfQuery, 30)),
   ]);
   const items = (gb?.items || []).map((x) => x.volumeInfo || {});
   // Une édition avec ISBN et éditeur, de préférence.
   const best = items.find((i) => fromGoogleBooks(i).isbn && i.publisher) || items.find((i) => fromGoogleBooks(i).isbn) || items[0];
   const fromGb = fromGoogleBooks(best);
   if (fromGb.isbn) return mergeNotices(await byIsbn(fromGb.isbn, fetchJson), fromGb);
+  // BnF : l'édition la plus récente qui a un ISBN.
+  const recent = parseBnf(bnf).map(fromBnf).filter((n) => n.isbn)
+    .sort((a, b) => (yearOf(b.edition) || 0) - (yearOf(a.edition) || 0))[0];
+  if (recent) return mergeNotices(await byIsbn(recent.isbn, fetchJson), recent);
+  // Dernier recours : Open Library.
+  const olQuery = `title:"${title.replace(/"/g, ' ')}"${author ? ` author:(${author.replace(/[()"]/g, ' ')})` : ''} language:fre`;
+  const ol = await fetchJson(`${OL}/search.json?q=${encodeURIComponent(olQuery)}&limit=1&fields=key,editions,editions.key`);
   const edKey = ol?.docs?.[0]?.editions?.docs?.[0]?.key;
   const ed = edKey ? await fetchJson(`${OL}${edKey}.json`) : null;
   return mergeNotices(fromOpenLibrary(ed), fromGb);

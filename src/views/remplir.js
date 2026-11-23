@@ -44,7 +44,7 @@ export function wireRemplir(root, { field, context, onChange = () => {} }) {
     if (!found) {
       say(res.byTitle
         ? "Rien trouvé avec le titre et l'auteur. Essayez avec l'ISBN (au dos du livre ou sur la page de la librairie)."
-        : "Ce livre n'est pas dans les bases de livres gratuites. Remplissez les cases à la main.");
+        : "Aucune base de livres ne connaît cet ISBN. Vérifiez le numéro (une faute de frappe est vite arrivée), ou videz la case pour chercher avec le titre et l'auteur.");
       return;
     }
     // On ne remplace jamais ce qui est déjà écrit.

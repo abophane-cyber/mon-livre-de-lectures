@@ -3,7 +3,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // Barrière anti-fuite (Content Security Policy) : l'appli ne peut charger du code et des
 // fichiers que depuis sa propre adresse, et ne peut envoyer de données à aucun autre site,
-// sauf aux deux bases de livres ouvertes du bouton « Remplir automatiquement » (qui ne reçoivent
+// sauf aux trois bases de livres ouvertes (BnF, Open Library, Google Books) du bouton « Remplir automatiquement » (qui ne reçoivent
 // que l'ISBN, ou le titre et l'auteur).
 // Ajoutée seulement à la version publiée (l'aperçu de développement a besoin d'une connexion en direct).
 const CSP = [
@@ -12,7 +12,7 @@ const CSP = [
   "style-src 'self'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self' https://openlibrary.org https://www.googleapis.com",
+  "connect-src 'self' https://catalogue.bnf.fr https://openlibrary.org https://www.googleapis.com",
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",
