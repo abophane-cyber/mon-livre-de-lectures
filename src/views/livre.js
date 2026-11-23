@@ -90,7 +90,7 @@ function renderPart(book, part, i, n) {
     <div class="actions">
       ${part.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Fiche A4</button>` : ''}
       ${part.fiche ? `<a class="btn" href="#/modifier/${q}">Modifier le texte</a>` : ''}
-      <a class="btn" href="#/livre/${q}">Compléter le texte / refaire le résumé</a>
+      <a class="btn" href="#/livre/${q}">Compléter (suite du chapitre) / refaire le résumé</a>
       ${n > 1 ? `<button class="btn danger" data-action="supprimer-fiche" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Supprimer cette fiche</button>` : ''}
     </div>
   </section>`;
@@ -245,7 +245,7 @@ export async function renderLivre(view, params) {
     if (btn.dataset.action === 'corriger' && part?.fiche) {
       const bad = part.fiche.citations.filter((c) => c.introuvable).map((c) => c.texte);
       const ok = await copyText(buildFixPrompt({ badCitations: bad }));
-      toast(ok ? `Demande copiée. Collez-la dans la conversation ${currentIa().label} de ce livre, puis recollez la réponse dans « Compléter le texte / refaire le résumé ».` : 'La copie a échoué.', ok ? 'ok' : 'erreur', 8000);
+      toast(ok ? `Demande copiée. Collez-la dans la conversation ${currentIa().label} de ce livre, puis recollez la réponse dans « Compléter (suite du chapitre) / refaire le résumé ».` : 'La copie a échoué.', ok ? 'ok' : 'erreur', 8000);
     }
   };
 

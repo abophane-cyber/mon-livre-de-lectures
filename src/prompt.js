@@ -90,6 +90,62 @@ MON TEXTE${captures ? ' ÉCRIT (EN PLUS DE MES CAPTURES)' : ''}
 ${texte || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')}`;
 }
 
+/** La fiche déjà faite, remise en texte à titres (pour la redonner à l'IA). */
+export function ficheAsText(fiche) {
+  if (!fiche) return '';
+  const out = [`CHAPITRE : ${fiche.chapitre || ''}`, `GENRE : ${fiche.genre || ''}`, '', '## RÉSUMÉ', (fiche.resume || []).join('\n\n')];
+  if (fiche.idees_cles?.length) {
+    out.push('', '## IDÉES CLÉS', ...fiche.idees_cles.map((i) => `- **${i.titre}**${i.texte ? ` : ${i.texte}` : ''}`));
+  }
+  if (fiche.personnages?.length) {
+    const titre = /^personnages$/i.test(fiche.personnages_titre || '') ? 'PERSONNAGES' : 'NOTIONS CLÉS';
+    out.push('', `## ${titre}`, ...fiche.personnages.map((p) => `- **${p.nom}**${p.role ? ` : ${p.role}` : ''}`));
+  }
+  return out.join('\n');
+}
+
+/**
+ * Demande « suite du chapitre » : l'IA limite le nombre de captures par message (10 pour ChatGPT).
+ * On lui redonne le résumé déjà fait du début du chapitre, plus les nouvelles captures,
+ * et elle renvoie une seule fiche pour tout le chapitre (qui remplace l'ancienne).
+ */
+export function buildContinuationPrompt(book) {
+  const L = LONGUEURS[book.length] || LONGUEURS.moyen;
+  const langue = book.lang || 'français';
+  const texte = (book.passages || []).join('\n\n');
+  return `TA TÂCHE : je fais la fiche de lecture d'un chapitre trop long pour être envoyé en une seule fois. Tu trouveras ci-dessous LE RÉSUMÉ DU DÉBUT DU CHAPITRE (déjà fait). Je t'envoie maintenant des captures d'écran de LA SUITE de ce chapitre (jointes à ce message, ou dans mon prochain message). Lis le texte visible sur ces captures, puis rédige UNE SEULE fiche qui couvre TOUT le chapitre : le début (d'après le résumé ci-dessous) ET la suite (d'après mes captures).
+Si tu ne vois encore aucune image, réponds seulement : « Envoyez-moi vos captures d'écran. » et attends-les ; dès que tu les reçois, rédige directement la fiche complète, sans rien demander d'autre.
+
+LIVRE
+- Titre : ${book.title || '(inconnu)'}
+- Auteur : ${book.author || '(inconnu)'}
+- Date de parution : ${book.pubDate || '(non précisée)'}
+
+CAPTURES D'ÉCRAN (la suite du chapitre)
+a. Lis TOUT le texte du livre visible sur les captures, dans l'ordre des captures, qu'il soit surligné ou non.
+b. Ignore tout ce qui n'est pas le texte du livre : menus, boutons, heure, batterie, numéros de page ou d'emplacement, titres de l'appli.
+c. Si un mot est illisible, ne l'invente pas.
+d. Les captures de la page d'informations du livre ou de la bibliographie servent à la NOTICE et à la BIBLIOGRAPHIE (règle 6), pas au résumé.
+
+RÈGLES
+1. Garde tout l'essentiel du résumé du début : ne le raccourcis pas trop. Ajoute à la suite ce que racontent mes captures, dans l'ordre du chapitre, avec des transitions naturelles. Le lecteur ne doit pas voir que la fiche a été faite en deux fois. N'invente jamais rien.
+2. Rédige en ${langue}.
+3. Ligne CHAPITRE : garde le titre du chapitre déjà indiqué ci-dessous (s'il est vide et que les captures montrent un titre de chapitre, recopie-le exactement). Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé.
+4. Longueur (tout doit tenir sur une page A4) : résumé de ${L.resume}, plus 1 ou 2 paragraphes si la suite apporte beaucoup de choses nouvelles ; ${L.idees} à ${Number(L.idees) + 2} idées clés pour tout le chapitre (garde celles du début et ajoute celles de la suite), d’une phrase chacune ; ${L.notions} à ${Number(L.notions) + 2} notions principales (ou personnages principaux pour un roman) en une phrase courte.
+5. ${CONSIGNE_NEUTRE}
+6. Notice et références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a) :
+${CONSIGNES_NOTICE}
+7. ${CONSIGNE_FORMAT}
+
+${MODELE}
+
+${MODELE_NOTICE}
+
+LE RÉSUMÉ DU DÉBUT DU CHAPITRE (déjà fait)
+${ficheAsText(book.fiche)}
+${texte ? `\nMON TEXTE ÉCRIT (EN PLUS DE MES CAPTURES)\n${texte}\n` : ''}`;
+}
+
 /** Message court à envoyer avec les captures si l'IA n'a pas compris quoi en faire. */
 export function buildCapturesReminder(book) {
   return `Voici les captures d'écran du livre « ${book.title || '(inconnu)'} ». Lis le texte visible sur ces images et rédige maintenant le résumé en suivant exactement ma demande précédente : fidèle et neutre, sans avis ni commentaire, en texte simple avec les titres en majuscules (CHAPITRE, GENRE, ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS ou ## PERSONNAGES, ## NOTICE, ## BIBLIOGRAPHIE).`;

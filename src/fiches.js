@@ -8,6 +8,8 @@ const PART_KEYS = ['passages', 'captures', 'fiche', 'ficheEditedByHand'];
 /** Convertit un livre de l'ancien format (une seule fiche) au format à plusieurs fiches. */
 export function normalizeBook(book) {
   if (!book || book.deleted || Array.isArray(book.fiches)) return book;
+  // Livre tout neuf (pas encore de fiche) : rien à convertir.
+  if (!book.id || !PART_KEYS.some((k) => k in book)) return { ...book, fiches: [] };
   const rest = { ...book };
   for (const k of PART_KEYS) delete rest[k];
   return {
@@ -36,7 +38,8 @@ export function bookOnly(book) {
 
 /** Les fiches du livre (sans celles supprimées), dans l'ordre. */
 export function partsOf(book) {
-  return (normalizeBook(book)?.fiches || []).filter((p) => !p.deleted);
+  // « p-undefined » : fiche vide créée par erreur avec les livres neufs (ancienne version de l'appli).
+  return (normalizeBook(book)?.fiches || []).filter((p) => !p.deleted && !(p.id === 'p-undefined' && !p.fiche && !p.passages?.length));
 }
 
 /**

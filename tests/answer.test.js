@@ -263,3 +263,32 @@ test('titre du chapitre : lu s’il est donné, ignoré sinon', () => {
   assert.match(p, /CHAPITRE :/);
   assert.match(p, /Ne mets ni le titre du livre, ni l'auteur, ni la date/);
 });
+
+test('suite du chapitre : la fiche existante est redonnée à l’IA et se relit à l’identique', async () => {
+  const { buildContinuationPrompt, ficheAsText } = await import('../src/prompt.js');
+  const r = parseAnswer(`CHAPITRE : Chapitre 2. La dette
+GENRE : Essai
+
+## RÉSUMÉ
+Premier paragraphe.
+
+Deuxième paragraphe.
+
+## IDÉES CLÉS
+- **Idée A** : explication A.
+
+## NOTIONS CLÉS
+- **Notion B** : explication B.`);
+  assert.ok(r.ok);
+  const again = parseAnswer(ficheAsText(r.fiche));
+  assert.deepEqual(again.fiche.resume, r.fiche.resume);
+  assert.deepEqual(again.fiche.idees_cles, r.fiche.idees_cles);
+  assert.deepEqual(again.fiche.personnages, r.fiche.personnages);
+  assert.equal(again.fiche.personnages_titre, r.fiche.personnages_titre);
+  assert.equal(again.fiche.chapitre, 'Chapitre 2. La dette');
+  const p = buildContinuationPrompt({ title: 'Livre', length: 'moyen', fiche: r.fiche, passages: [] });
+  assert.match(p, /LA SUITE/);
+  assert.match(p, /Deuxième paragraphe\./);
+  assert.match(p, /\*\*Notion B\*\* : explication B\./);
+  assert.match(p, /4 à 6 idées clés/);
+});

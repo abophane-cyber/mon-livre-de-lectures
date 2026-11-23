@@ -2,7 +2,7 @@
 // Un livre peut avoir plusieurs fiches (une par chapitre) : #/livre/<livre>?f=<fiche> ou ?f=nouvelle.
 import { findBookByKey, getBook, saveBook } from '../db.js';
 import { parseClippings } from '../clippings.js';
-import { LANGUES, LONGUEURS, buildCapturesReminder, buildFixPrompt, buildNoticePrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
+import { LANGUES, LONGUEURS, buildCapturesReminder, buildContinuationPrompt,buildFixPrompt, buildNoticePrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
 import { applyNotice } from '../notice.js';
 import { copyText } from '../download.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
@@ -126,7 +126,11 @@ export async function renderAtelier(view, params) {
         <button class="btn" id="copier-rappel">Copier le message pour les captures</button>
       </div>
       ${part?.fiche
-        ? `<div class="notice-seule">
+        ? `<div class="notice-seule" id="bloc-suite">
+            <p class="petit"><strong>La suite du chapitre, avec d'autres captures ?</strong> (par exemple quand ${esc(ia.label)} n'accepte que 10 captures à la fois). Touchez ce bouton : la demande contient le résumé déjà fait. Dans <strong>une nouvelle conversation</strong> ${esc(ia.label)}, joignez les captures suivantes, collez la demande dans le même message, envoyez, puis recollez la réponse à l'étape 3. Vous obtiendrez une seule fiche A4 pour tout le chapitre (elle remplace celle-ci).</p>
+            <button class="btn" id="copier-suite">Copier la demande « suite du chapitre »</button>
+          </div>
+          <div class="notice-seule">
             <p class="petit"><strong>Seulement la notice et la bibliographie ?</strong> Sans refaire le résumé : touchez ce bouton, joignez dans ${esc(ia.label)} vos captures de la page d'informations du livre (éditeur, ISBN…) ou de la bibliographie, collez, envoyez, puis recollez la réponse à l'étape 3.</p>
             <button class="btn" id="copier-notice">Copier la demande « notice et bibliographie »</button>
           </div>`
@@ -319,6 +323,18 @@ export async function renderAtelier(view, params) {
         : 'La copie a échoué.',
       ok ? 'ok' : 'erreur',
       8000,
+    );
+  });
+
+  $('#copier-suite', view)?.addEventListener('click', async () => {
+    // Garde le résumé existant ; enregistre seulement les réglages (titre, longueur…) et le texte.
+    const f = readForm();
+    if (!f.captures) $('#f-captures', view).click();
+    const saved = await persist();
+    if (!saved) return;
+    await copyAndOpen(
+      buildContinuationPrompt(saved),
+      `Demande copiée ✓ Dans une nouvelle conversation ${ia.label} : joignez les captures suivantes, collez la demande, envoyez, puis recollez la réponse à l'étape 3.`,
     );
   });
 
