@@ -1,7 +1,7 @@
 // Vue « Sauvegarde » : passer ses fiches d'un appareil à l'autre avec un fichier.
 // Deux gestes seulement : « Créer le fichier » sur un appareil, « Lire le fichier » sur l'autre.
 // Le fichier est chiffré par un mot de passe, demandé une seule fois puis mémorisé sur l'appareil.
-import { dumpAll, getSettings, liveBooks, writeMerged } from '../db.js';
+import { dumpAll, liveBooks, writeMerged } from '../db.js';
 import { partsOf } from '../fiches.js';
 import { BACKUP_APP, BACKUP_VERSION, makeBackup, mergeBackup, validateBackup } from '../sync.js';
 import { decryptJson, encryptJson, isEncrypted } from '../crypto.js';
@@ -10,7 +10,15 @@ import { esc, formatDate, newId, pluralize } from '../util.js';
 import { $, getPrefs, readFileText, setPrefs, toast } from '../ui.js';
 
 const MIN_LENGTH = 8;
-/** Nom du fichier : « titre du livre_jour-mois-année-heure », ex. « Mon livre de lectures_23-11-2026-14h05.json ». */
+/** Titre utilisé dans le nom de la sauvegarde : le titre du livre (ex. « RICHES ENSEMBLE »),
+ *  ou les titres des livres s'il y en a plusieurs (« A + B + C et 2 autres »). */
+export function backupTitle(books) {
+  const titres = books.map((b) => String(b.title || '').trim()).filter(Boolean);
+  if (titres.length <= 3) return titres.join(' + ');
+  return `${titres.slice(0, 3).join(' + ')} et ${titres.length - 3} autres`;
+}
+
+/** Nom du fichier : « titre du livre_jour-mois-année-heure », ex. « RICHES ENSEMBLE_23-11-2026-14h05.json ». */
 export function backupFileName(titre, date = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
   const propre = String(titre || '').replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/\.+$/, '') || 'Mon livre de lectures';
@@ -180,7 +188,7 @@ export async function renderSauvegarde(view) {
     btns.forEach((b) => (b.disabled = true));
     try {
       const blob = await encryptedBackupBlob(password);
-      const name = backupFileName((await getSettings()).titreLivre);
+      const name = backupFileName(backupTitle(await liveBooks()));
       if (action === 'share') {
         if (!(await shareBlob(blob, name, 'Mon livre de lectures'))) {
           toast("L'envoi n'est pas disponible. Utilisez « Créer le fichier de sauvegarde ».", 'erreur');
