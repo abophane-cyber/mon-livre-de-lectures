@@ -94,7 +94,7 @@ export async function renderAtelier(view, params) {
         <div class="champs">
           ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input id="f-${k}" value="${esc(v[k])}" autocomplete="off"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
         </div>
-        <button class="btn" id="ajouter-notice" type="button">Enregistrer les informations du livre</button>
+        <button class="btn primaire" id="ajouter-notice" type="button">Enregistrer les informations du livre</button>
         <p class="petit">Enregistre seulement ces informations, sans créer de fiche. Elles apparaîtront sur la page de présentation du livre dans les PDF. Vous les retrouvez aussi sous le livre : bouton « Informations du livre ».</p>
       </details>
       <fieldset class="segment">

@@ -7,7 +7,7 @@ import { $, toast } from '../ui.js';
 export const remplirHtml = () => `<div class="remplir">
     <label>Lien du livre (Amazon ou autre librairie) ou ISBN <span class="petit">(facultatif : sans rien, l'appli cherche avec le titre et l'auteur)</span>
       <input id="remplir-source" autocomplete="off" placeholder="https://www.amazon.fr/…/dp/2070360024 ou 978-2-07-036002-4"></label>
-    <button type="button" class="btn" id="remplir-btn">Remplir automatiquement</button>
+    <button type="button" class="btn primaire" id="remplir-btn">Remplir automatiquement</button>
     <p class="petit" id="remplir-etat" role="status" hidden></p>
   </div>`;
 
