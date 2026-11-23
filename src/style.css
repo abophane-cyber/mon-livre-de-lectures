@@ -293,16 +293,33 @@ mark {
 
 /* Plusieurs fiches dans un même livre (une par chapitre) */
 .fiche-partie { scroll-margin-top: 70px; }
-.fiche-partie + .fiche-partie { margin-top: 18px; padding-top: 14px; border-top: 2px solid var(--filet); }
+.fiche-partie + .fiche-partie { margin-top: 14px; }
+.fiche-partie[open] + .fiche-partie { margin-top: 28px; }
 .partie-num { font: 600 0.72rem var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
 .fiche-partie .actions { margin-top: 20px; }
-.fiche-tete { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 6px 0 6px 26px; position: relative; }
+/* En-tête d'un chapitre : filet doré à gauche, « CHAPITRE 1 » au-dessus du titre, flèche ronde à droite. */
+.fiche-tete {
+  cursor: pointer; list-style: none; position: relative;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 12px 52px 12px 18px; border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-radius: 0 var(--rayon) var(--rayon) 0;
+}
 .fiche-tete::-webkit-details-marker { display: none; }
-.fiche-tete::before { content: '›'; position: absolute; left: 4px; top: 2px; font: 700 1.3rem var(--sans); color: var(--accent); transition: transform 0.15s; }
-details[open] > .fiche-tete::before { transform: rotate(90deg); }
-.fiche-tete .partie-num { margin: 0; flex-basis: 100%; }
-.fiche-tete .chapitre-resume { margin: 0; }
-.fiche-corps { padding-top: 10px; }
+.fiche-tete::after {
+  content: '›'; position: absolute; right: 12px; top: 50%;
+  width: 28px; height: 28px; margin-top: -14px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 1.2rem/1 var(--sans); color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: rotate(90deg); transition: transform 0.15s;
+}
+details[open] > .fiche-tete::after { transform: rotate(-90deg); }
+.fiche-tete:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.fiche-tete .partie-num { margin: 0; }
+.fiche-tete .chapitre-resume { margin: 0; font-size: 1.4rem; line-height: 1.25; }
+.fiche-tete .badge { align-self: flex-start; }
+.fiche-corps { padding-top: 18px; }
 .replier { font: 0.88rem var(--sans); color: var(--encre-douce); margin: 0 0 12px; }
 .actions-livre { border-top-width: 2px; }
 .badge-ok { color: var(--ok); border-color: var(--ok); }
