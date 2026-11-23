@@ -1,4 +1,5 @@
-// Couverture du livre : trouvée par l'ISBN dans Open Library (seul l'ISBN est envoyé),
+// Couverture du livre : trouvée par l'ISBN dans les images d'Amazon (très complètes pour les livres
+// français), sinon dans Open Library (seul l'ISBN est envoyé),
 // ou choisie par l'utilisateur (photo, image enregistrée). Elle est réduite puis gardée
 // dans le livre (image JPEG), pour marcher hors connexion et dans les sauvegardes.
 
@@ -26,25 +27,39 @@ export async function blobToCover(blob) {
   }
 }
 
-/** Cherche la couverture d'après l'ISBN (13 chiffres). Renvoie { cover, coverRatio } ou null. */
-export async function fetchCover(isbn) {
-  const id = String(isbn || '').replace(/[^0-9X]/gi, '');
-  if (!/^(\d{9}[\dX]|\d{13})$/i.test(id)) return null;
+/** ISBN-13 (978…) → ISBN-10, utilisé par les images d'Amazon. */
+export function isbn10(isbn) {
+  const id = String(isbn || '').replace(/[^0-9X]/gi, '').toUpperCase();
+  if (/^\d{9}[\dX]$/.test(id)) return id;
+  if (!/^978\d{10}$/.test(id)) return '';
+  const body = id.slice(3, 12);
+  const sum = [...body].reduce((n, d, i) => n + (10 - i) * Number(d), 0);
+  const c = (11 - (sum % 11)) % 11;
+  return body + (c === 10 ? 'X' : String(c));
+}
+
+/** Télécharge une image ; null si absente (Amazon renvoie une petite image vide quand il n'a rien). */
+async function tryImage(url) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
-    const res = await fetch(`https://covers.openlibrary.org/b/isbn/${id}-L.jpg?default=false`, {
-      signal: ctrl.signal,
-      referrerPolicy: 'no-referrer',
-      credentials: 'omit',
-    });
+    const res = await fetch(url, { signal: ctrl.signal, referrerPolicy: 'no-referrer', credentials: 'omit' });
     if (!res.ok) return null;
     const blob = await res.blob();
-    if (!blob.type.startsWith('image/') || blob.size < 1500) return null; // image vide ou « pas de couverture »
+    if (!/^image\/(jpeg|png|webp)$/.test(blob.type) || blob.size < 1500) return null;
     return await blobToCover(blob);
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Cherche la couverture d'après l'ISBN. Renvoie { cover, coverRatio } ou null. */
+export async function fetchCover(isbn) {
+  const id = String(isbn || '').replace(/[^0-9X]/gi, '');
+  if (!/^(\d{9}[\dX]|\d{13})$/i.test(id)) return null;
+  const i10 = isbn10(id);
+  return (i10 && (await tryImage(`https://m.media-amazon.com/images/P/${i10}.01.LZZZZZZZ.jpg`))) ||
+    (await tryImage(`https://covers.openlibrary.org/b/isbn/${id}-L.jpg?default=false`));
 }

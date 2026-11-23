@@ -4,8 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 // Barrière anti-fuite (Content Security Policy) : l'appli ne peut charger du code et des
 // fichiers que depuis sa propre adresse, et ne peut envoyer de données à aucun autre site,
 // sauf aux trois bases de livres ouvertes (BnF, Open Library, Google Books) du bouton « Remplir automatiquement » (qui ne reçoivent
-// que l'ISBN, ou le titre et l'auteur), et aux images de couvertures d'Open Library (rangées chez archive.org,
-// qui ne reçoit que l'ISBN).
+// que l'ISBN, ou le titre et l'auteur), et aux images de couvertures d'Amazon et d'Open Library (rangées chez
+// archive.org), qui ne reçoivent que l'ISBN.
 // Ajoutée seulement à la version publiée (l'aperçu de développement a besoin d'une connexion en direct).
 const CSP = [
   "default-src 'self'",
@@ -13,7 +13,7 @@ const CSP = [
   "style-src 'self'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self' https://catalogue.bnf.fr https://openlibrary.org https://www.googleapis.com https://covers.openlibrary.org https://archive.org https://*.archive.org",
+  "connect-src 'self' https://catalogue.bnf.fr https://openlibrary.org https://www.googleapis.com https://covers.openlibrary.org https://archive.org https://*.archive.org https://m.media-amazon.com",
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",
