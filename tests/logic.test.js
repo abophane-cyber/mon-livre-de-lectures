@@ -93,7 +93,7 @@ test('captures d\'écran : la demande et la lecture des passages recopiés', () 
   const p = buildPrompt({ title: 'T', author: 'A', passages: [], captures: true });
   assert.match(p, /CAPTURES D'ÉCRAN/);
   assert.match(p, /TOUT le texte du livre visible/);
-  assert.match(p, /## NOTICE/);
+  assert.doesNotMatch(p, /## NOTICE/);
   assert.doesNotMatch(p, /"passages": \[/);
   assert.match(p, /tout est dans mes captures/);
   assert.doesNotMatch(buildPrompt({ title: 'T', passages: ['x'] }), /CAPTURES/);

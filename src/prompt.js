@@ -28,21 +28,30 @@ Deuxième paragraphe.
 ## NOTIONS CLÉS
 - **Notion** : explication en 1 à 2 phrases.`;
 
-const MODELE_NOTICE = `## NOTICE
+const MODELE_NOTICE_SEULE = `## NOTICE
 - Éditeur :
 - Collection :
 - Édition :
 - Traduction :
 - ISBN :
 - Nombre de pages :
-- Date de parution :
+- Date de parution :`;
 
-## BIBLIOGRAPHIE
+const MODELE_BIBLIO = `## BIBLIOGRAPHIE
 - Auteur, Titre, Éditeur ou revue, année.`;
 
-const CONSIGNES_NOTICE = `- Si mes captures ou mon texte montrent les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis la rubrique NOTICE uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse vide ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.
-- Rubrique BIBLIOGRAPHIE : mets-y UNIQUEMENT des références d'ouvrages, d'articles ou d'autres sources (auteur, titre, éditeur ou revue, année, pages), une par ligne avec un tiret, sous la forme « Auteur, Titre, Éditeur ou revue, année. » Les notes de bas de page ne sont PAS une bibliographie : quand une note contient une explication, une définition, un exemple ou un commentaire, ne la recopie pas. Si une note mélange une explication et une référence (par exemple « … Voir Anne-Laure Delatte, « Faut-il abandonner l'euro ? », Esprit, mars/avril 2014. »), garde seulement la référence (« Anne-Laure Delatte, « Faut-il abandonner l'euro ? », Esprit, mars/avril 2014. »). Ne garde que les références assez complètes pour retrouver la source (au moins un auteur ou un titre précis). Ne mets jamais deux fois la même référence. N'en invente aucune et n'ajoute pas tes propres suggestions de lecture : s'il n'y en a pas, laisse la rubrique vide.
-- Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé.`;
+/** Notice + bibliographie : seulement pour la demande « notice et bibliographie » (informations du livre). */
+const MODELE_NOTICE = `${MODELE_NOTICE_SEULE}
+
+${MODELE_BIBLIO}`;
+
+const CONSIGNE_NOTICE_LIVRE = `- Si mes captures ou mon texte montrent les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis la rubrique NOTICE uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse vide ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.`;
+
+const CONSIGNE_BIBLIO = `- Rubrique BIBLIOGRAPHIE : mets-y UNIQUEMENT des références d'ouvrages, d'articles ou d'autres sources (auteur, titre, éditeur ou revue, année, pages), une par ligne avec un tiret, sous la forme « Auteur, Titre, Éditeur ou revue, année. » Les notes de bas de page ne sont PAS une bibliographie : quand une note contient une explication, une définition, un exemple ou un commentaire, ne la recopie pas. Si une note mélange une explication et une référence (par exemple « … Voir Anne-Laure Delatte, « Faut-il abandonner l'euro ? », Esprit, mars/avril 2014. »), garde seulement la référence (« Anne-Laure Delatte, « Faut-il abandonner l'euro ? », Esprit, mars/avril 2014. »). Ne garde que les références assez complètes pour retrouver la source (au moins un auteur ou un titre précis). Ne mets jamais deux fois la même référence. N'en invente aucune et n'ajoute pas tes propres suggestions de lecture : s'il n'y en a pas, laisse la rubrique vide.
+- Ces références ne font pas partie du texte à résumer : ne les utilise pas pour le résumé.`;
+
+const CONSIGNES_NOTICE = `${CONSIGNE_NOTICE_LIVRE}
+${CONSIGNE_BIBLIO}`;
 
 export const CONSIGNE_NEUTRE = `Résume fidèlement et de façon neutre. Ne donne JAMAIS ton avis et n'ajoute aucun commentaire : pas d'appréciation (« passionnant », « remarquable »…), pas d'analyse critique, pas de points forts ou faibles, pas de citations, pas de rubrique « à retenir » ou « pour qui », pas d'introduction ni de conclusion de ta part, pas de question à la fin.`;
 
@@ -70,7 +79,7 @@ CAPTURES D'ÉCRAN (pages du livre : liseuse, appli Kindle ou photo de page)
 a. Lis TOUT le texte du livre visible sur les captures, dans l'ordre des captures, qu'il soit surligné ou non. C'est ce texte que tu dois résumer.
 b. Ignore tout ce qui n'est pas le texte du livre : menus, boutons, heure, batterie, numéros de page ou d'emplacement, titres de l'appli.
 c. Si un mot est illisible, ne l'invente pas.
-d. Les captures de la page d'informations du livre ou de la bibliographie servent à la NOTICE et à la BIBLIOGRAPHIE (règle 6), pas au résumé.
+d. Les captures de la bibliographie servent à la rubrique BIBLIOGRAPHIE (règle 6), pas au résumé. Ignore la page d'informations du livre (éditeur, ISBN…).
 ` : ''}
 RÈGLES
 1. Appuie-toi sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais rien. En cas de doute, reste sur ce que dit le texte.
@@ -78,13 +87,13 @@ RÈGLES
 3. Titre du chapitre : si le texte ou les captures montrent un titre de chapitre (par exemple « Chapitre 3. La dette publique »), recopie-le exactement sur la ligne CHAPITRE. S'il n'y en a pas, écris « CHAPITRE : » sans rien après. Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé : je les ai déjà.
 4. Longueur (tout doit tenir sur une page A4) : résumé de ${L.resume}, ${L.idees} idées clés d’une phrase chacune, et ${L.notions} notions principales expliquées en une phrase courte (ou les personnages principaux pour un roman : remplace alors « ## NOTIONS CLÉS » par « ## PERSONNAGES »).
 5. ${CONSIGNE_NEUTRE}
-6. Notice et références bibliographiques (la notice va dans les informations générales du livre, les références au verso de ma fiche, seulement s'il y en a) :
-${CONSIGNES_NOTICE}
+6. Références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a). Pas de rubrique NOTICE (éditeur, ISBN…) : ces informations ne vont pas dans la fiche.
+${CONSIGNE_BIBLIO}
 7. ${CONSIGNE_FORMAT}
 
 ${MODELE}
 
-${MODELE_NOTICE}
+${MODELE_BIBLIO}
 
 MON TEXTE${captures ? ' ÉCRIT (EN PLUS DE MES CAPTURES)' : ''}
 ${texte || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')}`;
@@ -125,7 +134,7 @@ CAPTURES D'ÉCRAN (la suite du chapitre)
 a. Lis TOUT le texte du livre visible sur les captures, dans l'ordre des captures, qu'il soit surligné ou non.
 b. Ignore tout ce qui n'est pas le texte du livre : menus, boutons, heure, batterie, numéros de page ou d'emplacement, titres de l'appli.
 c. Si un mot est illisible, ne l'invente pas.
-d. Les captures de la page d'informations du livre ou de la bibliographie servent à la NOTICE et à la BIBLIOGRAPHIE (règle 6), pas au résumé.
+d. Les captures de la bibliographie servent à la rubrique BIBLIOGRAPHIE (règle 6), pas au résumé. Ignore la page d'informations du livre (éditeur, ISBN…).
 
 RÈGLES
 1. Garde tout l'essentiel du résumé du début : ne le raccourcis pas trop. Ajoute à la suite ce que racontent mes captures, dans l'ordre du chapitre, avec des transitions naturelles. Le lecteur ne doit pas voir que la fiche a été faite en deux fois. N'invente jamais rien.
@@ -133,13 +142,13 @@ RÈGLES
 3. Ligne CHAPITRE : garde le titre du chapitre déjà indiqué ci-dessous (s'il est vide et que les captures montrent un titre de chapitre, recopie-le exactement). Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé.
 4. Longueur (tout doit tenir sur une page A4) : résumé de ${L.resume}, plus 1 ou 2 paragraphes si la suite apporte beaucoup de choses nouvelles ; ${L.idees} à ${Number(L.idees) + 2} idées clés pour tout le chapitre (garde celles du début et ajoute celles de la suite), d’une phrase chacune ; ${L.notions} à ${Number(L.notions) + 2} notions principales (ou personnages principaux pour un roman) en une phrase courte.
 5. ${CONSIGNE_NEUTRE}
-6. Notice et références bibliographiques (la notice va dans les informations générales du livre, les références au verso de ma fiche, seulement s'il y en a) :
-${CONSIGNES_NOTICE}
+6. Références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a). Pas de rubrique NOTICE (éditeur, ISBN…) : ces informations ne vont pas dans la fiche.
+${CONSIGNE_BIBLIO}
 7. ${CONSIGNE_FORMAT}
 
 ${MODELE}
 
-${MODELE_NOTICE}
+${MODELE_BIBLIO}
 
 LE RÉSUMÉ DU DÉBUT DU CHAPITRE (déjà fait)
 ${ficheAsText(book.fiche)}
@@ -148,7 +157,7 @@ ${texte ? `\nMON TEXTE ÉCRIT (EN PLUS DE MES CAPTURES)\n${texte}\n` : ''}`;
 
 /** Message court à envoyer avec les captures si l'IA n'a pas compris quoi en faire. */
 export function buildCapturesReminder(book) {
-  return `Voici les captures d'écran du livre « ${book.title || '(inconnu)'} ». Lis le texte visible sur ces images et rédige maintenant le résumé en suivant exactement ma demande précédente : fidèle et neutre, sans avis ni commentaire, en texte simple avec les titres en majuscules (CHAPITRE, GENRE, ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS ou ## PERSONNAGES, ## NOTICE, ## BIBLIOGRAPHIE).`;
+  return `Voici les captures d'écran du livre « ${book.title || '(inconnu)'} ». Lis le texte visible sur ces images et rédige maintenant le résumé en suivant exactement ma demande précédente : fidèle et neutre, sans avis ni commentaire, en texte simple avec les titres en majuscules (CHAPITRE, GENRE, ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS ou ## PERSONNAGES, ## BIBLIOGRAPHIE).`;
 }
 
 /** Demande courte : seulement la notice et la bibliographie, depuis des captures (la fiche n'est pas refaite). */
@@ -263,7 +272,7 @@ export function buildFixPrompt({ errors = [], badCitations = [] }) {
   }
   lines.push(
     '',
-    'Renvoie le résumé complet corrigé, sans aucun commentaire ni avis de ta part, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : CHAPITRE, GENRE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS (ou ## PERSONNAGES), ## NOTICE, ## BIBLIOGRAPHIE.',
+    'Renvoie le résumé complet corrigé, sans aucun commentaire ni avis de ta part, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : CHAPITRE, GENRE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS (ou ## PERSONNAGES), ## BIBLIOGRAPHIE.',
   );
   return lines.join('\n');
 }

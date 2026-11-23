@@ -239,7 +239,9 @@ test('la demande réclame le texte à titres, pas de JSON', () => {
   assert.match(p, /## RÉSUMÉ/);
   assert.match(p, /pas de JSON/);
   assert.doesNotMatch(p, /```json/);
-  assert.match(buildPrompt({ title: 'T', captures: true }), /## NOTICE/);
+  assert.doesNotMatch(buildPrompt({ title: 'T', captures: true }), /## NOTICE/);
+  assert.match(buildPrompt({ title: 'T', captures: true }), /## BIBLIOGRAPHIE/);
+  assert.match(buildNoticePrompt({ title: 'T' }), /## NOTICE/);
   assert.match(buildNoticePrompt({ title: 'T' }), /## BIBLIOGRAPHIE/);
 });
 

@@ -88,7 +88,7 @@ export async function renderAtelier(view, params) {
         </label>
       </div>
       <details class="notice"${hasNotice ? ' open' : ''}>
-        <summary>Notice du livre (facultatif) : éditeur, ISBN, date de lecture…</summary>
+        <summary>Informations sur le livre (facultatif, communes à toutes ses fiches) : éditeur, ISBN, date de lecture…</summary>
         <div class="champs">
           ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input id="f-${k}" value="${esc(v[k])}" autocomplete="off"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
         </div>

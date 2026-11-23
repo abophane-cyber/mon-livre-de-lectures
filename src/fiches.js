@@ -67,7 +67,7 @@ export function flatten(book, part) {
  * Enlève les « \ » laissés par certaines IA (« \- Dette publique ») dans les fiches déjà enregistrées.
  */
 function unescapeFiche(v) {
-  if (typeof v === 'string') return v.replace(/^\\[-*+]\s*/, '').replace(/\\([-*_#+.!()[\]`>|~=])/g, '$1');
+  if (typeof v === 'string') return v.replace(/^\\[-*+]\s*/, '').replace(/\\([-*_#+.!()[\]`>|~=])/g, '$1').replace(/\\(?=\s|$)/g, '');
   if (Array.isArray(v)) return v.map(unescapeFiche);
   if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, unescapeFiche(x)]));
   return v;

@@ -54,7 +54,7 @@ export async function renderModifier(view, params) {
       <label>Titre du chapitre <span class="petit">(en haut de la fiche A4)</span><input name="chapitre" value="${esc(f.chapitre)}"></label>` : ''}
     </div>
     <fieldset>
-      <legend>Notice du livre <span class="petit">(verso de la fiche A4, facultatif)</span></legend>
+      <legend>Informations sur le livre <span class="petit">(page de présentation, pas dans les fiches ; facultatif)</span></legend>
       <div class="champs">
         ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(book[k])}"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
       </div>
