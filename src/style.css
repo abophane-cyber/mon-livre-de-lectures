@@ -215,6 +215,15 @@ legend { font-weight: 600; font-size: 0.92rem; padding: 0 6px; }
 .toc-chapitres { flex-basis: 100%; list-style: none; margin: 0 0 10px; padding: 0 0 0 28px; }
 .toc-chapitres li { border: 0; background: none; }
 .toc-chapitres a { padding: 4px 4px; font-size: 0.95rem; }
+.toc-chapitres .toc-partie { font: 600 0.78rem var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-douce); padding: 10px 4px 2px; }
+.toc-chapitres .toc-partie:first-child { padding-top: 2px; }
+/* Titre d'une partie du livre, avant ses chapitres */
+.partie-livre {
+  font: 600 0.85rem var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--encre-douce);
+  text-align: center; margin: 30px 0 14px; display: flex; align-items: center; gap: 14px;
+}
+.partie-livre::before, .partie-livre::after { content: ''; flex: 1; border-top: 1px solid var(--filet); }
+.replier + .partie-livre, .resume-general + .partie-livre { margin-top: 8px; }
 .toc-chapitres .c { font: 600 0.7rem var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-right: 4px; }
 .poignee {
   flex: none; display: grid; place-items: center; width: 40px; height: 44px;

@@ -123,6 +123,38 @@ const ROMAINS = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 
  * « Une dette à faire peur » (sans numéro) → le numéro est celui de la fiche dans le livre.
  * `label` est vide pour un livre à une seule fiche sans titre de chapitre (la fiche résume tout le livre).
  */
+const ORDINAUX = { premiere: 1, premier: 1, deuxieme: 2, seconde: 2, second: 2, troisieme: 3, quatrieme: 4, cinquieme: 5, sixieme: 6, septieme: 7, huitieme: 8, neuvieme: 9, dixieme: 10 };
+const sansAccents = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/**
+ * Partie du livre à laquelle appartient une fiche (« Première partie. Les origines »,
+ * « Partie II : … », « Livre 1 – … ») → { label: 'Partie 1', titre: 'Les origines', key }.
+ * Sans partie : null. `key` sert à regrouper les fiches d'une même partie.
+ */
+export function partOf(fiche) {
+  const p = String(fiche?.partie || '').trim();
+  if (!p) return null;
+  const sep = '\\s*[.:：–—-]?\\s*(.*)$';
+  const num = (n) => {
+    const k = sansAccents(n);
+    return /^\d+$/.test(k) ? String(parseInt(k, 10)) : ORDINAUX[k] ? String(ORDINAUX[k]) : String(ROMAINS[k] || n.toUpperCase());
+  };
+  let m = p.match(new RegExp(`^(partie|livre|section)\\s+(\\d+|[ivxlc]+\\b|[a-zà-ÿ]+i[eè]me|premi[eè]re?|seconde?)${sep}`, 'i'));
+  let label = '';
+  let titre = p;
+  if (m) {
+    label = `${m[1][0].toUpperCase()}${m[1].slice(1).toLowerCase()} ${num(m[2])}`;
+    titre = m[3].trim();
+  } else if ((m = p.match(new RegExp(`^([a-zà-ÿ]+i[eè]me|premi[eè]re?|seconde?)\\s+(partie|livre|section)${sep}`, 'i')))) {
+    label = `${m[2][0].toUpperCase()}${m[2].slice(1).toLowerCase()} ${num(m[1])}`;
+    titre = m[3].trim();
+  } else if ((m = p.match(new RegExp(`^(\\d+|[IVXLC]+)\\s*[.:：–—-]\\s*(.+)$`)))) {
+    label = `Partie ${num(m[1])}`;
+    titre = m[2].trim();
+  }
+  return { label, titre, key: sansAccents(p).replace(/[^a-z0-9]+/g, ' ').trim() };
+}
+
 export function chapterOf(fiche, index = 0, count = 1) {
   const c = String(fiche?.chapitre || '').trim();
   const m = c.match(/^chapitre\s+(\d+|[ivxlc]+\b|premier|première)\s*[.:：–—-]?\s*(.*)$/i);

@@ -13,7 +13,7 @@ const LISTS = {
 };
 
 const emptyFiche = () => ({
-  chapitre: '', genre: '', accroche: '', resume: [], idees_cles: [], personnages_titre: 'Personnages',
+  partie: '', chapitre: '', genre: '', accroche: '', resume: [], idees_cles: [], personnages_titre: 'Personnages',
   personnages: [], citations: [], a_retenir: '', pour_qui: '',
 });
 
@@ -51,6 +51,8 @@ export async function renderModifier(view, params) {
       <label>Auteur<input name="author" value="${esc(book.author)}"></label>
       <label>Date de parution<input name="pubDate" value="${esc(book.pubDate)}"></label>
       ${withFiche ? `<label>Genre<input name="genre" value="${esc(f.genre)}"></label>
+      <label>Partie du livre <span class="petit">(facultatif, par exemple « Première partie. Les origines »)</span><input name="partie" list="parties-livre" value="${esc(f.partie)}" autocomplete="off"></label>
+      <datalist id="parties-livre">${[...new Set(parts.map((p) => p.fiche?.partie).filter(Boolean))].map((t) => `<option value="${esc(t)}">`).join('')}</datalist>
       <label>Titre du chapitre <span class="petit">(en haut de la fiche A4)</span><input name="chapitre" value="${esc(f.chapitre)}"></label>` : ''}
     </div>
     <fieldset>
@@ -126,6 +128,7 @@ export async function renderModifier(view, params) {
     }
     const fiche = {
       genre: val('genre'),
+      partie: val('partie'),
       chapitre: val('chapitre'),
       accroche: val('accroche'),
       resume: val('resume').split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean),

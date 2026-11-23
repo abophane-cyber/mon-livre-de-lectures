@@ -1,6 +1,6 @@
 // Vue « Mon livre » : sommaire puis toutes les fiches, comme un livre.
 import { deleteBook, getOrder, getSettings, liveBooks, saveBook, setOrder } from '../db.js';
-import { chapterOf, flatten, isComplete, partsOf, readyFiches, withoutPart } from '../fiches.js';
+import { chapterOf, flatten, isComplete, partOf, partsOf, readyFiches, withoutPart } from '../fiches.js';
 import { SORTS, filterBooks, sortBooks } from '../books.js';
 import { buildFixPrompt } from '../prompt.js';
 import { NOTICE_FIELDS } from '../notice.js';
@@ -131,6 +131,30 @@ function renderPart(book, part, i, n) {
   </details>`;
 }
 
+/** Intitulé d'une partie : « Partie 1 · Les origines », ou le titre tel quel. */
+function partHeading(pt) {
+  return [pt.label, pt.titre].filter(Boolean).map(esc).join(' · ');
+}
+
+/** Pour chaque fiche : la partie à afficher juste avant elle (quand on entre dans une nouvelle partie), ou null. */
+function partStarts(parts) {
+  let prev = null;
+  return parts.map((p) => {
+    const pt = partOf(p.fiche);
+    const start = pt && pt.key !== prev ? pt : null;
+    prev = pt ? pt.key : null;
+    return start;
+  });
+}
+
+/** Les fiches du livre, avec le titre de chaque partie avant son premier chapitre. */
+function renderParts(book, parts) {
+  const starts = partStarts(parts);
+  return parts
+    .map((p, i) => `${starts[i] ? `<h3 class="partie-livre">${partHeading(starts[i])}</h3>` : ''}${renderPart(book, p, i, parts.length)}`)
+    .join('');
+}
+
 /** Sommaire : les chapitres (fiches) du livre, sous son titre. */
 function tocChapters(book) {
   const parts = partsOf(book);
@@ -138,8 +162,12 @@ function tocChapters(book) {
     .map((p, i) => ({ p, ch: chapterOf(p.fiche, i, parts.length) }))
     .filter(({ ch }) => ch.label);
   if (!items.length) return '';
+  const starts = new Map(partStarts(parts).map((pt, i) => [parts[i].id, pt]));
   return `<p class="sommaire-titre toc-sommaire">Sommaire</p><ol class="toc-chapitres">${items
-    .map(({ p, ch }) => `<li><a href="#/?ch=${esc(book.id)}&fi=${esc(p.id)}"><span class="c">${esc(ch.label)}</span>${ch.titre ? ` ${esc(ch.titre)}` : ''}</a></li>`)
+    .map(({ p, ch }) => {
+      const pt = starts.get(p.id);
+      return `${pt ? `<li class="toc-partie">${partHeading(pt)}</li>` : ''}<li><a href="#/?ch=${esc(book.id)}&fi=${esc(p.id)}"><span class="c">${esc(ch.label)}</span>${ch.titre ? ` ${esc(ch.titre)}` : ''}</a></li>`;
+    })
     .join('')}</ol>`;
 }
 
@@ -185,7 +213,7 @@ function renderBook(book) {
       ? `<div class="replier"><button class="lien" data-action="deplier" data-id="${esc(book.id)}">Tout déplier</button> · <button class="lien" data-action="replier" data-id="${esc(book.id)}">Tout replier</button></div>`
       : ''}
     ${renderGeneralBlock(book)}
-    ${parts.length ? parts.map((p, i) => renderPart(book, p, i, parts.length)).join('') : '<p class="attente">Ce livre n\'a pas encore de fiche.</p>'}
+    ${parts.length ? renderParts(book, parts) :'<p class="attente">Ce livre n\'a pas encore de fiche.</p>'}
     ${renderNotice(book)}
     ${book.termine ? `<p class="livre-termine">✓ Livre terminé${book.dateLecture ? ` — lu le ${esc(book.dateLecture)}` : ''}</p>` : ''}
     <div class="actions actions-livre">

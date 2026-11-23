@@ -31,7 +31,8 @@ export function buildGeneralPrompt(book, pages) {
     .map(({ p, i }) => {
       const ch = chapterOf(p.fiche, i, parts.length);
       const titre = [ch.label || `Fiche ${i + 1}`, ch.titre].filter(Boolean).join(' : ');
-      return `=== ${titre} ===\n${ficheAsText(p.fiche).replace(/^CHAPITRE :.*\n(GENRE :.*\n)?\n?/, '')}`;
+      const partie = p.fiche.partie ? ` (${p.fiche.partie})` : '';
+      return `=== ${titre}${partie} ===\n${ficheAsText(p.fiche).replace(/^PARTIE :.*\n/, '').replace(/^CHAPITRE :.*\n(GENRE :.*\n)?\n?/, '')}`;
     })
     .join('\n\n');
   return `TA TÂCHE : rédiger le RÉSUMÉ GÉNÉRAL du livre ci-dessous, à partir des fiches de lecture de ses chapitres que je te donne (je les ai déjà faites). C'est une synthèse de tout le livre, qui doit tenir sur ${n} page${n > 1 ? 's' : ''} A4.

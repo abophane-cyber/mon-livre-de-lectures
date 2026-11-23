@@ -1,5 +1,5 @@
 // Mise en page du PDF à imprimer (A4). Fonction pure : décrit le document pour pdfmake.
-import { chapterOf } from './fiches.js';
+import { chapterOf, partOf } from './fiches.js';
 
 const ACCENT = '#8a5a14';
 const GREY = '#5c5c5c';
@@ -54,7 +54,10 @@ function chapter(book, { first = true, last = true } = {}) {
     { text: meta, style: 'meta' },
     rule,
   ];
-  if (ch.label) out.push({ text: ch.label.toUpperCase(), style: 'chapterLabel' });
+  // Partie du livre, avant le chapitre : « PARTIE 1 · LES ORIGINES ».
+  const pt = partOf(f);
+  const partie = pt ? [pt.label, pt.titre].filter(Boolean).join(' · ') : '';
+  if (ch.label || partie) out.push({ text: [partie, ch.label].filter(Boolean).join(' — ').toUpperCase(), style: 'chapterLabel' });
   if (ch.titre) out.push({ text: ch.titre, style: 'chapterTitle' });
   if (f.accroche) out.push({ text: f.accroche, style: 'accroche' });
 

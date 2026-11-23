@@ -13,7 +13,8 @@ export const LONGUEURS = {
   detaille: { label: 'Détaillé', resume: '4 paragraphes (320 mots environ)', idees: '5', notions: '4', citations: '5 à 8' },
 };
 
-const MODELE = `CHAPITRE : [titre exact du chapitre, ou rien]
+const MODELE = `PARTIE : [titre exact de la partie du livre, ou rien]
+CHAPITRE : [titre exact du chapitre, ou rien]
 GENRE : Essai
 
 ## RÉSUMÉ
@@ -55,7 +56,7 @@ ${CONSIGNE_BIBLIO}`;
 
 export const CONSIGNE_NEUTRE = `Résume fidèlement et de façon neutre. Ne donne JAMAIS ton avis et n'ajoute aucun commentaire : pas d'appréciation (« passionnant », « remarquable »…), pas d'analyse critique, pas de points forts ou faibles, pas de citations, pas de rubrique « à retenir » ou « pour qui », pas d'introduction ni de conclusion de ta part, pas de question à la fin.`;
 
-const CONSIGNE_FORMAT = `Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de canvas, pas de bloc de code, pas de JSON. Suis exactement ce modèle, avec ces titres en majuscules et dans cet ordre, sans rien ajouter avant « GENRE » ni après la dernière rubrique :`;
+const CONSIGNE_FORMAT = `Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de canvas, pas de bloc de code, pas de JSON. Suis exactement ce modèle, avec ces titres en majuscules et dans cet ordre, sans rien ajouter avant « PARTIE » ni après la dernière rubrique :`;
 
 /** Texte complet à coller dans l'IA. Avec `book.captures`, l'IA résume le texte des captures d'écran jointes. */
 export function buildPrompt(book) {
@@ -84,7 +85,7 @@ d. Les captures de la bibliographie servent à la rubrique BIBLIOGRAPHIE (règle
 RÈGLES
 1. Appuie-toi sur ${source}. Tu peux compléter avec ta connaissance du livre seulement si tu le connais bien. N'invente jamais rien. En cas de doute, reste sur ce que dit le texte.
 2. Rédige en ${langue}.
-3. Titre du chapitre : si le texte ou les captures montrent un titre de chapitre (par exemple « Chapitre 3. La dette publique »), recopie-le exactement sur la ligne CHAPITRE. S'il n'y en a pas, écris « CHAPITRE : » sans rien après. Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé : je les ai déjà.
+3. Titre du chapitre : si le texte ou les captures montrent un titre de chapitre (par exemple « Chapitre 3. La dette publique »), recopie-le exactement sur la ligne CHAPITRE. S'il n'y en a pas, écris « CHAPITRE : » sans rien après. De même, si le livre est divisé en parties et que le texte ou les captures montrent le titre de la partie qui contient ce chapitre (par exemple « Première partie. Les origines »), recopie-le exactement sur la ligne PARTIE ; sinon écris « PARTIE : » sans rien après. Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé : je les ai déjà.
 4. Longueur (tout doit tenir sur une page A4) : résumé de ${L.resume}, ${L.idees} idées clés d’une phrase chacune, et ${L.notions} notions principales expliquées en une phrase courte (ou les personnages principaux pour un roman : remplace alors « ## NOTIONS CLÉS » par « ## PERSONNAGES »).
 5. ${CONSIGNE_NEUTRE}
 6. Références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a). Pas de rubrique NOTICE (éditeur, ISBN…) : ces informations ne vont pas dans la fiche.
@@ -102,7 +103,7 @@ ${texte || (captures ? '(aucun : tout est dans mes captures)' : '(aucun texte)')
 /** La fiche déjà faite, remise en texte à titres (pour la redonner à l'IA). */
 export function ficheAsText(fiche) {
   if (!fiche) return '';
-  const out = [`CHAPITRE : ${fiche.chapitre || ''}`, `GENRE : ${fiche.genre || ''}`, '', '## RÉSUMÉ', (fiche.resume || []).join('\n\n')];
+  const out = [`PARTIE : ${fiche.partie || ''}`, `CHAPITRE : ${fiche.chapitre || ''}`, `GENRE : ${fiche.genre || ''}`, '', '## RÉSUMÉ', (fiche.resume || []).join('\n\n')];
   if (fiche.idees_cles?.length) {
     out.push('', '## IDÉES CLÉS', ...fiche.idees_cles.map((i) => `- **${i.titre}**${i.texte ? ` : ${i.texte}` : ''}`));
   }
@@ -139,7 +140,7 @@ d. Les captures de la bibliographie servent à la rubrique BIBLIOGRAPHIE (règle
 RÈGLES
 1. Garde tout l'essentiel du résumé du début : ne le raccourcis pas trop. Ajoute à la suite ce que racontent mes captures, dans l'ordre du chapitre, avec des transitions naturelles. Le lecteur ne doit pas voir que la fiche a été faite en deux fois. N'invente jamais rien.
 2. Rédige en ${langue}.
-3. Ligne CHAPITRE : garde le titre du chapitre déjà indiqué ci-dessous (s'il est vide et que les captures montrent un titre de chapitre, recopie-le exactement). Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé.
+3. Lignes PARTIE et CHAPITRE : garde les titres déjà indiqués ci-dessous (s'ils sont vides et que les captures montrent un titre de partie ou de chapitre, recopie-le exactement). Ne mets ni le titre du livre, ni l'auteur, ni la date dans le résumé.
 4. Longueur (tout doit tenir sur une page A4) : résumé de ${L.resume}, plus 1 ou 2 paragraphes si la suite apporte beaucoup de choses nouvelles ; ${L.idees} à ${Number(L.idees) + 2} idées clés pour tout le chapitre (garde celles du début et ajoute celles de la suite), d’une phrase chacune ; ${L.notions} à ${Number(L.notions) + 2} notions principales (ou personnages principaux pour un roman) en une phrase courte.
 5. ${CONSIGNE_NEUTRE}
 6. Références bibliographiques (elles iront au verso de ma fiche, seulement s'il y en a). Pas de rubrique NOTICE (éditeur, ISBN…) : ces informations ne vont pas dans la fiche.
@@ -157,7 +158,7 @@ ${texte ? `\nMON TEXTE ÉCRIT (EN PLUS DE MES CAPTURES)\n${texte}\n` : ''}`;
 
 /** Message court à envoyer avec les captures si l'IA n'a pas compris quoi en faire. */
 export function buildCapturesReminder(book) {
-  return `Voici les captures d'écran du livre « ${book.title || '(inconnu)'} ». Lis le texte visible sur ces images et rédige maintenant le résumé en suivant exactement ma demande précédente : fidèle et neutre, sans avis ni commentaire, en texte simple avec les titres en majuscules (CHAPITRE, GENRE, ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS ou ## PERSONNAGES, ## BIBLIOGRAPHIE).`;
+  return `Voici les captures d'écran du livre « ${book.title || '(inconnu)'} ». Lis le texte visible sur ces images et rédige maintenant le résumé en suivant exactement ma demande précédente : fidèle et neutre, sans avis ni commentaire, en texte simple avec les titres en majuscules (PARTIE, CHAPITRE, GENRE, ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS ou ## PERSONNAGES, ## BIBLIOGRAPHIE).`;
 }
 
 /** Demande courte : seulement la notice et la bibliographie, depuis des captures (la fiche n'est pas refaite). */
@@ -218,6 +219,7 @@ export function parseAnswer(text) {
     return { ok: true, partial: true, fiche: null, passages: [], notice, bibliographie };
   }
   const fiche = {
+    partie: str(data.partie),
     chapitre: str(data.chapitre),
     genre: str(data.genre),
     accroche: str(data.accroche),
@@ -272,7 +274,7 @@ export function buildFixPrompt({ errors = [], badCitations = [] }) {
   }
   lines.push(
     '',
-    'Renvoie le résumé complet corrigé, sans aucun commentaire ni avis de ta part, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : CHAPITRE, GENRE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS (ou ## PERSONNAGES), ## BIBLIOGRAPHIE.',
+    'Renvoie le résumé complet corrigé, sans aucun commentaire ni avis de ta part, directement dans la conversation (pas de document ni de bloc de code), en suivant exactement le modèle demandé : PARTIE, CHAPITRE, GENRE, puis les rubriques ## RÉSUMÉ, ## IDÉES CLÉS, ## NOTIONS CLÉS (ou ## PERSONNAGES), ## BIBLIOGRAPHIE.',
   );
   return lines.join('\n');
 }

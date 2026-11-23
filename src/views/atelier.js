@@ -401,6 +401,13 @@ export async function renderAtelier(view, params) {
     const fromCaptures = allPassages.length - saved.passages.length;
     // Avec des captures, le texte source est dans les images : les citations ne peuvent pas être vérifiées.
     const missing = saved.captures ? 0 : checkCitations(result.fiche, allPassages);
+    // Pas de partie dans la réponse : on garde celle de la fiche, sinon celle du chapitre précédent.
+    if (!result.fiche.partie) {
+      const all = book ? partsOf(book) : [];
+      const at = all.findIndex((p) => p.id === part.id);
+      const before = (at >= 0 ? all.slice(0, at) : all).reverse();
+      result.fiche.partie = part.fiche?.partie || before.find((p) => p.fiche?.partie)?.fiche.partie || '';
+    }
     book = await saveBook(withPart({ ...book, ...patch }, { ...part, ...chap, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false }));
     clearDraft(draftKey);
     const goTo = `#/?ch=${book.id}&fi=${part.id}`;

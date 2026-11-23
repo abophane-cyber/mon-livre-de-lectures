@@ -208,3 +208,24 @@ test('chaque fiche d’un livre est un chapitre, numéroté dans l’ordre', () 
   // Une seule fiche sans titre de chapitre : elle résume tout le livre, pas de « Chapitre 1 ».
   assert.equal(chapterOf({ chapitre: '' }, 0, 1).label, '');
 });
+
+test('parties du livre : lecture de la ligne PARTIE et de ses différentes formes', async () => {
+  const { partOf } = await import('../src/fiches.js');
+  const r = parseAnswer(`PARTIE : Première partie. Les origines de la dette
+CHAPITRE : Chapitre 2. La dette Covid
+GENRE : Essai
+## RÉSUMÉ
+Le texte du résumé.
+## IDÉES CLÉS
+- **Idée** : explication.`);
+  assert.equal(r.fiche.partie, 'Première partie. Les origines de la dette');
+  assert.equal(r.fiche.chapitre, 'Chapitre 2. La dette Covid');
+  assert.equal(parseAnswer('PARTIE :\nCHAPITRE : X\n## RÉSUMÉ\nTexte du résumé.').fiche.partie, '');
+  assert.deepEqual(
+    [partOf({ partie: 'Première partie. Les origines' }), partOf({ partie: 'Partie II : Qui paie ?' }), partOf({ partie: 'Livre 3 – Fin' }), partOf({ partie: 'Les origines' })]
+      .map((p) => [p.label, p.titre]),
+    [['Partie 1', 'Les origines'], ['Partie 2', 'Qui paie ?'], ['Livre 3', 'Fin'], ['', 'Les origines']],
+  );
+  assert.equal(partOf({ partie: '' }), null);
+  assert.match(buildPrompt({ title: 'T', passages: ['x'] }), /^PARTIE : /m);
+});

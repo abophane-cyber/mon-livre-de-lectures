@@ -12,7 +12,7 @@ export const SCALES = Array.from({ length: 14 }, (_, i) => Math.round((1 - i * 0
 const MARGINS = [44, 40, 44, 40];
 
 import { NOTICE_FIELDS } from './notice.js';
-import { chapterOf } from './fiches.js';
+import { chapterOf, partOf } from './fiches.js';
 
 export { NOTICE_FIELDS };
 
@@ -43,7 +43,10 @@ export function recto(book, s = 1) {
   const f = book.fiche;
   const body = { fontSize: 10.5 * s, lineHeight: 1.32 };
   const ch = chapterOf(f, book.ficheIndex || 0, book.ficheCount || 1);
-  const out = [...header(s, ch.label ? `${ch.label} · Résumé` : 'Résumé', ch.titre)];
+  // Petit intitulé : « Partie 1 · Chapitre 2 · Résumé » (partie sans numéro : son titre).
+  const pt = partOf(f);
+  const kicker = [pt ? pt.label || pt.titre : '', ch.label, 'Résumé'].filter(Boolean).join(' · ');
+  const out = [...header(s, kicker, ch.titre)];
   if (f.resume?.length) {
     f.resume.forEach((p, k) => {
       out.push({
