@@ -6,6 +6,7 @@ import { partsOf } from '../fiches.js';
 import { BACKUP_APP, BACKUP_VERSION, makeBackup, mergeBackup, validateBackup } from '../sync.js';
 import { decryptJson, encryptJson, isEncrypted } from '../crypto.js';
 import { canShareFiles, downloadBlob, shareBlob } from '../download.js';
+import { isAndroidApp } from '../native.js';
 import { esc, formatDate, newId, pluralize } from '../util.js';
 import { $, getPrefs, readFileText, setPrefs, toast } from '../ui.js';
 
@@ -141,7 +142,7 @@ export async function renderSauvegarde(view) {
         <span class="btn primaire">Lire le fichier de l'autre appareil</span>
         ${isPhone() ? '' : '<span class="petit">ou faites glisser le fichier ici</span>'}
       </label>
-      <input type="file" id="fichier-sauvegarde" accept=".json,application/json" hidden>
+      <input type="file" id="fichier-sauvegarde" ${isAndroidApp ? '' : 'accept=".json,application/json"'} hidden>
       ${readHelpHtml()}
       <form id="form-import" class="deverrouiller" hidden>
         <p><strong id="nom-fichier"></strong> est protégé par un mot de passe. Tapez celui choisi sur l'autre appareil
@@ -189,20 +190,21 @@ export async function renderSauvegarde(view) {
     try {
       const blob = await encryptedBackupBlob(password);
       const name = backupFileName(backupTitle(await liveBooks()));
+      let savedName = name;
       if (action === 'share') {
         if (!(await shareBlob(blob, name, 'Mon livre de lectures'))) {
           toast("L'envoi n'est pas disponible. Utilisez « Créer le fichier de sauvegarde ».", 'erreur');
           return;
         }
       } else {
-        downloadBlob(blob, name);
+        savedName = await downloadBlob(blob, name);
       }
       setPrefs({ lastExport: Date.now(), backupPw: password });
       await renderSauvegarde(view);
       const box = $('#apres-creation', view);
       box.hidden = false;
       box.innerHTML =
-        action === 'share' ? `<p><strong>Fichier envoyé ✓</strong> Sur ${other}, lisez-le avec « Lire le fichier de l'autre appareil ».</p>` : afterCreateHtml(name);
+        action === 'share' ? `<p><strong>Fichier envoyé ✓</strong> Sur ${other}, lisez-le avec « Lire le fichier de l'autre appareil ».</p>` : afterCreateHtml(savedName);
       box.scrollIntoView({ block: 'center' });
     } finally {
       btns.forEach((b) => (b.disabled = false));

@@ -4,7 +4,7 @@ import { findBookByKey, getBook, saveBook } from '../db.js';
 import { parseClippings } from '../clippings.js';
 import { LANGUES, LONGUEURS, buildCapturesReminder, buildContinuationPrompt,buildFixPrompt, buildNoticePrompt, buildPrompt, checkCitations, parseAnswer } from '../prompt.js';
 import { applyNotice } from '../notice.js';
-import { copyText } from '../download.js';
+import { canPaste, copyText, openExternal, pasteText } from '../download.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
 import { flatten, newPart, partsOf, withPart } from '../fiches.js';
 import { bookKey, esc, joinPassages, mergePassages, pluralize, splitPassages } from '../util.js';
@@ -146,7 +146,7 @@ export async function renderAtelier(view, params) {
       <p class="petit">Dans ${esc(ia.label)}, copiez toute la réponse avec le bouton <strong>Copier</strong> (les deux petits carrés sous la réponse), revenez ici et collez-la. Une phrase en plus avant ou après ne gêne pas.</p>
       <textarea id="f-answer" rows="8" placeholder="Collez ici la réponse de ${esc(ia.label)}">${esc(v.answer)}</textarea>
       <div class="rangee">
-        ${navigator.clipboard?.readText ? '<button class="btn" id="coller">Coller</button>' : ''}
+        ${canPaste() ? '<button class="btn" id="coller">Coller</button>' : ''}
         <button class="btn primaire" id="ajouter">Ajouter à mon livre</button>
       </div>
       <div id="erreurs" class="erreurs" hidden></div>
@@ -301,7 +301,7 @@ export async function renderAtelier(view, params) {
     const ok = await copyText(prompt);
     if (ok) {
       $('#secours', view).hidden = true;
-      window.open(ia.url, '_blank', 'noopener');
+      openExternal(ia.url);
       toast(message, 'ok', 8000);
     } else {
       $('#secours', view).hidden = false;
@@ -349,7 +349,7 @@ export async function renderAtelier(view, params) {
 
   $('#coller', view)?.addEventListener('click', async () => {
     try {
-      el.answer.value = await navigator.clipboard.readText();
+      el.answer.value = await pasteText();
       saveDraft(draftKey, readForm());
     } catch {
       toast('Le navigateur a refusé. Faites un appui long dans la zone puis « Coller ».', 'erreur', 6000);

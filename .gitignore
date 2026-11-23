@@ -2,3 +2,5 @@ node_modules
 dist
 *.local
 exemple-*.pdf
+dist-native
+installateurs

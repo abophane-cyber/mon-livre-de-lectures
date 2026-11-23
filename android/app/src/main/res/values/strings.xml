@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mon livre de lectures</string>
+    <string name="title_activity_main">Mon livre de lectures</string>
+    <string name="package_name">fr.monlivre.lectures</string>
+    <string name="custom_url_scheme">fr.monlivre.lectures</string>
+</resources>

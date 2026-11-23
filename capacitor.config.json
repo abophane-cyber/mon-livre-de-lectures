@@ -1,0 +1,6 @@
+{
+  "appId": "fr.monlivre.lectures",
+  "appName": "Mon livre de lectures",
+  "webDir": "dist-native",
+  "android": { "backgroundColor": "#f7f3ea" }
+}

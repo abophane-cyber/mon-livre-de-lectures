@@ -32,14 +32,16 @@ const securityHeaders = {
   },
 };
 
-export default defineConfig({
+// « npm run build:app » (mode native) : version pour le logiciel Windows et l'appli Android, dans dist-native/.
+export default defineConfig(({ mode }) => ({
   // Chemins relatifs : l'appli marche quelle que soit l'adresse de publication (GitHub Pages).
   base: './',
   // assetsInlineLimit: 0 → les polices restent des fichiers (la barrière anti-fuite refuse les polices « data: »).
-  build: { chunkSizeWarningLimit: 3000, assetsInlineLimit: 0 },
+  build: { chunkSizeWarningLimit: 3000, assetsInlineLimit: 0, outDir: mode === 'native' ? 'dist-native' : 'dist' },
   plugins: [
     securityHeaders,
     VitePWA({
+      disable: mode === 'native',
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
@@ -67,4 +69,4 @@ export default defineConfig({
       },
     }),
   ],
-});
+}));

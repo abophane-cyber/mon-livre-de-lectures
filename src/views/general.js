@@ -3,7 +3,7 @@
 import { getBook, saveBook } from '../db.js';
 import { partsOf } from '../fiches.js';
 import { motsPour, PAGES_MAX, PAGES_MIN, buildGeneralPrompt, clampPages, parseGeneral } from '../general.js';
-import { copyText } from '../download.js';
+import { canPaste, copyText, openExternal, pasteText } from '../download.js';
 import { esc, pluralize } from '../util.js';
 import { $, clearDraft, currentIa, loadDraft, saveDraft, toast } from '../ui.js';
 
@@ -61,7 +61,7 @@ export async function renderGeneral(view, params) {
       <p class="petit">Dans ${esc(ia.label)}, copiez toute la réponse avec le bouton <strong>Copier</strong> (les deux petits carrés sous la réponse), revenez ici et collez-la.</p>
       <textarea id="reponse" rows="8" placeholder="Collez ici la réponse de ${esc(ia.label)}">${esc(draft.answer || '')}</textarea>
       <div class="rangee">
-        ${navigator.clipboard?.readText ? '<button class="btn" id="coller">Coller</button>' : ''}
+        ${canPaste() ? '<button class="btn" id="coller">Coller</button>' : ''}
         <button class="btn primaire" id="enregistrer">Enregistrer le résumé général</button>
       </div>
       <div id="erreurs" class="erreurs" hidden></div>
@@ -100,7 +100,7 @@ export async function renderGeneral(view, params) {
     const prompt = buildGeneralPrompt(book, clampPages(input.value));
     if (await copyText(prompt)) {
       $('#secours', view).hidden = true;
-      window.open(ia.url, '_blank', 'noopener');
+      openExternal(ia.url);
       toast(`Demande copiée ✓ Collez-la dans une nouvelle conversation ${ia.label}, puis revenez ici avec la réponse.`, 'ok', 8000);
     } else {
       $('#secours', view).hidden = false;
@@ -111,7 +111,7 @@ export async function renderGeneral(view, params) {
 
   $('#coller', view)?.addEventListener('click', async () => {
     try {
-      answer.value = await navigator.clipboard.readText();
+      answer.value = await pasteText();
       save();
     } catch {
       toast('Le navigateur a refusé. Faites un appui long dans la zone puis « Coller ».', 'erreur', 6000);

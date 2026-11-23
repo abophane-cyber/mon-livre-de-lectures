@@ -40,7 +40,7 @@ export async function createPdfBlob(books, cover) {
 
 export async function downloadPdf(books, cover, filename) {
   const blob = await createPdfBlob(books, cover);
-  downloadBlob(blob, filename);
+  await downloadBlob(blob, filename);
   return blob;
 }
 
@@ -65,7 +65,7 @@ export async function createFichesA4Blob(books, options = {}) {
 
 export async function downloadFichesA4(books, filename, options = {}) {
   const result = await createFichesA4Blob(books, options);
-  downloadBlob(result.blob, filename);
+  await downloadBlob(result.blob, filename);
   return result;
 }
 
@@ -97,6 +97,6 @@ export async function createGeneralA4Blob(book) {
 
 export async function downloadGeneralA4(book, filename) {
   const result = await createGeneralA4Blob(book);
-  downloadBlob(result.blob, filename);
+  await downloadBlob(result.blob, filename);
   return result;
 }

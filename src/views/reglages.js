@@ -1,4 +1,5 @@
 // Vue « Réglages » : thème, IA utilisée, couverture, installation.
+import { isAndroidApp, isNativeApp } from '../native.js';
 import { getSettings, setSettings } from '../db.js';
 import { esc } from '../util.js';
 import { $, IA, applyTheme, currentIaKey, getPrefs, setPrefs, toast } from '../ui.js';
@@ -35,19 +36,24 @@ export async function renderReglages(view) {
       <label>Votre nom (couverture du PDF)<input id="nom" value="${esc(settings.nom)}"></label>
     </div>
 
-    <div class="etape">
+    ${isNativeApp ? '' : `<div class="etape">
       <h2>Installer l'appli sur l'écran d'accueil</h2>
       ${installed
         ? '<p>L\'appli est installée ✓</p>'
         : `<button class="btn primaire" id="installer" ${installEvent ? '' : 'hidden'}>Installer l'appli</button>
            <p class="petit">Sinon : dans Chrome, menu <strong>⋮</strong> → <strong>Ajouter à l'écran d'accueil</strong> (ou « Installer l'application »).
            Dans Samsung Internet : menu <strong>≡</strong> → <strong>Ajouter la page à</strong> → <strong>Écran d'accueil</strong>.</p>`}
-    </div>
+    </div>`}
 
     <div class="etape">
       <h2>Vos données</h2>
-      <p class="petit">Vos fiches sont enregistrées uniquement dans ce navigateur, sur cet appareil. Elles ne sont envoyées nulle part.
-      Attention : « Effacer les données de navigation » (cookies et données de sites) les supprimerait. Faites des sauvegardes régulières.</p>
+      <p class="petit">${isNativeApp
+        ? `Vos fiches sont enregistrées uniquement dans cette appli, sur cet appareil. Elles ne sont envoyées nulle part.
+      ${isAndroidApp
+        ? "Attention : désinstaller l'appli (ou « Effacer les données » dans ses paramètres Android) les supprimerait."
+        : 'Elles restent sur ce PC même si vous désinstallez puis réinstallez le logiciel.'} Faites des sauvegardes régulières.`
+        : `Vos fiches sont enregistrées uniquement dans ce navigateur, sur cet appareil. Elles ne sont envoyées nulle part.
+      Attention : « Effacer les données de navigation » (cookies et données de sites) les supprimerait. Faites des sauvegardes régulières.`}</p>
     </div>
   </section>`;
 

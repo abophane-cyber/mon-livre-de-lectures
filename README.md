@@ -34,6 +34,21 @@ npm test         # tests (import Kindle, lecture de la réponse, fusion des sauv
 npm run build    # version à publier, dans dist/
 ```
 
+### Versions installables (logiciel Windows et appli Android)
+
+La même appli, sans navigateur et sans service en ligne :
+
+```
+npm run exe   # installateurs/Mon livre de lectures - installation.exe (Electron)
+npm run apk   # android/app/build/outputs/apk/debug/app-debug.apk (Capacitor)
+npm run app   # ouvre le logiciel Windows sans l'installer, pour essayer
+```
+
+`npm run apk` demande Java (JDK 21) et le SDK Android (variable `ANDROID_HOME` ou `android/local.properties`).
+Le code propre à ces versions est dans `src/native.js` (Android : enregistrement dans « Download », partage,
+presse-papiers, ouverture de l'IA) et `electron/main.cjs` (fenêtre Windows, fichiers dans Téléchargements).
+Chaque version garde ses propres fiches : on passe de l'une à l'autre par les fichiers de sauvegarde.
+
 Chaque envoi sur la branche `main` publie automatiquement l'appli sur GitHub Pages (`.github/workflows/deploy.yml`).
 
 Technique : Vite, JavaScript sans framework, IndexedDB (`idb`), SortableJS, pdfmake (PDF créé dans le navigateur), polices Literata et Inter (fichiers locaux), vite-plugin-pwa.

@@ -74,4 +74,5 @@ applyTheme();
 route();
 
 // Fonctionne hors connexion et se met à jour toute seule.
-registerSW({ immediate: true });
+// (Inutile dans les versions installées .exe et .apk, qui contiennent déjà tout.)
+if (import.meta.env.MODE !== 'native') registerSW({ immediate: true });

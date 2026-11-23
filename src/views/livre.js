@@ -163,12 +163,15 @@ function tocChapters(book) {
     .filter(({ ch }) => ch.label);
   if (!items.length) return '';
   const starts = new Map(partStarts(parts).map((pt, i) => [parts[i].id, pt]));
-  return `<p class="sommaire-titre toc-sommaire">Sommaire</p><ol class="toc-chapitres">${items
+  const key = `s-${book.id}`;
+  return `<details class="toc-details" data-fi="${esc(key)}"${isOpen(key, 0) ? ' open' : ''}>
+    <summary class="sommaire-titre toc-sommaire">Sommaire <span class="toc-nb">(${pluralize(items.length, 'chapitre', 'chapitres')})</span></summary>
+    <ol class="toc-chapitres">${items
     .map(({ p, ch }) => {
       const pt = starts.get(p.id);
       return `${pt ? `<li class="toc-partie">${partHeading(pt)}</li>` : ''}<li><a href="#/?ch=${esc(book.id)}&fi=${esc(p.id)}"><span class="c">${esc(ch.label)}</span>${ch.titre ? ` ${esc(ch.titre)}` : ''}</a></li>`;
     })
-    .join('')}</ol>`;
+    .join('')}</ol></details>`;
 }
 
 /** Résumé général du livre (synthèse de toutes ses fiches), replié par défaut, avant les chapitres. */
@@ -313,7 +316,7 @@ export async function renderLivre(view, params) {
     setPrefs({ filtre: e.target.value });
     renderLivre(view, {});
   });
-  for (const d of $$('details.fiche-partie', view)) {
+  for (const d of $$('details.fiche-partie, details.toc-details', view)) {
     d.addEventListener('toggle', () => setOpen(d.dataset.fi, d.open));
   }
 
