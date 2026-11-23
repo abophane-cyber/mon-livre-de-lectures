@@ -4,6 +4,7 @@ import { checkCitations, stripQuotes } from '../prompt.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
 import { partsOf, withPart } from '../fiches.js';
 import { esc } from '../util.js';
+import { remplirHtml, wireRemplir } from './remplir.js';
 import { $, $$, toast } from '../ui.js';
 
 const LISTS = {
@@ -57,6 +58,7 @@ export async function renderModifier(view, params) {
     </div>
     <fieldset>
       <legend>Informations sur le livre <span class="petit">(page de présentation, pas dans les fiches ; facultatif)</span></legend>
+      ${remplirHtml()}
       <div class="champs">
         ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(book[k])}"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
       </div>
@@ -94,6 +96,17 @@ export async function renderModifier(view, params) {
   </form>`;
 
   const form = $('#form', view);
+  wireRemplir(form, {
+    field: (k) => form.elements[k],
+    context: () => ({ title: form.elements.title.value, author: form.elements.author.value }),
+  });
+  // Entrée dans la case « lien ou ISBN » : lancer la recherche, pas enregistrer le formulaire.
+  $('#remplir-source', form).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      $('#remplir-btn', form).click();
+    }
+  });
   form.addEventListener('click', (e) => {
     const add = e.target.closest('[data-ajouter]');
     if (add) {

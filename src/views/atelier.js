@@ -8,6 +8,7 @@ import { canPaste, copyText, openExternal, pasteText } from '../download.js';
 import { NOTICE_FIELDS } from '../fichea4.js';
 import { flatten, newPart, partsOf, withPart } from '../fiches.js';
 import { bookKey, esc, joinPassages, mergePassages, pluralize, splitPassages } from '../util.js';
+import { remplirHtml, wireRemplir } from './remplir.js';
 import { $, clearDraft, currentIa, loadDraft, readFileText, saveDraft, toast } from '../ui.js';
 
 // Livres trouvés dans le dernier My Clippings.txt importé. Gardés pendant la session, même si
@@ -89,6 +90,7 @@ export async function renderAtelier(view, params) {
       </div>
       <details class="notice"${hasNotice ? ' open' : ''}>
         <summary>Informations sur le livre (facultatif, communes à toutes ses fiches) : éditeur, ISBN, date de lecture…</summary>
+        ${remplirHtml()}
         <div class="champs">
           ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input id="f-${k}" value="${esc(v[k])}" autocomplete="off"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
         </div>
@@ -177,6 +179,11 @@ export async function renderAtelier(view, params) {
     $('#compte', view).textContent = mots ? `(${pluralize(mots.toLocaleString('fr-FR'), 'mot', 'mots')})` : '';
   };
   updateCount();
+  wireRemplir(view, {
+    field: (k) => $(`#f-${k}`, view),
+    context: () => ({ title: el.title.value, author: el.author.value }),
+    onChange: () => saveDraft(draftKey, readForm()),
+  });
   view.oninput = () => {
     saveDraft(draftKey, readForm());
     updateCount();
