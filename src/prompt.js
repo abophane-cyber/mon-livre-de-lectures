@@ -38,10 +38,10 @@ const MODELE_NOTICE = `## NOTICE
 - Date de parution :
 
 ## BIBLIOGRAPHIE
-- Référence recopiée telle quelle.`;
+- Auteur, Titre, Éditeur ou revue, année.`;
 
 const CONSIGNES_NOTICE = `- Si mes captures ou mon texte montrent les informations du livre (page de copyright, quatrième de couverture, fiche du livre), remplis la rubrique NOTICE uniquement avec ce qui y est écrit : éditeur, collection, édition (par exemple « Points, 2024 »), traduction (« traduit de l'anglais par … »), ISBN, nombre de pages, date de première parution. Laisse vide ce qui n'est pas visible. N'invente jamais un ISBN ni un éditeur.
-- Si mes captures ou mon texte contiennent une bibliographie, des références, des notes de sources ou des ouvrages cités, recopie chaque référence telle quelle dans la rubrique BIBLIOGRAPHIE (une par ligne, avec un tiret). N'en invente aucune et n'ajoute pas tes propres suggestions de lecture : s'il n'y en a pas, laisse la rubrique vide.
+- Rubrique BIBLIOGRAPHIE : mets-y UNIQUEMENT des références d'ouvrages, d'articles ou d'autres sources (auteur, titre, éditeur ou revue, année, pages), une par ligne avec un tiret, sous la forme « Auteur, Titre, Éditeur ou revue, année. » Les notes de bas de page ne sont PAS une bibliographie : quand une note contient une explication, une définition, un exemple ou un commentaire, ne la recopie pas. Si une note mélange une explication et une référence (par exemple « … Voir Anne-Laure Delatte, « Faut-il abandonner l'euro ? », Esprit, mars/avril 2014. »), garde seulement la référence (« Anne-Laure Delatte, « Faut-il abandonner l'euro ? », Esprit, mars/avril 2014. »). Ne garde que les références assez complètes pour retrouver la source (au moins un auteur ou un titre précis). Ne mets jamais deux fois la même référence. N'en invente aucune et n'ajoute pas tes propres suggestions de lecture : s'il n'y en a pas, laisse la rubrique vide.
 - Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé.`;
 
 export const CONSIGNE_NEUTRE = `Résume fidèlement et de façon neutre. Ne donne JAMAIS ton avis et n'ajoute aucun commentaire : pas d'appréciation (« passionnant », « remarquable »…), pas d'analyse critique, pas de points forts ou faibles, pas de citations, pas de rubrique « à retenir » ou « pour qui », pas d'introduction ni de conclusion de ta part, pas de question à la fin.`;

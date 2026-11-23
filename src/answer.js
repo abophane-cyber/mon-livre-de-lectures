@@ -288,7 +288,9 @@ export function parseTextAnswer(text) {
     const chat = /\?\s*$|^(souhaitez|voulez|n.h[ée]sitez|j.esp[èe]re|si vous|bonne lecture|je peux|dites-moi)/i;
     data.bibliographie = items(buckets.bibliographie.filter((l) => !chat.test(l.trim())))
       .map((it) => stripEmphasis(it.join(' ')))
-      .filter((r) => r && !EMPTY_VALUE.test(r) && !chat.test(r));
+      // Ni la ligne d'exemple du modèle recopiée par l'IA.
+      .filter((r) => r && !EMPTY_VALUE.test(r) && !chat.test(r)
+        && !/^(auteur, titre, [ée]diteur ou revue, ann[ée]e|r[ée]f[ée]rence recopi[ée]e telle quelle)\.?$/i.test(r));
   }
   return data;
 }
