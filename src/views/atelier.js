@@ -239,6 +239,8 @@ export async function renderAtelier(view, params) {
       base = { ...book, ...meta };
     }
     const rec = { ...(part || newPart()), passages, captures: f.captures };
+    // Une nouvelle fiche dans un livre marqué « terminé » : le livre redevient en cours.
+    if (!part && base.termine) base = { ...base, termine: 0 };
     book = await saveBook(withPart(base, rec));
     part = partsOf(book).find((p) => p.id === rec.id);
     if (draftKey !== keyOf()) {

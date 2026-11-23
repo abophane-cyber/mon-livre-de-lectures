@@ -296,6 +296,8 @@ mark {
 .partie-num { font: 600 0.72rem var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
 .fiche-partie .actions { margin-top: 20px; }
 .actions-livre { border-top-width: 2px; }
+.badge-ok { color: var(--ok); border-color: var(--ok); }
+.livre-termine { font: 600 0.95rem var(--sans); color: var(--ok); margin: 24px 0 0; }
 
 /* Sauvegarde : zone où lire (ou déposer) le fichier de l'autre appareil */
 .zone-depot {

@@ -119,8 +119,12 @@ function renderBook(book) {
     <hr class="filet">
     ${parts.length ? parts.map((p, i) => renderPart(book, p, i, parts.length)).join('') : '<p class="attente">Ce livre n\'a pas encore de fiche.</p>'}
     ${renderNotice(book)}
+    ${book.termine ? `<p class="livre-termine">✓ Livre terminé${book.dateLecture ? ` — lu le ${esc(book.dateLecture)}` : ''}</p>` : ''}
     <div class="actions actions-livre">
-      <a class="btn primaire" href="#/livre/${esc(book.id)}?f=nouvelle">+ Ajouter une fiche (autre chapitre)</a>
+      ${isComplete(book) && !book.termine ? `<button class="btn primaire" data-action="terminer" data-id="${esc(book.id)}">✓ Livre terminé</button>` : ''}
+      ${book.termine
+        ? `<button class="btn" data-action="rouvrir" data-id="${esc(book.id)}">Rouvrir le livre (ajouter une fiche)</button>`
+        : `<a class="btn${isComplete(book) ? '' : ' primaire'}" href="#/livre/${esc(book.id)}?f=nouvelle">+ Ajouter une fiche (autre chapitre)</a>`}
       ${ready > 1 ? `<button class="btn" data-action="fichea4" data-id="${esc(book.id)}">Toutes les fiches A4 du livre (${ready})</button>` : ''}
       ${!parts.some((p) => p.fiche) ? `<a class="btn" href="#/modifier/${esc(book.id)}">Modifier titre et notice</a>` : ''}
       <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">${parts.length > 1 ? 'Supprimer le livre et ses fiches' : 'Supprimer'}</button>
@@ -170,7 +174,7 @@ export async function renderLivre(view, params) {
               <a href="#/?ch=${esc(b.id)}"><span class="num">${i + 1}.</span>
                 <span class="t">${esc(b.title)}</span>
                 <span class="a">${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</span></a>
-              ${isComplete(b) ? '' : '<span class="badge">à terminer</span>'}
+              ${isComplete(b) ? (b.termine ? '<span class="badge badge-ok">terminé ✓</span>' : '') : '<span class="badge">à terminer</span>'}
               ${tocChapters(b)}
             </li>`,
           )
@@ -208,6 +212,18 @@ export async function renderLivre(view, params) {
       await deleteBook(book.id);
       toast(`« ${book.title} » a été supprimé.`);
       renderLivre(view, {});
+    }
+    if (btn.dataset.action === 'terminer') {
+      // La date de lecture (fiche A4) est remplie avec la date du jour si elle était vide.
+      const dateLecture = book.dateLecture || new Date().toLocaleDateString('fr-FR');
+      await saveBook({ ...book, termine: Date.now(), dateLecture });
+      toast(`Bravo ! « ${book.title} » est terminé ✓`, 'ok', 6000);
+      renderLivre(view, { ch: book.id });
+    }
+    if (btn.dataset.action === 'rouvrir') {
+      await saveBook({ ...book, termine: 0 });
+      toast(`« ${book.title} » est de nouveau en cours : vous pouvez lui ajouter des fiches.`, 'ok', 6000);
+      renderLivre(view, { ch: book.id });
     }
     if (btn.dataset.action === 'supprimer-fiche' && part) {
       const i = partsOf(book).indexOf(part) + 1;
