@@ -5,6 +5,7 @@ import { NOTICE_FIELDS } from '../fichea4.js';
 import { partsOf, withPart } from '../fiches.js';
 import { esc } from '../util.js';
 import { remplirHtml, wireRemplir } from './remplir.js';
+import { blobToCover, fetchCover } from '../cover.js';
 import { $, $$, toast } from '../ui.js';
 
 const LISTS = {
@@ -60,6 +61,19 @@ export async function renderModifier(view, params) {
     <fieldset>
       <legend>Informations sur le livre <span class="petit">(page de présentation, pas dans les fiches ; facultatif)</span></legend>
       ${remplirHtml()}
+      <div class="couverture-bloc">
+        <div class="couverture-apercu" id="couv-apercu"></div>
+        <div>
+          <p><strong>Couverture</strong> <span class="petit">(recto de la page de présentation de la fiche A4 ; sans image,
+            une couverture verte avec le titre et l'auteur)</span></p>
+          <div class="rangee">
+            <button type="button" class="btn" id="couv-chercher">Chercher la couverture (ISBN)</button>
+            <label class="btn">Choisir une image…<input type="file" id="couv-fichier" accept="image/*" hidden></label>
+            <button type="button" class="lien danger" id="couv-retirer">Retirer</button>
+          </div>
+          <p class="petit" id="couv-etat" role="status" hidden></p>
+        </div>
+      </div>
       <div class="champs">
         ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(book[k])}"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
       </div>
@@ -97,9 +111,64 @@ export async function renderModifier(view, params) {
   </form>`;
 
   const form = $('#form', view);
+
+  // --- Couverture ---
+  let cover = book.cover ? { cover: book.cover, coverRatio: book.coverRatio } : null;
+  const couvEtat = $('#couv-etat', form);
+  const sayCouv = (msg) => {
+    couvEtat.hidden = !msg;
+    couvEtat.textContent = msg || '';
+  };
+  const showCover = () => {
+    const box = $('#couv-apercu', form);
+    box.innerHTML = cover
+      ? `<img src="${esc(cover.cover)}" alt="Couverture">`
+      : `<div class="couverture-defaut"><span>${esc(form.elements.title.value || book.title)}</span><em>${esc(form.elements.author.value)}</em></div>`;
+    $('#couv-retirer', form).hidden = !cover;
+  };
+  showCover();
+  form.elements.title.addEventListener('input', () => !cover && showCover());
+  form.elements.author.addEventListener('input', () => !cover && showCover());
+  async function searchCover(quiet = false) {
+    const isbn = form.elements.isbn.value;
+    if (!isbn.replace(/[^0-9X]/gi, '')) {
+      if (!quiet) toast("Indiquez d'abord l'ISBN (ou utilisez « Remplir automatiquement »).", 'erreur', 7000);
+      return;
+    }
+    sayCouv('Recherche de la couverture…');
+    const found = await fetchCover(isbn);
+    if (found) {
+      cover = found;
+      showCover();
+      sayCouv('Couverture trouvée ✓ Elle sera gardée quand vous cliquerez sur « Enregistrer ».');
+    } else {
+      sayCouv("Pas de couverture trouvée pour cet ISBN. Vous pouvez choisir une image (photo du livre, image d'une librairie enregistrée), sinon la couverture verte sera utilisée.");
+    }
+  }
+  $('#couv-chercher', form).addEventListener('click', () => searchCover());
+  $('#couv-fichier', form).addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      cover = await blobToCover(file);
+      showCover();
+      sayCouv('Image choisie ✓ Elle sera gardée quand vous cliquerez sur « Enregistrer ».');
+    } catch {
+      toast("Cette image ne peut pas être lue. Essayez une photo JPEG ou PNG.", 'erreur', 7000);
+    }
+  });
+  $('#couv-retirer', form).addEventListener('click', () => {
+    cover = null;
+    showCover();
+    sayCouv('Couverture retirée : la couverture verte sera utilisée.');
+  });
+
   wireRemplir(form, {
     field: (k) => form.elements[k],
     context: () => ({ title: form.elements.title.value, author: form.elements.author.value }),
+    // Après « Remplir automatiquement » : chercher aussi la couverture s'il n'y en a pas.
+    onChange: () => !cover && searchCover(true),
   });
   // Entrée dans la case « lien ou ISBN » : lancer la recherche, pas enregistrer le formulaire.
   $('#remplir-source', form).addEventListener('keydown', (e) => {
@@ -131,6 +200,8 @@ export async function renderModifier(view, params) {
       pubDate: val('pubDate'),
       ...Object.fromEntries(NOTICE_FIELDS.map(([k]) => [k, val(k)])),
       bibliographie: lines('bibliographie') ?? book.bibliographie ?? [],
+      cover: cover?.cover || '',
+      coverRatio: cover?.coverRatio || 0,
     };
     const chap = part ? { bibliographie: lines('bibliographieChapitre') ?? part.bibliographie ?? [] } : {};
     const back = '#/?ch=' + book.id + (part ? '&fi=' + part.id : '');

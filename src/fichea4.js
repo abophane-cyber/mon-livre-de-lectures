@@ -11,6 +11,9 @@ const FOREST = '#344C2D';
 const SAGE = '#718052';
 const TITLE_GREEN = '#18331D';
 const INK = '#171717';
+// Couverture par défaut : textes et cadre vert très clair sur le vert forêt.
+const COVER_SOFT = '#D9E2C8';
+const COVER_LINE = '#8FA06E';
 
 /** Échelles essayées, de la plus grande à la plus petite, pour faire tenir une face sur une page. */
 export const SCALES = Array.from({ length: 14 }, (_, i) => Math.round((1 - i * 0.03) * 100) / 100); // 1, 0.97 … 0.61
@@ -149,8 +152,43 @@ export function verso(book, s = 1, full = true, inline = false) {
   return out;
 }
 
-/** Page de présentation du livre : titre, auteur, date de parution, genre, notice, date de lecture. */
-export function presentation(book) {
+/**
+ * Couverture (recto de la page de présentation) : l'image de la couverture, centrée sur la page,
+ * ou à défaut une couverture vert forêt avec le titre et l'auteur.
+ */
+export function coverPage(book) {
+  // Zone utile de la page A4 (595 × 842) moins les marges (40 + 40, 44 + 44).
+  const W = 515;
+  const H = 754;
+  if (book.cover && /^data:image\/(jpeg|png);base64,/.test(book.cover)) {
+    const ratio = book.coverRatio > 0 ? book.coverRatio : 1.5;
+    const w = Math.min(W, H / ratio);
+    const h = w * ratio;
+    return [{ image: book.cover, width: w, height: h, alignment: 'center', margin: [0, Math.max(0, (H - h) / 2), 0, 0] }];
+  }
+  const title = String(book.title || '').toUpperCase();
+  const size = title.length > 60 ? 28 : title.length > 30 ? 34 : 42;
+  return [
+    { canvas: [{ type: 'rect', x: 0, y: 0, w: 595.28, h: 841.89, color: FOREST }], absolutePosition: { x: 0, y: 0 } },
+    { canvas: [{ type: 'rect', x: 0, y: 0, w: 539, h: 786, lineWidth: 1, lineColor: COVER_LINE }], absolutePosition: { x: 28, y: 28 } },
+    {
+      stack: [
+        { text: 'FICHE DE LECTURE', fontSize: 12, bold: true, color: COVER_SOFT, characterSpacing: 3, alignment: 'center' },
+        { text: title, fontSize: size, bold: true, color: '#ffffff', lineHeight: 1.15, alignment: 'center', margin: [0, 34, 0, 0] },
+        {
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 80, y2: 0, lineWidth: 2, lineColor: COVER_SOFT }],
+          alignment: 'center',
+          margin: [0, 34, 0, 30],
+        },
+        book.author ? { text: book.author, fontSize: 24, italics: true, color: COVER_SOFT, alignment: 'center' } : '',
+      ],
+      margin: [30, 230, 30, 0],
+    },
+  ];
+}
+
+/** Infos du livre (verso de la couverture) : titre, auteur, date de parution, genre, notice, date de lecture. */
+export function infoPage(book) {
   const f = book.fiche || {};
   const details = [
     book.pubDate && ['Date de parution', book.pubDate],
@@ -196,8 +234,14 @@ export function presentation(book) {
   ];
 }
 
+/** Page de présentation : la couverture au recto, les informations du livre (ISBN…) au verso. */
+export function presentation(book) {
+  return [...coverPage(book), { stack: infoPage(book), pageBreak: 'before' }];
+}
+
 /**
- * Document : pour chaque livre, éventuellement la page de présentation (seule sur sa feuille),
+ * Document : pour chaque livre, éventuellement la page de présentation (couverture au recto,
+ * informations du livre au verso),
  * puis le recto (toujours sur une page impaire), puis le verso s'il y a des références.
  */
 export function buildFicheA4Doc(items, onPageCount, { presentation: withPresentation = false } = {}) {

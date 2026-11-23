@@ -277,6 +277,15 @@ mark {
 .remplir { display: grid; gap: 8px; margin: 10px 0 4px; padding: 12px; border: 1px dashed var(--filet); border-radius: 10px; }
 .remplir .btn { justify-self: start; }
 .remplir p { margin: 0; }
+.couverture-bloc { display: flex; gap: 14px; align-items: flex-start; margin: 10px 0; }
+.couverture-bloc p { margin: 0 0 8px; }
+.couverture-apercu { flex: 0 0 86px; }
+.couverture-apercu img { display: block; width: 86px; height: auto; border-radius: 3px; box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
+.couverture-defaut { width: 86px; aspect-ratio: 2 / 3; background: #344C2D; color: #fff; border-radius: 3px; padding: 10px 7px;
+  display: flex; flex-direction: column; justify-content: center; gap: 6px; text-align: center; overflow: hidden;
+  box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
+.couverture-defaut span { font-family: Literata, serif; font-weight: 700; font-size: 10px; line-height: 1.15; text-transform: uppercase; overflow-wrap: anywhere; }
+.couverture-defaut em { font-family: Literata, serif; font-size: 9px; color: #cfd8bd; }
 .notice #ajouter-notice { margin-top: 2px; }
 .notice #ajouter-notice + .petit { margin: 6px 0 0; }
 .case-simple { flex-direction: row; align-items: center; gap: 10px; font-weight: 400; }

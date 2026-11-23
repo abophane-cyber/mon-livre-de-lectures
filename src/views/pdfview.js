@@ -38,7 +38,7 @@ export async function renderPdf(view) {
     </fieldset>
     <p class="petit" id="aide-format"></p>
     <label class="case-simple" id="bloc-presentation"><input type="checkbox" id="presentation"${getPrefs().presentationA4 !== false ? " checked" : ""}>
-      <span>Ajouter une <strong>page de présentation</strong> avant chaque résumé (titre, auteur, date de parution, genre, éditeur, ISBN…)</span></label>
+      <span>Ajouter une <strong>page de présentation</strong> avant chaque résumé : la couverture au recto, et au verso le titre, l'auteur, la date de parution, le genre, l'éditeur, l'ISBN…</span></label>
     <div id="couverture">
       <div class="champs">
         <label>Titre du livre (couverture)<input id="titreLivre" value="${esc(settings.titreLivre)}"></label>
