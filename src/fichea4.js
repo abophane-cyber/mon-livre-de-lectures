@@ -1,5 +1,6 @@
 // Fiche de lecture A4 : le résumé au recto, les références bibliographiques au verso (s'il y en a).
-// Chaque face doit tenir sur une seule page : la taille du texte s'ajuste toute seule.
+// Si le résumé est trop long pour le recto, il continue au verso (suivi des références) :
+// l'ensemble tient toujours sur une feuille recto-verso. La taille du texte s'ajuste toute seule.
 
 const ACCENT = '#8a5a14';
 const GREY = '#5c5c5c';
@@ -116,9 +117,14 @@ export function hasVerso(book, full = true) {
   return !!(book.bibliographie?.length || (full && book.bibliographieGenerale?.length));
 }
 
-/** Verso : références bibliographiques (bibliographie du chapitre ; bibliographie générale si `full`). */
-export function verso(book, s = 1, full = true) {
-  const out = [...header(s, 'Références bibliographiques')];
+/**
+ * Verso : références bibliographiques (bibliographie du chapitre ; bibliographie générale si `full`).
+ * `inline` : à la suite du résumé qui a débordé au verso (pas d'en-tête de page, un filet avant).
+ */
+export function verso(book, s = 1, full = true, inline = false) {
+  const out = inline
+    ? [{ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 56, y2: 0, lineWidth: 2, lineColor: ACCENT }], margin: [0, 16 * s, 0, 12 * s] }]
+    : [...header(s, 'Références bibliographiques')];
 
   const chap = book.bibliographie || [];
   const gen = full ? book.bibliographieGenerale || [] : [];
@@ -176,7 +182,7 @@ export function buildFicheA4Doc(items, onPageCount, { presentation: withPresenta
   // Chaque fiche a au verso la bibliographie de son chapitre ; la dernière, aussi la bibliographie
   // générale du livre.
   const same = (a, b) => !!a && !!b && a.book.id != null && a.book.id === b.book.id;
-  items.forEach(({ book, r = 1, v = 1 }, i) => {
+  items.forEach(({ book, r = 1, v = 1, flow = false }, i) => {
     const first = !same(items[i - 1], items[i]);
     const last = !same(items[i], items[i + 1]);
     if (withPresentation && first) {
@@ -185,7 +191,8 @@ export function buildFicheA4Doc(items, onPageCount, { presentation: withPresenta
     } else {
       content.push({ stack: recto(book, r), pageBreak: i ? 'beforeOdd' : undefined });
     }
-    if (hasVerso(book, last)) content.push({ stack: verso(book, v, last), pageBreak: 'before' });
+    // Résumé qui déborde : les références suivent directement, sur le verso.
+    if (hasVerso(book, last)) content.push(flow ? { stack: verso(book, r, last, true) } : { stack: verso(book, v, last), pageBreak: 'before' });
   });
   return {
     pageSize: 'A4',
@@ -201,20 +208,18 @@ export function buildFicheA4Doc(items, onPageCount, { presentation: withPresenta
 }
 
 /**
- * Trouve, pour chaque face, la plus grande taille de texte qui tient sur une page.
+ * Trouve, pour chaque fiche, la plus grande taille de texte possible, sur une feuille recto-verso :
+ * - d'abord le résumé seul au recto (on accepte de réduire un peu le texte pour cela) ;
+ * - sinon le résumé continue au verso, suivi des références, en gardant le texte assez grand.
  * `countPages(doc)` calcule le nombre de pages d'un document (pdfmake).
  */
+/** En dessous de cette taille, on préfère laisser le résumé continuer au verso. */
+const MIN_RECTO_SEUL = 0.88;
+
 export async function fitItems(books, countPages) {
-  const fit = async (side, book) => {
-    for (const s of SCALES) {
-      const n = await countPages({
-        pageSize: 'A4',
-        pageMargins: MARGINS,
-        content: side(book, s),
-        defaultStyle: { font: 'Literata' },
-      });
-      if (n <= 1) return { scale: s, ok: true };
-    }
+  const pages = (content) => countPages({ pageSize: 'A4', pageMargins: MARGINS, content, defaultStyle: { font: 'Literata' } });
+  const fit = async (side, book, scales = SCALES) => {
+    for (const s of scales) if ((await pages(side(book, s))) <= 1) return { scale: s, ok: true };
     return { scale: SCALES[SCALES.length - 1], ok: false };
   };
   const items = [];
@@ -223,10 +228,30 @@ export async function fitItems(books, countPages) {
     // Dernière fiche de son livre dans la liste : le verso porte aussi la bibliographie générale.
     const next = books[i + 1];
     const last = !(next && book.id != null && next.id === book.id);
-    const r = await fit(recto, book);
-    const v = hasVerso(book, last) ? await fit((b, s) => verso(b, s, last), book) : { scale: 1, ok: true };
-    if (!r.ok || !v.ok) tooLong.push(book.title);
-    items.push({ book, r: r.scale, v: v.scale });
+    const refs = hasVerso(book, last);
+    const verseFit = () => (refs ? fit((b, x) => verso(b, x, last), book) : { scale: 1, ok: true });
+
+    // 1. Résumé seul au recto, texte normal ou à peine réduit.
+    const r = await fit(recto, book, SCALES.filter((s) => s >= MIN_RECTO_SEUL));
+    if (r.ok) {
+      const v = await verseFit();
+      if (!v.ok) tooLong.push(book.title);
+      items.push({ book, r: r.scale, v: v.scale });
+      continue;
+    }
+    // 2. Le résumé continue au verso, suivi des références : le tout sur deux pages.
+    let flow = null;
+    for (const s of SCALES) {
+      const content = [...recto(book, s), ...(refs ? verso(book, s, last, true) : [])];
+      if ((await pages(content)) <= 2) { flow = s; break; }
+    }
+    if (flow != null) {
+      items.push({ book, r: flow, v: flow, flow: true });
+      continue;
+    }
+    // 3. Vraiment trop long : le plus petit texte, signalé.
+    tooLong.push(book.title);
+    items.push({ book, r: SCALES[SCALES.length - 1], v: SCALES[SCALES.length - 1], flow: true });
   }
   return { items, tooLong };
 }

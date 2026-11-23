@@ -46,9 +46,18 @@ test('fiche courte : taille normale, exactement 2 pages', async () => {
   assert.equal(await countPages(buildFicheA4Doc(items)), 2);
 });
 
-test('fiche longue : texte réduit pour tenir sur une page par face', async () => {
-  const { items } = await fitItems([avecRefs(book(6, 8, 6))], countPages);
-  assert.ok(items[0].r < 1);
+test('fiche longue : le résumé continue au verso, suivi des références, sur une seule feuille', async () => {
+  const { items, tooLong } = await fitItems([avecRefs(book(6, 8, 6))], countPages);
+  assert.deepEqual(tooLong, []);
+  assert.equal(items[0].flow, true);
+  assert.ok(items[0].r >= 0.85, 'texte gardé assez grand');
+  const doc = buildFicheA4Doc(items);
+  assert.equal(await countPages(doc), 2);
+  assert.ok(JSON.stringify(doc).includes('Correspondance'));
+});
+
+test('fiche très longue sans références : deux pages au plus', async () => {
+  const { items } = await fitItems([book(9, 10, 0)], countPages);
   assert.equal(await countPages(buildFicheA4Doc(items)), 2);
 });
 
