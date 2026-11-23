@@ -349,3 +349,85 @@ details[open] > .fiche-tete::after { transform: rotate(-90deg); }
 .pages-choix .rangee { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
 .pages-choix input { width: 5em; text-align: center; font-size: 1.1rem; }
 .pages-choix .btn { min-width: 44px; font-size: 1.2rem; padding: 6px 12px; }
+
+/* ───────── Couleurs des fonctions ─────────
+   Chaque fonction a sa couleur : dans la barre de navigation, sur la page ouverte
+   (titres, pastilles, bouton principal) et sur les boutons qui y mènent. */
+:root {
+  --c-livre: #8a5a14;       --c-livre-fort: #6f470d;
+  --c-nouveau: #2f7a4a;     --c-nouveau-fort: #235c38;
+  --c-sauvegarde: #1d6f7a;  --c-sauvegarde-fort: #15545c;
+  --c-pdf: #c25510;         --c-pdf-fort: #9a430c;
+  --c-reglages: #55606f;    --c-reglages-fort: #3f4854;
+  --c-modifier: #2b62a8;    --c-modifier-fort: #1f4c85;
+  --c-general: #6a4c9c;     --c-general-fort: #533a7d;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --c-livre: #e0b25c;       --c-livre-fort: #f0c777;
+    --c-nouveau: #7fcf98;     --c-nouveau-fort: #9ee0b2;
+    --c-sauvegarde: #6fcad4;  --c-sauvegarde-fort: #93dbe2;
+    --c-pdf: #f4a261;         --c-pdf-fort: #f7b984;
+    --c-reglages: #aab6c5;    --c-reglages-fort: #c3ccd8;
+    --c-modifier: #86b6f0;    --c-modifier-fort: #a6cbf7;
+    --c-general: #b9a0e8;     --c-general-fort: #cdb8f2;
+  }
+}
+:root[data-theme='dark'] {
+  --c-livre: #e0b25c;       --c-livre-fort: #f0c777;
+  --c-nouveau: #7fcf98;     --c-nouveau-fort: #9ee0b2;
+  --c-sauvegarde: #6fcad4;  --c-sauvegarde-fort: #93dbe2;
+  --c-pdf: #f4a261;         --c-pdf-fort: #f7b984;
+  --c-reglages: #aab6c5;    --c-reglages-fort: #c3ccd8;
+  --c-modifier: #86b6f0;    --c-modifier-fort: #a6cbf7;
+  --c-general: #b9a0e8;     --c-general-fort: #cdb8f2;
+}
+
+/* La page ouverte prend la couleur de sa fonction. */
+body[data-couleur='nouveau']    { --accent: var(--c-nouveau);    --accent-fort: var(--c-nouveau-fort); }
+body[data-couleur='sauvegarde'] { --accent: var(--c-sauvegarde); --accent-fort: var(--c-sauvegarde-fort); }
+body[data-couleur='pdf']        { --accent: var(--c-pdf);        --accent-fort: var(--c-pdf-fort); }
+body[data-couleur='reglages']   { --accent: var(--c-reglages);   --accent-fort: var(--c-reglages-fort); }
+body[data-couleur='modifier']   { --accent: var(--c-modifier);   --accent-fort: var(--c-modifier-fort); }
+body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: var(--c-general-fort); }
+.marque em { color: var(--c-livre); }
+
+/* Navigation : chaque onglet garde toujours sa couleur. */
+[data-couleur='livre']      { --f: var(--c-livre);      --f-fort: var(--c-livre-fort); }
+[data-couleur='nouveau']    { --f: var(--c-nouveau);    --f-fort: var(--c-nouveau-fort); }
+[data-couleur='sauvegarde'] { --f: var(--c-sauvegarde); --f-fort: var(--c-sauvegarde-fort); }
+[data-couleur='pdf']        { --f: var(--c-pdf);        --f-fort: var(--c-pdf-fort); }
+[data-couleur='reglages']   { --f: var(--c-reglages);   --f-fort: var(--c-reglages-fort); }
+.nav-bas a[data-couleur] svg { color: var(--f); }
+.nav-bas a[data-couleur].actif { color: var(--f); background: color-mix(in srgb, var(--f) 12%, var(--page)); box-shadow: inset 0 3px 0 var(--f); }
+.nav-haut a[data-couleur] { color: var(--f); }
+.nav-haut a[data-couleur]:hover { background: color-mix(in srgb, var(--f) 10%, var(--page)); color: var(--f); }
+.nav-haut a[data-couleur].actif { background: var(--f); color: var(--sur-accent); }
+
+/* Boutons : la couleur dit ce que fait le bouton. */
+.btn[data-action='fichea4'], .btn[data-action='generalA4'], #telecharger { --f: var(--c-pdf); --f-fort: var(--c-pdf-fort); }
+.btn[href^='#/modifier'] { --f: var(--c-modifier); --f-fort: var(--c-modifier-fort); }
+.btn[href^='#/livre/'], .btn[href='#/nouveau'], .btn[data-action='rouvrir'] { --f: var(--c-nouveau); --f-fort: var(--c-nouveau-fort); }
+.btn[href^='#/general'] { --f: var(--c-general); --f-fort: var(--c-general-fort); }
+.btn[data-action='terminer'] { --f: var(--ok); --f-fort: var(--ok); }
+.btn[href='#/'], .btn[href^='#/?'] { --f: var(--c-livre); --f-fort: var(--c-livre-fort); }
+.btn:is([data-action='fichea4'], [data-action='generalA4'], [href^='#/modifier'], [href^='#/livre/'], [href='#/nouveau'],
+        [data-action='rouvrir'], [href^='#/general'], [data-action='terminer'], [href='#/'], [href^='#/?'], #telecharger) {
+  color: var(--f);
+  border-color: color-mix(in srgb, var(--f) 50%, var(--filet));
+  background: color-mix(in srgb, var(--f) 7%, var(--page));
+}
+.btn:is([data-action='fichea4'], [data-action='generalA4'], [href^='#/modifier'], [href^='#/livre/'], [href='#/nouveau'],
+        [data-action='rouvrir'], [href^='#/general'], [data-action='terminer'], [href='#/'], [href^='#/?'], #telecharger):hover {
+  border-color: var(--f); background: color-mix(in srgb, var(--f) 14%, var(--page));
+}
+.btn.primaire:is([data-action='fichea4'], [data-action='generalA4'], [href^='#/modifier'], [href^='#/livre/'], [href='#/nouveau'],
+        [data-action='rouvrir'], [href^='#/general'], [data-action='terminer'], [href='#/'], [href^='#/?'], #telecharger) {
+  background: var(--f); border-color: var(--f); color: var(--sur-accent);
+}
+.btn.primaire:is([data-action='fichea4'], [data-action='generalA4'], [href^='#/modifier'], [href^='#/livre/'], [href='#/nouveau'],
+        [data-action='rouvrir'], [href^='#/general'], [data-action='terminer'], [href='#/'], [href^='#/?'], #telecharger):hover {
+  background: var(--f-fort); border-color: var(--f-fort);
+}
+.btn.danger { border-color: color-mix(in srgb, var(--danger) 45%, var(--filet)); background: color-mix(in srgb, var(--danger) 6%, var(--page)); }
+.btn.danger:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--page)); }

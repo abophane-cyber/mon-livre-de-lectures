@@ -15,21 +15,22 @@ import { renderSauvegarde } from './views/sauvegarde.js';
 import { renderPdf } from './views/pdfview.js';
 import { renderReglages } from './views/reglages.js';
 
+// Chaque fonction a sa couleur (voir style.css, --c-livre, --c-nouveau…).
 const NAV = [
-  ['#/', 'Mon livre', icons.book],
-  ['#/nouveau', 'Nouvelle', icons.plus],
-  ['#/sauvegarde', 'Sauvegarde', icons.sync],
-  ['#/pdf', 'PDF', icons.pdf],
-  ['#/reglages', 'Réglages', icons.gear],
+  ['#/', 'Mon livre', icons.book, 'livre'],
+  ['#/nouveau', 'Nouvelle', icons.plus, 'nouveau'],
+  ['#/sauvegarde', 'Sauvegarde', icons.sync, 'sauvegarde'],
+  ['#/pdf', 'PDF', icons.pdf, 'pdf'],
+  ['#/reglages', 'Réglages', icons.gear, 'reglages'],
 ];
 
 document.getElementById('app').innerHTML = `
   <header class="entete">
     <a href="#/" class="marque">Mon livre <em>de lectures</em></a>
-    <nav class="nav-haut" aria-label="Navigation">${NAV.map(([h, l]) => `<a href="${h}">${l}</a>`).join('')}</nav>
+    <nav class="nav-haut" aria-label="Navigation">${NAV.map(([h, l, , c]) => `<a href="${h}" data-couleur="${c}">${l}</a>`).join('')}</nav>
   </header>
   <main id="view" tabindex="-1"></main>
-  <nav class="nav-bas" aria-label="Navigation">${NAV.map(([h, l, i]) => `<a href="${h}">${i}<span>${l}</span></a>`).join('')}</nav>`;
+  <nav class="nav-bas" aria-label="Navigation">${NAV.map(([h, l, i, c]) => `<a href="${h}" data-couleur="${c}">${i}<span>${l}</span></a>`).join('')}</nav>`;
 
 const view = document.getElementById('view');
 
@@ -45,6 +46,9 @@ async function route() {
   const { name, id, params } = parseRoute();
   view.onclick = view.oninput = view.onchange = null;
   const active = name === 'livre' || name === 'modifier' || name === 'general' ? '' : name;
+  // La couleur de la page suit la fonction ouverte (« Modifier » et « Compléter » ont la leur).
+  document.body.dataset.couleur = name === 'livre' ? 'nouveau' : name === 'modifier' ? 'modifier'
+    : name === 'general' ? 'general' : NAV.find(([h]) => h === `#/${active}`)?.[3] || 'livre';
   document.querySelectorAll('.nav-haut a, .nav-bas a').forEach((a) => {
     a.classList.toggle('actif', a.getAttribute('href') === `#/${active}`);
   });

@@ -1,16 +1,21 @@
 // Vue « Sauvegarde » : passer ses fiches d'un appareil à l'autre avec un fichier.
 // Deux gestes seulement : « Créer le fichier » sur un appareil, « Lire le fichier » sur l'autre.
 // Le fichier est chiffré par un mot de passe, demandé une seule fois puis mémorisé sur l'appareil.
-import { dumpAll, liveBooks, writeMerged } from '../db.js';
+import { dumpAll, getSettings, liveBooks, writeMerged } from '../db.js';
 import { partsOf } from '../fiches.js';
 import { BACKUP_APP, BACKUP_VERSION, makeBackup, mergeBackup, validateBackup } from '../sync.js';
 import { decryptJson, encryptJson, isEncrypted } from '../crypto.js';
-import { canShareFiles, downloadBlob, shareBlob, stamp } from '../download.js';
+import { canShareFiles, downloadBlob, shareBlob } from '../download.js';
 import { esc, formatDate, newId, pluralize } from '../util.js';
 import { $, getPrefs, readFileText, setPrefs, toast } from '../ui.js';
 
 const MIN_LENGTH = 8;
-const FILE_PREFIX = 'mon-livre-de-lectures';
+/** Nom du fichier : « titre du livre_jour-mois-année-heure », ex. « Mon livre de lectures_23-11-2026-14h05.json ». */
+export function backupFileName(titre, date = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  const propre = String(titre || '').replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/\.+$/, '') || 'Mon livre de lectures';
+  return `${propre}_${p(date.getDate())}-${p(date.getMonth() + 1)}-${date.getFullYear()}-${p(date.getHours())}h${p(date.getMinutes())}.json`;
+}
 
 const isPhone = () => /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 const deviceName = () => (isPhone() ? 'telephone' : 'ordinateur');
@@ -69,14 +74,14 @@ function afterCreateHtml(name) {
 function readHelpHtml() {
   if (isPhone()) {
     return `<p class="petit">Touchez le bouton, puis <strong>Téléchargements</strong> (ou « Download »), et choisissez le fichier
-      <code>${FILE_PREFIX}_ordinateur_…</code> le plus récent.</p>
+      le plus récent (la date et l'heure sont dans son nom).</p>
       <p class="petit">Le fichier vient de l'ordinateur ? Copiez-le d'abord dans le dossier <strong>Download</strong> du téléphone
       (voir « Créer le fichier » sur l'ordinateur).</p>`;
   }
   return `<ol class="instructions petit">
       <li>${USB_STEP}</li>
       <li>Cliquez sur le bouton. Dans la fenêtre qui s'ouvre, allez dans <strong>Ce PC</strong> → <strong>Galaxy S24+</strong> →
-        <strong>Phone</strong> → <strong>Download</strong> et choisissez le fichier <code>${FILE_PREFIX}_telephone_…</code> le plus récent.</li>
+        <strong>Phone</strong> → <strong>Download</strong> et choisissez le fichier le plus récent (la date et l'heure sont dans son nom).</li>
     </ol>
     <p class="petit">Le téléphone n'apparaît pas dans la fenêtre ? Ouvrez ce même dossier dans l'<strong>Explorateur de fichiers</strong>
       et <strong>faites glisser le fichier</strong> dans le cadre ci-dessus.</p>`;
@@ -175,7 +180,7 @@ export async function renderSauvegarde(view) {
     btns.forEach((b) => (b.disabled = true));
     try {
       const blob = await encryptedBackupBlob(password);
-      const name = `${FILE_PREFIX}_${deviceName()}_${stamp()}.json`;
+      const name = backupFileName((await getSettings()).titreLivre);
       if (action === 'share') {
         if (!(await shareBlob(blob, name, 'Mon livre de lectures'))) {
           toast("L'envoi n'est pas disponible. Utilisez « Créer le fichier de sauvegarde ».", 'erreur');
