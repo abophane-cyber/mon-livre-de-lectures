@@ -44,7 +44,7 @@ const CONSIGNES_NOTICE = `- Si mes captures ou mon texte montrent les informatio
 - Si mes captures ou mon texte contiennent une bibliographie, des références, des notes de sources ou des ouvrages cités, recopie chaque référence telle quelle dans la rubrique BIBLIOGRAPHIE (une par ligne, avec un tiret). N'en invente aucune et n'ajoute pas tes propres suggestions de lecture : s'il n'y en a pas, laisse la rubrique vide.
 - Ces informations ne font pas partie du texte à résumer : ne les utilise pas pour le résumé.`;
 
-const CONSIGNE_NEUTRE = `Résume fidèlement et de façon neutre. Ne donne JAMAIS ton avis et n'ajoute aucun commentaire : pas d'appréciation (« passionnant », « remarquable »…), pas d'analyse critique, pas de points forts ou faibles, pas de citations, pas de rubrique « à retenir » ou « pour qui », pas d'introduction ni de conclusion de ta part, pas de question à la fin.`;
+export const CONSIGNE_NEUTRE = `Résume fidèlement et de façon neutre. Ne donne JAMAIS ton avis et n'ajoute aucun commentaire : pas d'appréciation (« passionnant », « remarquable »…), pas d'analyse critique, pas de points forts ou faibles, pas de citations, pas de rubrique « à retenir » ou « pour qui », pas d'introduction ni de conclusion de ta part, pas de question à la fin.`;
 
 const CONSIGNE_FORMAT = `Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de canvas, pas de bloc de code, pas de JSON. Suis exactement ce modèle, avec ces titres en majuscules et dans cet ordre, sans rien ajouter avant « GENRE » ni après la dernière rubrique :`;
 

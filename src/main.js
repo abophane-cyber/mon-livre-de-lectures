@@ -10,6 +10,7 @@ import { applyTheme, icons } from './ui.js';
 import { renderLivre } from './views/livre.js';
 import { renderAtelier } from './views/atelier.js';
 import { renderModifier } from './views/modifier.js';
+import { renderGeneral } from './views/general.js';
 import { renderSauvegarde } from './views/sauvegarde.js';
 import { renderPdf } from './views/pdfview.js';
 import { renderReglages } from './views/reglages.js';
@@ -43,7 +44,7 @@ function parseRoute() {
 async function route() {
   const { name, id, params } = parseRoute();
   view.onclick = view.oninput = view.onchange = null;
-  const active = name === 'livre' || name === 'modifier' ? '' : name;
+  const active = name === 'livre' || name === 'modifier' || name === 'general' ? '' : name;
   document.querySelectorAll('.nav-haut a, .nav-bas a').forEach((a) => {
     a.classList.toggle('actif', a.getAttribute('href') === `#/${active}`);
   });
@@ -51,6 +52,7 @@ async function route() {
     if (name === 'nouveau') await renderAtelier(view, {});
     else if (name === 'livre' && id) await renderAtelier(view, { id, f: params.f });
     else if (name === 'modifier' && id) await renderModifier(view, { id, f: params.f });
+    else if (name === 'general' && id) await renderGeneral(view, { id });
     else if (name === 'sauvegarde') await renderSauvegarde(view);
     else if (name === 'pdf') await renderPdf(view);
     else if (name === 'reglages') await renderReglages(view);

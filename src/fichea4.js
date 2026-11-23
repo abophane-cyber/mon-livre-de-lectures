@@ -257,3 +257,44 @@ export async function fitItems(books, countPages) {
   }
   return { items, tooLong };
 }
+
+/**
+ * Résumé général d'un livre, sur plusieurs pages A4 : titre du livre et auteur, intertitres,
+ * paragraphes, puis les idées clés. `s` réduit un peu le texte pour tenir dans le nombre de pages voulu.
+ */
+export function buildGeneralA4Doc(book, s = 1) {
+  const g = book.resumeGeneral || { sections: [], idees: [] };
+  const content = [
+    ...header(s, 'Résumé général', book.title),
+    book.author ? { text: [book.author, book.pubDate].filter(Boolean).join(' · '), italics: true, color: GREY, fontSize: 11 * s, margin: [0, -6 * s, 0, 14 * s] } : '',
+  ];
+  for (const sec of g.sections || []) {
+    if (sec.titre) content.push({ text: sec.titre, bold: true, fontSize: 13 * s, color: ACCENT, margin: [0, 8 * s, 0, 5 * s], headlineLevel: 1 });
+    for (const p of sec.paragraphes) {
+      content.push({ text: p, fontSize: 11.5 * s, lineHeight: 1.36, alignment: 'justify', margin: [0, 0, 0, 7 * s] });
+    }
+  }
+  if (g.idees?.length) {
+    content.push(label('Idées clés du livre', s, { margin: [0, 12 * s, 0, 7 * s], headlineLevel: 1 }));
+    g.idees.forEach((i, k) => {
+      content.push({
+        columns: [
+          { text: String(k + 1), width: 16 * s, fontSize: 11 * s, bold: true, color: ACCENT },
+          { text: [{ text: i.titre, bold: true }, i.texte ? { text: ` — ${i.texte}` } : ''], fontSize: 10.8 * s, lineHeight: 1.32 },
+        ],
+        unbreakable: true,
+        margin: [0, 0, 0, 6 * s],
+      });
+    });
+  }
+  return {
+    pageSize: 'A4',
+    pageMargins: [MARGINS[0], MARGINS[1], MARGINS[2], 56],
+    info: { title: `Résumé général — ${book.title}` },
+    content,
+    // Un intertitre ne reste jamais seul en bas de page.
+    pageBreakBefore: (node, following) => node.headlineLevel === 1 && following.getFollowingNodesOnPage().length === 0,
+    footer: (page, count) => (count > 1 ? { text: `${page} / ${count}`, alignment: 'center', fontSize: 9, color: GREY, margin: [0, 22, 0, 0] } : null),
+    defaultStyle: { font: 'Literata', fontSize: 11.5, color: '#1d1d1d' },
+  };
+}

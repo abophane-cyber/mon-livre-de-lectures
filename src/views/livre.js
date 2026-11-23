@@ -126,7 +126,7 @@ function renderPart(book, part, i, n) {
       ${part.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Fiche A4</button>` : ''}
       ${part.fiche ? `<a class="btn" href="#/modifier/${q}">Modifier le texte</a>` : ''}
       <a class="btn" href="#/livre/${q}">Compléter (suite du chapitre) / refaire le résumé</a>
-      ${n > 1 ? `<button class="btn danger" data-action="supprimer-fiche" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Supprimer cette fiche</button>` : ''}
+      <button class="btn danger" data-action="supprimer-fiche" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Supprimer cette fiche</button>
     </div>
     </div>
   </details>`;
@@ -144,6 +144,34 @@ function tocChapters(book) {
     .join('')}</ol>`;
 }
 
+/** Résumé général du livre (synthèse de toutes ses fiches), replié par défaut, avant les chapitres. */
+function renderGeneralBlock(book) {
+  const g = book.resumeGeneral;
+  if (!g?.sections?.length) return '';
+  const key = `g-${book.id}`;
+  const body = g.sections
+    .map((s) => `${s.titre ? `<h4 class="intertitre">${esc(s.titre)}</h4>` : ''}${s.paragraphes.map((p) => `<p>${esc(p)}</p>`).join('')}`)
+    .join('');
+  const idees = g.idees?.length
+    ? `<h3 class="section">Idées clés du livre</h3>${g.idees.map((i) => `<div class="idee"><h4>${esc(i.titre)}</h4>${i.texte ? `<p>${esc(i.texte)}</p>` : ''}</div>`).join('')}`
+    : '';
+  return `<details class="fiche-partie resume-general" id="fi-${esc(key)}" data-fi="${esc(key)}"${isOpen(key, 2) ? ' open' : ''}>
+    <summary class="fiche-tete">
+      <span class="partie-num">Tout le livre · ${pluralize(g.pages, 'page', 'pages')}</span>
+      <span class="chapitre-resume">Résumé général</span>
+    </summary>
+    <div class="fiche-corps">
+      ${body}
+      ${idees}
+      <div class="actions">
+        <button class="btn primaire" data-action="generalA4" data-id="${esc(book.id)}">Résumé général A4</button>
+        <a class="btn" href="#/general/${esc(book.id)}">Refaire (autre longueur, nouvelles fiches)</a>
+        <button class="btn danger" data-action="supprimer-general" data-id="${esc(book.id)}">Supprimer le résumé général</button>
+      </div>
+    </div>
+  </details>`;
+}
+
 function renderBook(book) {
   const parts = partsOf(book);
   const genre = parts.find((p) => p.fiche?.genre)?.fiche.genre;
@@ -156,6 +184,7 @@ function renderBook(book) {
     ${parts.length > 1
       ? `<div class="replier"><button class="lien" data-action="deplier" data-id="${esc(book.id)}">Tout déplier</button> · <button class="lien" data-action="replier" data-id="${esc(book.id)}">Tout replier</button></div>`
       : ''}
+    ${renderGeneralBlock(book)}
     ${parts.length ? parts.map((p, i) => renderPart(book, p, i, parts.length)).join('') : '<p class="attente">Ce livre n\'a pas encore de fiche.</p>'}
     ${renderNotice(book)}
     ${book.termine ? `<p class="livre-termine">✓ Livre terminé${book.dateLecture ? ` — lu le ${esc(book.dateLecture)}` : ''}</p>` : ''}
@@ -163,10 +192,11 @@ function renderBook(book) {
       ${isComplete(book) && !book.termine ? `<button class="btn primaire" data-action="terminer" data-id="${esc(book.id)}">✓ Livre terminé</button>` : ''}
       ${book.termine
         ? `<button class="btn" data-action="rouvrir" data-id="${esc(book.id)}">Rouvrir le livre (ajouter une fiche)</button>`
-        : `<a class="btn${isComplete(book) ? '' : ' primaire'}" href="#/livre/${esc(book.id)}?f=nouvelle">+ Ajouter une fiche (autre chapitre)</a>`}
+        : `<a class="btn${isComplete(book) ? '' : ' primaire'}" href="#/livre/${esc(book.id)}?f=nouvelle">+ Ajouter une fiche${parts.length ? " (autre chapitre)" : ""}</a>`}
       ${ready > 1 ? `<button class="btn" data-action="fichea4" data-id="${esc(book.id)}">Toutes les fiches A4 du livre (${ready})</button>` : ''}
+      ${ready && !book.resumeGeneral ? `<a class="btn" href="#/general/${esc(book.id)}">Résumé général de toutes les fiches</a>` : ''}
       ${!parts.some((p) => p.fiche) ? `<a class="btn" href="#/modifier/${esc(book.id)}">Modifier titre et notice</a>` : ''}
-      <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">${parts.length > 1 ? 'Supprimer le livre et ses fiches' : 'Supprimer'}</button>
+      <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">${parts.length > 1 ? 'Supprimer le livre et ses fiches' : parts.length ? 'Supprimer le livre et sa fiche' : 'Supprimer le livre'}</button>
     </div>
   </article>`;
 }
@@ -271,10 +301,39 @@ export async function renderLivre(view, params) {
     }
     if (btn.dataset.action === 'supprimer') {
       const n = partsOf(book).length;
-      if (!confirm(n > 1 ? `Supprimer définitivement le livre « ${book.title} » et ses ${n} fiches ?` : `Supprimer définitivement la fiche « ${book.title} » ?`)) return;
+      if (!confirm(n > 1 ? `Supprimer définitivement le livre « ${book.title} » et ses ${n} fiches ?` : n ? `Supprimer définitivement le livre « ${book.title} » et sa fiche ?` : `Supprimer définitivement le livre « ${book.title} » ?`)) return;
       await deleteBook(book.id);
       toast(`« ${book.title} » a été supprimé.`);
       renderLivre(view, {});
+    }
+    if (btn.dataset.action === 'supprimer-general') {
+      if (!confirm(`Supprimer le résumé général de « ${book.title} » ? Les fiches des chapitres sont gardées.`)) return;
+      await saveBook({ ...book, resumeGeneral: null });
+      toast('Résumé général supprimé.');
+      renderLivre(view, { ch: book.id });
+    }
+    if (btn.dataset.action === 'generalA4' && book.resumeGeneral) {
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Préparation…';
+      try {
+        const { downloadGeneralA4, slug } = await import('../pdf.js');
+        const { pages } = await downloadGeneralA4(book, `resume-general-${slug(book.title)}.pdf`);
+        const voulu = book.resumeGeneral.pages;
+        toast(
+          pages === voulu
+            ? `Résumé général A4 téléchargé ✓ (${pluralize(pages, 'page', 'pages')}).`
+            : `Résumé général A4 téléchargé ✓ Il fait ${pluralize(pages, 'page', 'pages')} au lieu de ${voulu} : ${pages > voulu ? 'le texte de l’IA est un peu long' : 'le texte de l’IA est un peu court'}. Vous pouvez le refaire si besoin.`,
+          pages === voulu ? 'ok' : 'attention',
+          9000,
+        );
+      } catch (err) {
+        console.error(err);
+        toast("Le PDF n'a pas pu être créé. Réessayez.", 'erreur');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
     }
     if (btn.dataset.action === 'terminer') {
       // La date de lecture (fiche A4) est remplie avec la date du jour si elle était vide.
@@ -292,9 +351,10 @@ export async function renderLivre(view, params) {
       const i = partsOf(book).indexOf(part) + 1;
       const c = chapterOf(part.fiche, i - 1, partsOf(book).length);
       const nom = c.titre ? `« ${c.titre} »` : `n° ${i}`;
-      if (!confirm(`Supprimer définitivement la fiche ${nom} du livre « ${book.title} » ? Les autres fiches du livre sont gardées.`)) return;
+      const seule = partsOf(book).length === 1;
+      if (!confirm(`Supprimer définitivement la fiche ${nom} du livre « ${book.title} » ? ${seule ? 'Le livre reste dans votre livre de lectures (titre, auteur, notice), sans fiche : vous pourrez lui en ajouter une nouvelle.' : 'Les autres fiches du livre sont gardées.'}`)) return;
       await saveBook(withoutPart(book, part.id));
-      toast(`La fiche ${nom} a été supprimée.`);
+      toast(`La fiche ${nom} a été supprimée.${seule ? ' Le livre est gardé : « + Ajouter une fiche » pour en refaire une.' : ''}`, 'ok', 7000);
       renderLivre(view, { ch: book.id });
     }
     if (btn.dataset.action === 'fichea4') {

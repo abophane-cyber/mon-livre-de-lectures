@@ -4,7 +4,7 @@ import literata700 from '@fontsource/literata/files/literata-latin-700-normal.wo
 import literata400i from '@fontsource/literata/files/literata-latin-400-italic.woff?url';
 import literata700i from '@fontsource/literata/files/literata-latin-700-italic.woff?url';
 import { buildDocDefinition } from './pdfdoc.js';
-import { buildFicheA4Doc, fitItems } from './fichea4.js';
+import { SCALES, buildFicheA4Doc, buildGeneralA4Doc, fitItems } from './fichea4.js';
 import { downloadBlob } from './download.js';
 import { normalize } from './util.js';
 
@@ -65,6 +65,38 @@ export async function createFichesA4Blob(books, options = {}) {
 
 export async function downloadFichesA4(books, filename, options = {}) {
   const result = await createFichesA4Blob(books, options);
+  downloadBlob(result.blob, filename);
+  return result;
+}
+
+/**
+ * Résumé général A4. Le texte est un peu réduit (jusqu'à 85 %) s'il dépasse de peu le nombre
+ * de pages demandé. Renvoie { blob, pages }.
+ */
+export async function createGeneralA4Blob(book) {
+  const pdfMake = await loadPdfMake();
+  const countPages = async (doc) => {
+    let n = 0;
+    await pdfMake.createPdf({ ...doc, footer: (p, c) => ((n = c), null) }).getBuffer();
+    return n;
+  };
+  const voulu = book.resumeGeneral?.pages || 1;
+  let scale = 1;
+  let pages = await countPages(buildGeneralA4Doc(book, 1));
+  for (const s of SCALES.filter((x) => x < 1 && x >= 0.85)) {
+    if (pages <= voulu) break;
+    const n = await countPages(buildGeneralA4Doc(book, s));
+    if (n < pages) {
+      scale = s;
+      pages = n;
+    }
+  }
+  const blob = await pdfMake.createPdf(buildGeneralA4Doc(book, scale)).getBlob();
+  return { blob, pages };
+}
+
+export async function downloadGeneralA4(book, filename) {
+  const result = await createGeneralA4Blob(book);
   downloadBlob(result.blob, filename);
   return result;
 }
