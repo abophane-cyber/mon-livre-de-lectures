@@ -281,11 +281,15 @@ mark {
 .couverture-bloc p { margin: 0 0 8px; }
 .couverture-apercu { flex: 0 0 86px; }
 .couverture-apercu img { display: block; width: 86px; height: auto; border-radius: 3px; box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
-.couverture-defaut { width: 86px; aspect-ratio: 2 / 3; background: #344C2D; color: #fff; border-radius: 3px; padding: 10px 7px;
-  display: flex; flex-direction: column; justify-content: center; gap: 6px; text-align: center; overflow: hidden;
+.couverture-defaut { position: relative; width: 86px; aspect-ratio: 210 / 297; background: #fff; color: #171717; border-radius: 2px;
+  padding: 11px 6px 8px 14px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; font-family: Literata, serif;
   box-shadow: 0 1px 4px rgb(0 0 0 / .25); }
-.couverture-defaut span { font-family: Literata, serif; font-weight: 700; font-size: 10px; line-height: 1.15; text-transform: uppercase; overflow-wrap: anywhere; }
-.couverture-defaut em { font-family: Literata, serif; font-size: 9px; color: #cfd8bd; }
+.couverture-defaut::before { content: ""; position: absolute; left: 2px; top: 2px; bottom: 2px; width: 3px; background: #344C2D;
+  clip-path: polygon(100% 0, 100% 100%, 0 98%, 0 2%); }
+.couverture-defaut small { font: 700 4.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: #718052; }
+.couverture-defaut span { font-weight: 700; font-size: 8.5px; line-height: 1.15; text-transform: uppercase; color: #18331D; overflow-wrap: anywhere; }
+.couverture-defaut em { font-size: 7px; }
+.couverture-defaut hr { border: 0; border-top: 1px solid #718052; margin: 2px 0 0; width: 100%; }
 .notice #ajouter-notice { margin-top: 2px; }
 .notice #ajouter-notice + .petit { margin: 6px 0 0; }
 .case-simple { flex-direction: row; align-items: center; gap: 10px; font-weight: 400; }

@@ -72,7 +72,7 @@ export async function renderModifier(view, params) {
         <div class="couverture-apercu" id="couv-apercu"></div>
         <div>
           <p><strong>Couverture</strong> <span class="petit">(recto de la page de présentation de la fiche A4 ; sans image,
-            une couverture verte avec le titre et l'auteur)</span></p>
+            c'est la page d'informations du livre, à bande verte, qui sert de couverture)</span></p>
           <div class="rangee">
             <button type="button" class="btn" id="couv-chercher">Chercher la couverture (ISBN)</button>
             <label class="btn">Choisir une image…<input type="file" id="couv-fichier" accept="image/*" hidden></label>
@@ -130,7 +130,7 @@ export async function renderModifier(view, params) {
     const box = $('#couv-apercu', form);
     box.innerHTML = cover
       ? `<img src="${esc(cover.cover)}" alt="Couverture">`
-      : `<div class="couverture-defaut"><span>${esc(form.elements.title.value || book.title)}</span><em>${esc(form.elements.author.value)}</em></div>`;
+      : `<div class="couverture-defaut"><small>Fiche de lecture</small><span>${esc(form.elements.title.value || book.title)}</span><em>${esc(form.elements.author.value)}</em><hr></div>`;
     $('#couv-retirer', form).hidden = !cover;
   };
   showCover();
@@ -149,7 +149,7 @@ export async function renderModifier(view, params) {
       showCover();
       sayCouv('Couverture trouvée ✓ Elle sera gardée quand vous cliquerez sur « Enregistrer ».');
     } else {
-      sayCouv("Pas de couverture trouvée pour cet ISBN. Vous pouvez choisir une image (photo du livre, image d'une librairie enregistrée), sinon la couverture verte sera utilisée.");
+      sayCouv("Pas de couverture trouvée pour cet ISBN. Vous pouvez choisir une image (photo du livre, image d'une librairie enregistrée), sinon la page d'informations du livre servira de couverture.");
     }
   }
   $('#couv-chercher', form).addEventListener('click', () => searchCover());
@@ -168,7 +168,7 @@ export async function renderModifier(view, params) {
   $('#couv-retirer', form).addEventListener('click', () => {
     cover = null;
     showCover();
-    sayCouv('Couverture retirée : la couverture verte sera utilisée.');
+    sayCouv("Couverture retirée : la page d'informations du livre servira de couverture.");
   });
 
   wireRemplir(form, {
