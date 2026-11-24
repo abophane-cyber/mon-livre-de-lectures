@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { buildFicheA4Doc, buildGeneralA4Doc, fitItems } from '../src/fichea4.js';
+import { motsPour } from '../src/general.js';
 
 const require = createRequire(import.meta.url);
 const pdfmake = require('pdfmake');
@@ -121,12 +122,13 @@ test('bibliographie d’un chapitre : au verso de sa propre fiche, jamais la not
   assert.ok(!JSON.stringify(doc.content).includes('ISBN'));
 });
 
-test('résumé général : environ 450 mots par page A4', async () => {
+test('résumé général : la longueur demandée tient dans le nombre de pages', async () => {
   // Texte français ordinaire (longueur moyenne des mots réaliste).
   const fr = "Le livre montre que la dette publique n'est pas un fardeau mais un outil politique qui permet de financer les services publics et la transition écologique sans sacrifier les plus fragiles".split(' ');
   const words = (n) => Array.from({ length: n }, (_, i) => fr[i % fr.length]).join(' ') + '.';
-  const gen = (pages) => {
-    const total = 330 + (pages - 1) * 400;
+  // `trop` : l'IA écrit plus que demandé (1,25 = 25 % de trop).
+  const gen = (pages, trop = 1) => {
+    const total = Math.round(motsPour(pages) * trop);
     const idees = Array.from({ length: Math.min(12, 2 + pages * 2) }, (_, i) => ({ titre: 'Idée ' + i, texte: words(15) }));
     const reste = total - idees.length * 17;
     const nSec = pages > 1 ? pages + 1 : 1;
@@ -136,12 +138,13 @@ test('résumé général : environ 450 mots par page A4', async () => {
     }));
     return { title: 'Le livre', author: 'Auteur', resumeGeneral: { pages, sections, idees } };
   };
-  for (const p of [1, 2, 4]) {
-    // Comme au téléchargement : le texte peut être réduit jusqu'à 85 % pour tenir.
+  for (const p of [1, 2, 4, 5, 8]) {
+    // Longueur demandée : tient sans réduire le texte.
     const n1 = await countPages(buildGeneralA4Doc(gen(p)));
-    const n = await countPages(buildGeneralA4Doc(gen(p), 0.85));
-    console.log(`  ${p} page(s) demandée(s) → ${n1} (100 %), ${n} (85 %)`);
-    assert.ok(n >= p - 1 && n <= p, `${p} → ${n}`);
+    assert.ok(n1 <= p && n1 >= p - 1, `${p} page(s) demandée(s) → ${n1}`);
+    // L'IA a écrit 25 % de trop : tient en réduisant le texte (jusqu'à 79 %).
+    const n = await countPages(buildGeneralA4Doc(gen(p, 1.25), 0.79));
+    assert.ok(n <= p, `${p} page(s) demandée(s), 25 % de trop → ${n}`);
   }
 });
 

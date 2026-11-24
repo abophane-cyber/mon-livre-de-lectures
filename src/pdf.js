@@ -76,14 +76,17 @@ export async function downloadFichesA4(books, filename, options = {}) {
 }
 
 /**
- * Résumé général A4. Le texte est un peu réduit (jusqu'à 85 %) s'il dépasse de peu le nombre
+ * Résumé général A4. Le texte est un peu réduit (jusqu'à 79 %) s'il dépasse le nombre
  * de pages demandé. Renvoie { blob, pages }.
  */
+/** Le résumé général peut être réduit jusqu'à 79 % pour tenir dans le nombre de pages demandé. */
+const MIN_GENERAL = 0.79;
+
 async function fitGeneralPages(book, countPages) {
   const voulu = book.resumeGeneral?.pages || 1;
   let scale = 1;
   let pages = await countPages(buildGeneralA4Doc(book, 1));
-  for (const s of SCALES.filter((x) => x < 1 && x >= 0.85)) {
+  for (const s of SCALES.filter((x) => x < 1 && x >= MIN_GENERAL)) {
     if (pages <= voulu) break;
     const n = await countPages(buildGeneralA4Doc(book, s));
     if (n < pages) {

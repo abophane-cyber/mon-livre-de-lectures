@@ -5,10 +5,11 @@ import { chapterOf, partsOf } from './fiches.js';
 import { normalize } from './util.js';
 
 /**
- * Nombre de mots pour remplir `pages` pages A4 (mesuré sur la mise en page du PDF : la première
- * page, avec le titre, contient moins de texte). Un peu de marge pour les intertitres et idées clés.
+ * Nombre de mots à demander pour `pages` pages A4. Mesuré sur la mise en page du PDF : une page
+ * contient environ 355 mots. On en demande moins (320 par page), car l'IA écrit souvent un peu
+ * plus que demandé et les idées clés prennent de la place ; le PDF réduit un peu le texte si besoin.
  */
-export const motsPour = (pages) => 330 + (Math.max(1, pages) - 1) * 400;
+export const motsPour = (pages) => 310 + (Math.max(1, pages) - 1) * 320;
 export const PAGES_MIN = 1;
 export const PAGES_MAX = 20;
 
