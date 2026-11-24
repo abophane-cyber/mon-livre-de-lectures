@@ -1,7 +1,7 @@
 // Vue « PDF » : choisir le format et les fiches, puis télécharger le PDF à imprimer.
 import { getOrder, getSettings, liveBooks, setSettings } from '../db.js';
 import { sortBooks } from '../books.js';
-import { chapterOf, partsOf, readyFiches } from '../fiches.js';
+import { bookOnly, chapterOf, partsOf, readyFiches } from '../fiches.js';
 import { canShareFiles, shareBlob } from '../download.js';
 import { esc, formatDate, pluralize } from '../util.js';
 import { $, $$, getPrefs, setPrefs, toast } from '../ui.js';
@@ -21,9 +21,26 @@ const FORMATS = {
 export async function renderPdf(view) {
   const [books, order, settings] = await Promise.all([liveBooks(), getOrder(), getSettings()]);
   const sorted = sortBooks(books, order, getPrefs().sort);
-  // Une case par fiche terminée (un livre peut en avoir plusieurs, une par chapitre).
-  const ready = readyFiches(sorted);
+  // Une case par fiche terminée (un livre peut en avoir plusieurs, une par chapitre),
+  // et une pour le résumé général du livre s'il y en a un (placé avant ses fiches).
+  const ready = sorted.flatMap((b) => [
+    ...(b.resumeGeneral?.sections?.length ? [{ ...bookOnly(b), general: true, ficheId: 'general' }] : []),
+    ...readyFiches([b]),
+  ]);
   const keyOf = (b) => `${b.id}:${b.ficheId}`;
+  const nomCase = (b) => {
+    if (b.general) return ` — <strong>Résumé général</strong> (${pluralize(b.resumeGeneral.pages, 'page', 'pages')})`;
+    if (b.ficheCount > 1) {
+      const ch = chapterOf(b.fiche, b.ficheIndex, b.ficheCount);
+      return ` — ${esc([ch.label, ch.titre].filter(Boolean).join(' : '))}`;
+    }
+    return '';
+  };
+  const compte = (list) => {
+    const g = list.filter((b) => b.general).length;
+    const n = list.length - g;
+    return [n || !g ? pluralize(n, 'fiche', 'fiches') : '', g ? pluralize(g, 'résumé général', 'résumés généraux') : ''].filter(Boolean).join(' + ');
+  };
   const waiting = sorted.reduce((n, b) => n + partsOf(b).filter((p) => !p.fiche).length, 0);
   const date = formatDate(Date.now());
   let format = FORMATS[getPrefs().pdfFormat] ? getPrefs().pdfFormat : 'a4';
@@ -54,7 +71,7 @@ export async function renderPdf(view) {
            ${ready
              .map(
                (b) => `<label class="case"><input type="checkbox" value="${esc(keyOf(b))}" checked>
-                 <span>${esc(b.title)}${b.ficheCount > 1 ? ` — ${esc([chapterOf(b.fiche, b.ficheIndex, b.ficheCount).label, chapterOf(b.fiche, b.ficheIndex, b.ficheCount).titre].filter(Boolean).join(' : '))}` : ''}${b.author || b.pubDate ? ` <em>— ${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</em>` : ''}</span></label>`,
+                 <span>${esc(b.title)}${nomCase(b)}${b.author || b.pubDate ? ` <em>— ${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</em>` : ''}</span></label>`,
              )
              .join('')}`
         : '<p>Aucune fiche terminée pour le moment.</p>'}
@@ -62,7 +79,7 @@ export async function renderPdf(view) {
         ? `<p class="petit">${pluralize(waiting, 'fiche à terminer n\'est pas incluse', 'fiches à terminer ne sont pas incluses')}.</p>`
         : ''}
     </fieldset>
-    <p class="petit">Les fiches suivent l'ordre choisi dans « Mon livre ».</p>
+    <p class="petit">Les fiches suivent l'ordre choisi dans « Mon livre ». Le résumé général d'un livre est placé avant ses fiches.</p>
     <div class="rangee">
       <button class="btn primaire" id="telecharger" ${ready.length ? '' : 'disabled'}>Télécharger le PDF</button>
       <button class="btn" id="partager" hidden>Partager le PDF…</button>
@@ -77,9 +94,10 @@ export async function renderPdf(view) {
 
   const boxes = () => $$('.choix-fiches input[type="checkbox"]', view);
   const update = () => {
-    const n = boxes().filter((b) => b.checked).length;
+    const ids = new Set(boxes().filter((b) => b.checked).map((b) => b.value));
+    const n = ids.size;
     const btn = $('#telecharger', view);
-    btn.textContent = `Télécharger le PDF (${pluralize(n, 'fiche', 'fiches')})`;
+    btn.textContent = `Télécharger le PDF (${compte(ready.filter((b) => ids.has(keyOf(b))))})`;
     btn.disabled = n === 0;
     $('#aide-format', view).textContent = FORMATS[format].aide;
     $('#couverture', view).hidden = format !== 'livre';
@@ -118,12 +136,24 @@ export async function renderPdf(view) {
         lastBlob = await pdf.downloadPdf(chosen, cover, lastName);
         etat.textContent = 'Le PDF est dans votre dossier Téléchargements ✓';
       } else {
-        lastName = chosen.length === 1 ? `fiche-${pdf.slug(chosen[0].title)}.pdf` : 'fiches-de-lecture-A4.pdf';
-        const { blob, small } = await pdf.downloadFichesA4(chosen, lastName, { presentation: $("#presentation", view).checked });
-        lastBlob = blob;
-        etat.textContent = `Le PDF est dans votre dossier Téléchargements ✓ (${pluralize(chosen.length, 'feuille', 'feuilles')} recto-verso)`;
-        if (small.length) {
-          toast(`Texte long imprimé en petits caractères pour : ${small.join(', ')}. La longueur « Court » ou « Moyen » donne une fiche plus lisible.`, 'attention', 10000);
+        const presentation = $('#presentation', view).checked;
+        const seul = chosen.length === 1 ? chosen[0] : null;
+        if (seul?.general && !presentation) {
+          // Le résumé général seul : avec les numéros de page.
+          lastName = `resume-general-${pdf.slug(seul.title)}.pdf`;
+          const { blob, pages } = await pdf.downloadGeneralA4(seul, lastName);
+          lastBlob = blob;
+          etat.textContent = `Le PDF est dans votre dossier Téléchargements ✓ (${pluralize(pages, 'page', 'pages')})`;
+        } else {
+          lastName = seul ? `${seul.general ? 'resume-general' : 'fiche'}-${pdf.slug(seul.title)}.pdf` : 'fiches-de-lecture-A4.pdf';
+          const { blob, small } = await pdf.downloadFichesA4(chosen, lastName, { presentation });
+          lastBlob = blob;
+          const nf = chosen.filter((b) => !b.general).length;
+          const ng = chosen.length - nf;
+          etat.textContent = `Le PDF est dans votre dossier Téléchargements ✓ (${[nf ? pluralize(nf, 'feuille', 'feuilles') + ' recto-verso' : '', ng ? pluralize(ng, 'résumé général', 'résumés généraux') : ''].filter(Boolean).join(' + ')})`;
+          if (small.length) {
+            toast(`Texte long imprimé en petits caractères pour : ${small.join(', ')}. La longueur « Court » ou « Moyen » donne une fiche plus lisible.`, 'attention', 10000);
+          }
         }
       }
       if (canShareFiles()) $('#partager', view).hidden = false;

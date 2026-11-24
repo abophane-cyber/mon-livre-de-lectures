@@ -228,9 +228,15 @@ export function buildFicheA4Doc(items, onPageCount, { presentation: withPresenta
   // Chaque fiche a au verso la bibliographie de son chapitre ; la dernière, aussi la bibliographie
   // générale du livre.
   const same = (a, b) => !!a && !!b && a.book.id != null && a.book.id === b.book.id;
-  items.forEach(({ book, r = 1, v = 1, flow = false }, i) => {
+  items.forEach(({ book, r = 1, v = 1, flow = false, general = false }, i) => {
     const first = !same(items[i - 1], items[i]);
     const last = !same(items[i], items[i + 1]);
+    // Résumé général du livre (avant ses fiches) : sur plusieurs pages, sans verso particulier.
+    if (general) {
+      if (withPresentation && first) content.push({ stack: presentation(book), pageBreak: i ? 'beforeOdd' : undefined });
+      content.push({ stack: generalContent(book, r), pageBreak: i || (withPresentation && first) ? 'beforeOdd' : undefined });
+      return;
+    }
     if (withPresentation && first) {
       content.push({ stack: presentation(book), pageBreak: i ? 'beforeOdd' : undefined });
       content.push({ stack: recto(book, r), pageBreak: 'beforeOdd' });
@@ -245,6 +251,8 @@ export function buildFicheA4Doc(items, onPageCount, { presentation: withPresenta
     pageMargins: MARGINS,
     info: { title: items.length === 1 ? `Fiche — ${items[0].book.title}` : 'Fiches de lecture' },
     content,
+    // Un intertitre du résumé général ne reste jamais seul en bas de page.
+    pageBreakBefore: (node, following) => node.headlineLevel === 1 && following.getFollowingNodesOnPage().length === 0,
     footer: (page, count) => {
       onPageCount?.(count);
       return null;
@@ -306,7 +314,7 @@ export async function fitItems(books, countPages) {
  * Résumé général d'un livre, sur plusieurs pages A4 : titre du livre et auteur, intertitres,
  * paragraphes, puis les idées clés. `s` réduit un peu le texte pour tenir dans le nombre de pages voulu.
  */
-export function buildGeneralA4Doc(book, s = 1) {
+export function generalContent(book, s = 1) {
   const g = book.resumeGeneral || { sections: [], idees: [] };
   const content = [
     ...header(s, 'Résumé général', book.title),
@@ -331,11 +339,16 @@ export function buildGeneralA4Doc(book, s = 1) {
       });
     });
   }
+  return content;
+}
+
+/** Résumé général seul : le document PDF, avec les numéros de page. */
+export function buildGeneralA4Doc(book, s = 1) {
   return {
     pageSize: 'A4',
     pageMargins: [MARGINS[0], MARGINS[1], MARGINS[2], 56],
     info: { title: `Résumé général — ${book.title}` },
-    content,
+    content: generalContent(book, s),
     // Un intertitre ne reste jamais seul en bas de page.
     pageBreakBefore: (node, following) => node.headlineLevel === 1 && following.getFollowingNodesOnPage().length === 0,
     footer: (page, count) => (count > 1 ? { text: `${page} / ${count}`, alignment: 'center', fontSize: 9, color: GREY, margin: [0, 22, 0, 0] } : null),

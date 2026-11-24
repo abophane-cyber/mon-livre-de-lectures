@@ -157,3 +157,23 @@ test('PDF livre complet : informations du livre sous le titre', async () => {
   const doc = buildDocDefinition([{ id: 'a', title: 'Riches ensemble !', editeur: 'Seuil', fiche: { resume: ['Texte.'] } }], { titreLivre: 'T', date: '' });
   assert.ok(JSON.stringify(doc.content).includes('Seuil'));
 });
+
+test('résumé général dans le PDF des fiches A4 et du livre complet', async () => {
+  const { buildDocDefinition } = await import('../src/pdfdoc.js');
+  const g = {
+    id: 'b1',
+    title: 'Madame Bovary',
+    author: 'Gustave Flaubert',
+    general: true,
+    ficheId: 'general',
+    resumeGeneral: { pages: 2, sections: [{ titre: 'Le mariage', paragraphes: [para.repeat(20), para.repeat(20)] }], idees: [{ titre: 'Ennui', texte: para }] },
+  };
+  const fiche = { ...book(2, 2, 0), id: 'b1', ficheId: 'p1', ficheIndex: 0, ficheCount: 1 };
+  const a4 = buildFicheA4Doc([{ book: g, r: 1, general: true }, { book: fiche, r: 1, v: 1 }], null, { presentation: true });
+  const n = await countPages(a4);
+  assert.ok(n >= 4, `pages A4 : ${n}`);
+  const livre = buildDocDefinition([g, fiche], { titreLivre: 'Test', nom: '', date: '' });
+  assert.equal(livre.content[0].stack[4].text, '1 fiche de lecture et 1 résumé général');
+  assert.ok((await countPages(livre)) >= 4);
+  assert.ok(JSON.stringify(livre.content).includes('RÉSUMÉ GÉNÉRAL'));
+});

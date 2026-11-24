@@ -57,8 +57,14 @@ export async function createFichesA4Blob(books, options = {}) {
     await pdfMake.createPdf({ ...doc, footer: (p, c) => ((n = c), null) }).getBuffer();
     return n;
   };
-  const { items, tooLong } = await fitItems(books, countPages);
-  const small = items.filter((i) => Math.min(i.r, i.v) < 0.75).map((i) => i.book.title);
+  // Les résumés généraux sont mis en page à part, puis remis à leur place (avant les fiches du livre).
+  const fiches = books.filter((b) => !b.general);
+  const { items: fitted, tooLong } = await fitItems(fiches, countPages);
+  const items = [];
+  for (const b of books) {
+    items.push(b.general ? { book: b, r: await fitGeneral(b, countPages), general: true } : fitted.shift());
+  }
+  const small = items.filter((i) => !i.general && Math.min(i.r, i.v) < 0.75).map((i) => i.book.title);
   const blob = await pdfMake.createPdf(buildFicheA4Doc(items, null, options)).getBlob();
   return { blob, tooLong, small };
 }
@@ -73,13 +79,7 @@ export async function downloadFichesA4(books, filename, options = {}) {
  * Résumé général A4. Le texte est un peu réduit (jusqu'à 85 %) s'il dépasse de peu le nombre
  * de pages demandé. Renvoie { blob, pages }.
  */
-export async function createGeneralA4Blob(book) {
-  const pdfMake = await loadPdfMake();
-  const countPages = async (doc) => {
-    let n = 0;
-    await pdfMake.createPdf({ ...doc, footer: (p, c) => ((n = c), null) }).getBuffer();
-    return n;
-  };
+async function fitGeneralPages(book, countPages) {
   const voulu = book.resumeGeneral?.pages || 1;
   let scale = 1;
   let pages = await countPages(buildGeneralA4Doc(book, 1));
@@ -91,6 +91,22 @@ export async function createGeneralA4Blob(book) {
       pages = n;
     }
   }
+  return { scale, pages };
+}
+
+/** Taille du texte du résumé général (1 = normale). */
+async function fitGeneral(book, countPages) {
+  return (await fitGeneralPages(book, countPages)).scale;
+}
+
+export async function createGeneralA4Blob(book) {
+  const pdfMake = await loadPdfMake();
+  const countPages = async (doc) => {
+    let n = 0;
+    await pdfMake.createPdf({ ...doc, footer: (p, c) => ((n = c), null) }).getBuffer();
+    return n;
+  };
+  const { scale, pages } = await fitGeneralPages(book, countPages);
   const blob = await pdfMake.createPdf(buildGeneralA4Doc(book, scale)).getBlob();
   return { blob, pages };
 }

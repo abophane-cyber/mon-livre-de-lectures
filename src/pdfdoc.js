@@ -41,25 +41,15 @@ const sameBook = (a, b) => !!a && !!b && a.id != null && a.id === b.id;
  * Une fiche. La première fiche d'un livre ouvre le chapitre (titre, sommaire) ;
  * les suivantes commencent sur une nouvelle page ; chacune finit par la bibliographie de son chapitre.
  */
-function chapter(book, { first = true, last = true } = {}) {
-  const f = book.fiche;
-  const ch = chapterOf(f, book.ficheIndex || 0, book.ficheCount || 1);
-  const meta = [book.author, book.pubDate, f.genre].filter(Boolean).join(' · ');
-  const rule = {
-    canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 1.2, lineColor: ACCENT }],
-    margin: [0, 10, 0, 14],
-  };
-  const out = !first
-    ? [
-        { text: book.title, style: 'meta', margin: [0, 0, 0, 0], pageBreak: 'before' },
-        rule,
-      ]
-    : [
+/** En-tête de la première page d'un livre : entrée du sommaire, titre, auteur, notice, filet. */
+function bookHead(book, meta, rule) {
+  return [
     // Ligne invisible qui sert uniquement d'entrée au sommaire : titre, puis auteur et date de parution.
     {
       text: [
         { text: book.title, bold: true },
-        ...(byline(book) ? [{ text: `\n${byline(book)}`, italics: true, color: GREY, fontSize: 9.5 }] : []),
+        ...(byline(book) ? [{ text: `
+${byline(book)}`, italics: true, color: GREY, fontSize: 9.5 }] : []),
       ],
       pageBreak: 'before',
       tocItem: true,
@@ -75,6 +65,49 @@ function chapter(book, { first = true, last = true } = {}) {
     ...noticeBlock(book),
     rule,
   ];
+}
+
+const accentRule = () => ({
+  canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 1.2, lineColor: ACCENT }],
+  margin: [0, 10, 0, 14],
+});
+
+/** Résumé général du livre (synthèse de toutes ses fiches), avant ses fiches. */
+function generalChapter(book, { first = true } = {}) {
+  const g = book.resumeGeneral || { sections: [], idees: [] };
+  const out = first
+    ? bookHead(book, byline(book), accentRule())
+    : [{ text: book.title, style: 'meta', margin: [0, 0, 0, 0], pageBreak: 'before' }, accentRule()];
+  out.push({ text: 'RÉSUMÉ GÉNÉRAL', style: 'chapterLabel' });
+  for (const sec of g.sections || []) {
+    if (sec.titre) out.push({ text: sec.titre, style: 'chapterTitle', margin: [0, 8, 0, 6], headlineLevel: 1 });
+    for (const p of sec.paragraphes) out.push({ text: p, style: 'body' });
+  }
+  if (g.idees?.length) {
+    out.push(section('Idées clés du livre'));
+    for (const i of g.idees) {
+      out.push({
+        stack: [
+          { text: i.titre, bold: true, margin: [0, 0, 0, 2] },
+          i.texte ? { text: i.texte, style: 'body', margin: [0, 0, 0, 0] } : '',
+        ],
+        unbreakable: true,
+        margin: [0, 0, 0, 8],
+      });
+    }
+  }
+  return out;
+}
+
+function chapter(book, { first = true, last = true } = {}) {
+  if (book.general) return generalChapter(book, { first });
+  const f = book.fiche;
+  const ch = chapterOf(f, book.ficheIndex || 0, book.ficheCount || 1);
+  const meta = [book.author, book.pubDate, f.genre].filter(Boolean).join(' · ');
+  const rule = accentRule();
+  const out = first
+    ? bookHead(book, meta, rule)
+    : [{ text: book.title, style: 'meta', margin: [0, 0, 0, 0], pageBreak: 'before' }, rule];
   // Partie du livre, avant le chapitre : « PARTIE 1 · LES ORIGINES ».
   const pt = partOf(f);
   const partie = pt ? [pt.label, pt.titre].filter(Boolean).join(' · ') : '';
@@ -143,6 +176,16 @@ function chapter(book, { first = true, last = true } = {}) {
   return out;
 }
 
+/** « 3 fiches de lecture et 1 résumé général » */
+function coverCount(books) {
+  const g = books.filter((b) => b.general).length;
+  const n = books.length - g;
+  return [
+    n ? `${n} fiche${n > 1 ? 's' : ''} de lecture` : '',
+    g ? `${g} résumé${g > 1 ? 's' : ''} général${g > 1 ? 'aux' : ''}` : '',
+  ].filter(Boolean).join(' et ');
+}
+
 /**
  * @param {Array} books fiches à imprimer, dans l'ordre (chacune avec book.fiche)
  * @param {{titreLivre: string, nom: string, date: string}} cover
@@ -159,7 +202,7 @@ export function buildDocDefinition(books, cover) {
         },
         cover.nom ? { text: cover.nom, style: 'coverName' } : '',
         { text: cover.date || '', style: 'coverDate' },
-        { text: `${books.length} fiche${books.length > 1 ? 's' : ''} de lecture`, style: 'coverDate' },
+        { text: coverCount(books), style: 'coverDate' },
       ],
       margin: [0, 200, 0, 0],
     },
