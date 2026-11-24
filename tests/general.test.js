@@ -11,7 +11,7 @@ test('résumé général : la demande contient toutes les fiches terminées, dan
   b = withPart(b, newPart({ fiche: fiche('Chapitre 3. Fin', 'Résumé trois.') }));
   const p = buildGeneralPrompt(b, 3);
   assert.match(p, /3 pages A4/);
-  assert.match(p, /environ 950 mots/);
+  assert.match(p, /environ 1020 mots/);
   assert.match(p, /MES FICHES \(2 chapitres\)/);
   assert.ok(p.indexOf('Résumé un.') < p.indexOf('Résumé trois.'));
   assert.match(p, /=== Chapitre 1 : Début ===/);

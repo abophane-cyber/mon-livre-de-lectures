@@ -6,10 +6,10 @@ import { normalize } from './util.js';
 
 /**
  * Nombre de mots à demander pour `pages` pages A4. Mesuré sur la mise en page du PDF : une page
- * contient environ 355 mots. On en demande moins (320 par page), car l'IA écrit souvent un peu
- * plus que demandé et les idées clés prennent de la place ; le PDF réduit un peu le texte si besoin.
+ * contient environ 355 mots. On en demande à peine moins (345 par page) : l'IA écrit souvent moins
+ * que demandé ; si elle écrit trop, le PDF réduit un peu le texte pour tenir dans les pages.
  */
-export const motsPour = (pages) => 310 + (Math.max(1, pages) - 1) * 320;
+export const motsPour = (pages) => 330 + (Math.max(1, pages) - 1) * 345;
 export const PAGES_MIN = 1;
 export const PAGES_MAX = 20;
 
@@ -27,6 +27,9 @@ export function buildGeneralPrompt(book, pages) {
   const parts = partsOf(book);
   const done = parts.map((p, i) => ({ p, i })).filter(({ p }) => p.fiche);
   const mots = motsPour(n);
+  // Une partie par page, avec un nombre de mots pour chacune : l'IA respecte mieux la longueur.
+  const nIdees = ideesPour(n);
+  const parPartie = Math.round((mots - nIdees * 22) / n / 10) * 10;
   const langue = book.lang || 'français';
   const fiches = done
     .map(({ p, i }) => {
@@ -46,9 +49,9 @@ LIVRE
 RÈGLES
 1. Appuie-toi uniquement sur mes fiches ci-dessous. N'invente rien. Couvre tout le livre, du début à la fin, en suivant l'ordre des chapitres, de façon équilibrée.
 2. Rédige en ${langue}, avec des phrases complètes et des transitions naturelles : un vrai texte suivi, pas une liste de résumés de chapitres mis bout à bout.
-3. Longueur : environ ${mots} mots au total (${n} page${n > 1 ? 's' : ''} A4), idées clés comprises. Respecte cette longueur.
-4. ${n > 1 ? `Organise le résumé en grandes parties, chacune avec un intertitre court sur sa propre ligne, commençant par « ### ».` : `Pas d'intertitres : seulement des paragraphes.`}
-5. Termine par ${ideesPour(n)} idées clés de tout le livre, une phrase chacune.
+3. Longueur : environ ${mots} mots au total (${n} page${n > 1 ? 's' : ''} A4), idées clés comprises. C'est important : ne fais pas plus court, sinon le résumé ne remplira pas ses ${n} page${n > 1 ? 's' : ''}. Compte tes mots avant de répondre.
+4. ${n > 1 ? `Organise le résumé en ${n} grandes parties, chacune avec un intertitre court sur sa propre ligne, commençant par « ### ». Chaque partie fait environ ${parPartie} mots (2 à 4 paragraphes).` : `Pas d'intertitres : environ ${parPartie} mots en paragraphes.`}
+5. Termine par ${nIdees} idées clés de tout le livre, une phrase d'environ 20 mots chacune.
 6. ${CONSIGNE_NEUTRE}
 7. Réponds directement dans la conversation, en texte simple : pas de document, pas d'artefact, pas de canvas, pas de bloc de code. Suis exactement ce modèle, sans rien ajouter avant « ## RÉSUMÉ GÉNÉRAL » ni après la dernière idée clé :
 

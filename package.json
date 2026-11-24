@@ -10,7 +10,7 @@
     "icons": "pwa-assets-generator --preset minimal-2023 public/icon.svg",
     "build:app": "vite build --mode native",
     "exe": "npm run build:app && electron-builder --win nsis",
-    "apk": "npm run build:app && cap sync android && cd android && gradlew.bat assembleDebug",
+    "apk": "npm run build:app && cap sync android && cd android && .\\gradlew.bat assembleDebug",
     "app": "npm run build:app && electron ."
   },
   "type": "module",
