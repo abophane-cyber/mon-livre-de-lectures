@@ -215,7 +215,7 @@ function renderGeneralBlock(book) {
       ${body}
       ${idees}
       <div class="actions">
-        <button class="btn primaire" data-action="generalA4" data-id="${esc(book.id)}">Résumé général A4</button>
+        <button class="btn primaire" data-action="generalA4" data-id="${esc(book.id)}">PDF</button>
         <a class="btn" href="#/general/${esc(book.id)}">Refaire (autre longueur, nouvelles fiches)</a>
         <button class="btn danger" data-action="supprimer-general" data-id="${esc(book.id)}">Supprimer le résumé général</button>
       </div>
