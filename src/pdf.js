@@ -102,6 +102,17 @@ async function fitGeneral(book, countPages) {
   return (await fitGeneralPages(book, countPages)).scale;
 }
 
+/** Nombre de pages du PDF du résumé général (sans créer le fichier). */
+export async function countGeneralPages(book) {
+  const pdfMake = await loadPdfMake();
+  const countPages = async (doc) => {
+    let n = 0;
+    await pdfMake.createPdf({ ...doc, footer: (p, c) => ((n = c), null) }).getBuffer();
+    return n;
+  };
+  return (await fitGeneralPages(book, countPages)).pages;
+}
+
 export async function createGeneralA4Blob(book) {
   const pdfMake = await loadPdfMake();
   const countPages = async (doc) => {

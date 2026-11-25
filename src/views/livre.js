@@ -175,6 +175,26 @@ function tocChapters(book) {
     .join('')}</ol></details>`;
 }
 
+/** « (5) » : nombre de pages du PDF (le nombre demandé tant qu'il n'est pas compté). */
+const pagesLabel = (g) => `(${g.pagesPdf || g.pages})`;
+
+/** Résumés généraux faits avant que l'appli compte les pages : on les compte une fois, puis on les garde. */
+async function countMissingPages(view, books) {
+  const todo = books.filter((b) => b.resumeGeneral?.sections?.length && !b.resumeGeneral.pagesPdf);
+  if (!todo.length) return;
+  const { countGeneralPages } = await import('../pdf.js');
+  for (const b of todo) {
+    try {
+      const pagesPdf = await countGeneralPages(b);
+      await saveBook({ ...b, resumeGeneral: { ...b.resumeGeneral, pagesPdf } });
+      const span = view.querySelector(`.nb-pages[data-general="${CSS.escape(b.id)}"]`);
+      if (span) span.textContent = pagesLabel({ pagesPdf });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}
+
 /** Résumé général du livre (synthèse de toutes ses fiches), replié par défaut, avant les chapitres. */
 function renderGeneralBlock(book) {
   const g = book.resumeGeneral;
@@ -188,8 +208,8 @@ function renderGeneralBlock(book) {
     : '';
   return `<details class="fiche-partie resume-general" id="fi-${esc(key)}" data-fi="${esc(key)}"${isOpen(key, 2) ? ' open' : ''}>
     <summary class="fiche-tete">
-      <span class="partie-num">Tout le livre · ${pluralize(g.pages, 'page', 'pages')}</span>
-      <span class="chapitre-resume">Résumé général</span>
+      <span class="partie-num">Tout le livre</span>
+      <span class="chapitre-resume">Résumé général <span class="nb-pages" data-general="${esc(book.id)}" title="Nombre de pages du PDF">${pagesLabel(g)}</span></span>
     </summary>
     <div class="fiche-corps">
       ${body}
@@ -363,6 +383,7 @@ export async function renderLivre(view, params) {
   for (const d of $$('details.fiche-partie, details.toc-details', view)) {
     d.addEventListener('toggle', () => setOpen(d.dataset.fi, d.open));
   }
+  countMissingPages(view, books);
 
   view.onclick = async (e) => {
     // Clic sur un thème : n'afficher que les livres de ce thème (re-clic : tous).

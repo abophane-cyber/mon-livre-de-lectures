@@ -129,10 +129,15 @@ export async function renderGeneral(view, params) {
     }
     const n = clampPages(input.value);
     const fresh = await getBook(book.id);
-    await saveBook({
-      ...fresh,
-      resumeGeneral: { pages: n, sections: r.sections, idees: r.idees, mots: r.mots, createdAt: Date.now() },
-    });
+    const resumeGeneral = { pages: n, sections: r.sections, idees: r.idees, mots: r.mots, createdAt: Date.now() };
+    // Nombre de pages du PDF, affiché à côté du titre « Résumé général ».
+    try {
+      const { countGeneralPages } = await import('../pdf.js');
+      resumeGeneral.pagesPdf = await countGeneralPages({ ...fresh, resumeGeneral });
+    } catch (err) {
+      console.error(err);
+    }
+    await saveBook({ ...fresh, resumeGeneral });
     clearDraft(draftKey);
     const ecart = r.mots / motsPour(n);
     toast(
