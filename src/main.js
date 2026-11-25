@@ -11,7 +11,7 @@ import { renderLivre } from './views/livre.js';
 import { renderAtelier } from './views/atelier.js';
 import { renderModifier } from './views/modifier.js';
 import { renderGeneral } from './views/general.js';
-import { renderSauvegarde } from './views/sauvegarde.js';
+import { receiveFile, renderSauvegarde } from './views/sauvegarde.js';
 import { renderPdf } from './views/pdfview.js';
 import { renderReglages } from './views/reglages.js';
 import { startAutoBackup } from './autobackup.js';
@@ -74,6 +74,23 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 applyTheme();
 route();
 startAutoBackup();
+
+// Appli Android : un fichier de sauvegarde ouvert avec l'appli (Mes fichiers, Quick Share, Partager)
+// est lu tout de suite dans la page Sauvegarde.
+function checkReceivedFile() {
+  const raw = window.LecturesAndroid?.takeFile?.();
+  if (!raw) return;
+  try {
+    const { name, text } = JSON.parse(raw);
+    receiveFile(new File([text], name || 'sauvegarde.json', { type: 'application/json' }));
+    if (location.hash === '#/sauvegarde') route();
+    else location.hash = '#/sauvegarde';
+  } catch (err) {
+    console.error(err);
+  }
+}
+checkReceivedFile();
+window.addEventListener('fichier-recu', checkReceivedFile);
 
 // Fonctionne hors connexion et se met à jour toute seule.
 // (Inutile dans les versions installées .exe et .apk, qui contiennent déjà tout.)

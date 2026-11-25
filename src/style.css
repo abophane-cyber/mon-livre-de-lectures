@@ -463,6 +463,9 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
         [data-action='rouvrir'], [href^='#/general'], [data-action='terminer'], [href='#/'], [href^='#/?'], #telecharger):hover {
   background: var(--f-fort); border-color: var(--f-fort);
 }
+/* « Envoyer par Quick Share… » (page Sauvegarde) : bouton bleu plein. */
+.sauvegarde #partager { background: #1a63c9; border-color: #1a63c9; color: #fff; }
+.sauvegarde #partager:hover { background: #14509f; border-color: #14509f; }
 .btn.danger { border-color: color-mix(in srgb, var(--danger) 45%, var(--filet)); background: color-mix(in srgb, var(--danger) 6%, var(--page)); }
 .btn.danger:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--page)); }
 

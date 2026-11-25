@@ -27,6 +27,12 @@ export function backupFileName(titre, date = new Date()) {
   return `${propre}_${p(date.getDate())}-${p(date.getMonth() + 1)}-${date.getFullYear()}-${p(date.getHours())}h${p(date.getMinutes())}.json`;
 }
 
+/** Fichier ouvert avec l'appli Android (voir main.js) : lu dès l'affichage de la page Sauvegarde. */
+let receivedFile = null;
+export function receiveFile(file) {
+  receivedFile = file;
+}
+
 const isPhone = () => /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 const deviceName = () => (isPhone() ? 'telephone' : 'ordinateur');
 const deviceLabel = (d) => (d === 'telephone' ? 'le téléphone' : d === 'ordinateur' ? "l'ordinateur" : "l'autre appareil");
@@ -410,6 +416,12 @@ export async function renderSauvegarde(view) {
       $('#mdp-import', view).select();
     }
   });
+
+  if (receivedFile) {
+    const file = receivedFile;
+    receivedFile = null;
+    openFile(file);
+  }
 
   $('#annuler-import', view).addEventListener('click', () => {
     pendingFile = null;
