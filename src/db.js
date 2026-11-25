@@ -101,6 +101,15 @@ export async function dumpAll() {
   };
 }
 
+/** Remet des livres supprimés sur cet appareil, tels qu'ils sont dans le fichier lu. */
+export async function restoreBooks(books) {
+  const db = await dbPromise;
+  const tx = db.transaction('books', 'readwrite');
+  const now = Date.now();
+  for (const b of books) tx.store.put({ ...b, deleted: false, mergedInto: undefined, updatedAt: now });
+  await tx.done;
+}
+
 /** Écrit le résultat d'une fusion. */
 export async function writeMerged({ books, order, settings }) {
   const db = await dbPromise;

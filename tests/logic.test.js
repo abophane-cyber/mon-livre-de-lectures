@@ -229,3 +229,12 @@ Le texte du résumé.
   assert.equal(partOf({ partie: '' }), null);
   assert.match(buildPrompt({ title: 'T', passages: ['x'] }), /^PARTIE : /m);
 });
+
+test('mergeBackup : livre supprimé ici après sa dernière modification → signalé, pas remis', () => {
+  const local = { books: [{ id: 'r', deleted: true, updatedAt: 9 }], order: { value: [], updatedAt: 1 } };
+  const incoming = { books: [book('r', { updatedAt: 5 })], order: { value: ['r'], updatedAt: 1 } };
+  const r = mergeBackup(local, incoming);
+  assert.deepEqual(r.report, { ajoutees: 0, misesAJour: 0, supprimees: 0, reunies: 0 });
+  assert.equal(r.books.find((b) => b.id === 'r').deleted, true);
+  assert.deepEqual(r.deletedHere.map((b) => b.id), ['r']);
+});

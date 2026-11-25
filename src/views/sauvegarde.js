@@ -1,7 +1,7 @@
 // Vue « Sauvegarde » : passer ses fiches d'un appareil à l'autre avec un fichier.
 // Deux gestes seulement : « Créer le fichier » sur un appareil, « Lire le fichier » sur l'autre.
 // Le fichier est chiffré par un mot de passe, demandé une seule fois puis mémorisé sur l'appareil.
-import { dumpAll, liveBooks, writeMerged } from '../db.js';
+import { dumpAll, liveBooks, restoreBooks, writeMerged } from '../db.js';
 import { partsOf } from '../fiches.js';
 import { BACKUP_APP, BACKUP_VERSION, makeBackup, mergeBackup, validateBackup } from '../sync.js';
 import { decryptJson, encryptJson, isEncrypted } from '../crypto.js';
@@ -332,8 +332,20 @@ export async function renderSauvegarde(view) {
     bilan.innerHTML = `<p><strong>Fichier lu ✓</strong></p>
       <p>Ce fichier a été créé sur ${deviceLabel(from)}${when}. Il contient ${pluralize(inBooks.length, 'livre', 'livres')} :
         ${inBooks.slice(0, 8).map((b) => `<em>${esc(b.title || 'Sans titre')}</em>`).join(', ')}${inBooks.length > 8 ? '…' : ''}.</p>
-      <p>${lines.length ? lines.join(' · ') : 'Tout était déjà sur cet appareil : rien à ajouter.'}</p>
+      <p>${lines.length ? lines.join(' · ') : merged.deletedHere.length ? 'Rien de nouveau à ajouter.' : 'Tout était déjà sur cet appareil : rien à ajouter.'}</p>
+      ${merged.deletedHere.length ? `<div class="deverrouiller">
+        <p>${merged.deletedHere.length > 1
+          ? "Ces livres avaient été <strong>supprimés sur cet appareil</strong> après leur dernière modification, alors ils n'ont pas été remis :"
+          : "Ce livre avait été <strong>supprimé sur cet appareil</strong> après sa dernière modification, alors il n'a pas été remis :"}
+          ${merged.deletedHere.map((b) => `<em>${esc(b.title || 'Sans titre')}</em>`).join(', ')}.</p>
+        <button class="btn primaire" type="button" id="remettre">${merged.deletedHere.length > 1 ? 'Remettre ces livres' : 'Remettre ce livre'}</button>
+      </div>` : ''}
       <a class="btn primaire" href="#/">Voir mon livre</a>`;
+    $('#remettre', bilan)?.addEventListener('click', async () => {
+      await restoreBooks(merged.deletedHere);
+      toast(merged.deletedHere.length > 1 ? 'Livres remis ✓' : 'Livre remis ✓');
+      location.hash = '#/';
+    });
     bilan.scrollIntoView({ block: 'center' });
   }
 

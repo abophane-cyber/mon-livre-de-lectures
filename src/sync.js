@@ -58,10 +58,12 @@ export function reconcileOrder(orderIds, liveBooks) {
  * - Fiche supprimée d'un côté : la suppression l'emporte si elle est plus récente.
  * - Même livre modifié des deux côtés : ses fiches sont réunies (pour chaque fiche, la plus récente l'emporte).
  * - Même livre créé séparément sur les deux appareils : ses fiches sont réunies dans un seul livre.
- * Renvoie { books, order, settings, report }.
+ * Renvoie { books, order, settings, report, deletedHere } (deletedHere : livres du fichier
+ * supprimés sur cet appareil après leur dernière modification, que l'on peut proposer de remettre).
  */
 export function mergeBackup(local, incoming) {
   const report = { ajoutees: 0, misesAJour: 0, supprimees: 0, reunies: 0 };
+  const deletedHere = []; // livres du fichier supprimés sur cet appareil (proposés à « Remettre »)
   const byId = new Map(local.books.map((b) => [b.id, normalizeBook({ ...b })]));
   const keyOf = (b) => bookKey(b.title, b.author);
 
@@ -88,6 +90,9 @@ export function mergeBackup(local, incoming) {
         if (newer) {
           report.ajoutees++;
           byId.set(inc.id, { ...inc });
+        } else if (!cur.mergedInto) {
+          // Supprimé ici après sa dernière modification : on ne le remet pas, mais on le signale.
+          deletedHere.push(inc);
         }
         continue;
       }
@@ -122,5 +127,6 @@ export function mergeBackup(local, incoming) {
     order: { value: reconcileOrder(order?.value, liveBooks), updatedAt: order?.updatedAt || 0 },
     settings: settings || { value: {}, updatedAt: 0 },
     report,
+    deletedHere,
   };
 }
