@@ -81,18 +81,41 @@ function afterCreateHtml(name) {
     </ol>`;
 }
 
+/** Ordinateur : après « Envoyer par Quick Share… », comment finir l'envoi vers le téléphone. */
+function quickSharePcHtml(name) {
+  const ouvrir = isDesktopApp
+    ? `L'<strong>Explorateur de fichiers</strong> vient de s'ouvrir sur le dossier <strong>Téléchargements</strong>, avec le fichier déjà sélectionné.`
+    : `Ouvrez l'<strong>Explorateur de fichiers</strong> → <strong>Téléchargements</strong> et trouvez ce fichier.`;
+  return `<p><strong>Fichier prêt ✓</strong> <code>${esc(name)}</code> est dans le dossier <strong>Téléchargements</strong> de l'ordinateur.</p>
+    <p>Pour l'envoyer au téléphone sans câble :</p>
+    <ol class="instructions">
+      <li>Sur le téléphone, allumez le <strong>Wi-Fi</strong> et le <strong>Bluetooth</strong>, et déverrouillez-le.</li>
+      <li>${ouvrir}</li>
+      <li>Faites un <strong>clic droit</strong> sur le fichier → <strong>Envoyer avec Quick Share</strong>
+        (si vous ne le voyez pas : <strong>Afficher d'autres options</strong> d'abord), puis choisissez votre <strong>Galaxy</strong>.
+        Vous pouvez aussi faire glisser le fichier dans la fenêtre de l'appli <strong>Quick Share</strong>.</li>
+      <li>Sur le téléphone, acceptez la réception, puis ouvrez l'appli, page <strong>Sauvegarde</strong>,
+        et touchez <strong>Lire le fichier de l'autre appareil</strong>.</li>
+    </ol>
+    <p class="petit">Quick Share n'est pas installé sur l'ordinateur ? Ouvrez le <strong>Microsoft Store</strong>, cherchez
+      « Quick Share », installez l'application de Google et connectez-vous avec le même compte Google que sur le téléphone.</p>`;
+}
+
 function readHelpHtml() {
   if (isPhone()) {
     return `<p class="petit">Touchez le bouton, puis <strong>Téléchargements</strong> (ou « Download »), et choisissez le fichier
       le plus récent (la date et l'heure sont dans son nom).</p>
-      <p class="petit">Le fichier vient de l'ordinateur ? Copiez-le d'abord dans le dossier <strong>Download</strong> du téléphone
-      (voir « Créer le fichier » sur l'ordinateur).</p>`;
+      <p class="petit">Reçu par <strong>Quick Share</strong> ? Il est dans <strong>Download</strong> → <strong>Quick Share</strong>.</p>
+      <p class="petit">Le fichier vient de l'ordinateur ? Envoyez-le d'abord au téléphone avec <strong>Quick Share</strong>
+      ou par le câble (voir « Créer le fichier » sur l'ordinateur).</p>`;
   }
   return `<ol class="instructions petit">
       <li>${USB_STEP}</li>
       <li>Cliquez sur le bouton. Dans la fenêtre qui s'ouvre, allez dans <strong>Ce PC</strong> → <strong>Galaxy S24+</strong> →
         <strong>Phone</strong> → <strong>Download</strong> et choisissez le fichier le plus récent (la date et l'heure sont dans son nom).</li>
     </ol>
+    <p class="petit">Le fichier a été reçu par <strong>Quick Share</strong> ? Pas besoin de câble : cliquez sur le bouton
+      et choisissez-le dans le dossier <strong>Téléchargements</strong> de l'ordinateur.</p>
     <p class="petit">Le téléphone n'apparaît pas dans la fenêtre ? Ouvrez ce même dossier dans l'<strong>Explorateur de fichiers</strong>
       et <strong>faites glisser le fichier</strong> dans le cadre ci-dessus.</p>`;
 }
@@ -132,7 +155,8 @@ export async function renderSauvegarde(view) {
   const books = await liveBooks();
   const prefs = getPrefs();
   const savedPw = prefs.backupPw || '';
-  const share = isPhone() && canShareFiles();
+  // Téléphone : menu « Partager » d'Android. Ordinateur : fichier dans Téléchargements + mode d'emploi Quick Share.
+  const share = isPhone() ? canShareFiles() : true;
   const other = isPhone() ? "l'ordinateur" : 'le téléphone';
   let pendingFile = null; // sauvegarde chiffrée en attente du mot de passe
   let pendingFrom = null;
@@ -225,7 +249,11 @@ export async function renderSauvegarde(view) {
       const blob = await encryptedBackupBlob(password);
       const name = backupFileName(backupTitle(await liveBooks()));
       let savedName = name;
-      if (action === 'share') {
+      if (action === 'share' && !isPhone()) {
+        savedName = window.lecturesPC?.saveAndShow
+          ? await window.lecturesPC.saveAndShow(name, await blob.text())
+          : await downloadBlob(blob, name);
+      } else if (action === 'share') {
         if (!(await shareBlob(blob, name, 'Mon livre de lectures'))) {
           toast("L'envoi n'est pas disponible. Utilisez « Créer le fichier de sauvegarde ».", 'erreur');
           return;
@@ -239,7 +267,9 @@ export async function renderSauvegarde(view) {
       const box = $('#apres-creation', view);
       box.hidden = false;
       box.innerHTML =
-        action === 'share' ? `<p><strong>Fichier envoyé ✓</strong> Sur ${other}, lisez-le avec « Lire le fichier de l'autre appareil ».</p>` : afterCreateHtml(savedName);
+        action === 'share' && !isPhone()
+          ? quickSharePcHtml(savedName)
+          : action === 'share' ? `<p><strong>Fichier envoyé ✓</strong> Sur ${other}, lisez-le avec « Lire le fichier de l'autre appareil ».</p>` : afterCreateHtml(savedName);
       box.scrollIntoView({ block: 'center' });
     } finally {
       btns.forEach((b) => (b.disabled = false));

@@ -57,6 +57,17 @@ ipcMain.handle('backup:open', async () => {
   return shell.openPath(backupDir());
 });
 
+// « Envoyer par Quick Share » : le fichier est enregistré dans Téléchargements, puis
+// l'Explorateur s'ouvre avec ce fichier sélectionné (clic droit → Envoyer avec Quick Share).
+ipcMain.handle('file:saveAndShow', async (_e, name, text) => {
+  if (typeof name !== 'string' || !/^[^\\/:*?"<>|\x00-\x1f]+\.json$/.test(name)) throw new Error('Nom refusé');
+  if (typeof text !== 'string' || text.length > 200 * 1024 * 1024) throw new Error('Contenu refusé');
+  const file = uniquePath(app.getPath('downloads'), name);
+  await fs.promises.writeFile(file, text, 'utf8');
+  shell.showItemInFolder(file);
+  return path.basename(file);
+});
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1200,
