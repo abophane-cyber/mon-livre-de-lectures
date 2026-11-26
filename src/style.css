@@ -93,7 +93,7 @@ code { font-size: 0.9em; overflow-wrap: anywhere; }
 
 .nav-bas {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(6, 1fr);
   height: calc(var(--nav-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--page);
@@ -390,6 +390,7 @@ details[open] > .fiche-tete::after { transform: rotate(-90deg); }
 :root {
   --c-livre: #8a5a14;       --c-livre-fort: #6f470d;
   --c-nouveau: #2f7a4a;     --c-nouveau-fort: #235c38;
+  --c-fiche: #0f7d6b;       --c-fiche-fort: #0a5f51;
   --c-sauvegarde: #1d6f7a;  --c-sauvegarde-fort: #15545c;
   --c-pdf: #c25510;         --c-pdf-fort: #9a430c;
   --c-reglages: #55606f;    --c-reglages-fort: #3f4854;
@@ -400,6 +401,7 @@ details[open] > .fiche-tete::after { transform: rotate(-90deg); }
   :root:not([data-theme='light']) {
     --c-livre: #e0b25c;       --c-livre-fort: #f0c777;
     --c-nouveau: #7fcf98;     --c-nouveau-fort: #9ee0b2;
+    --c-fiche: #6fd6c2;       --c-fiche-fort: #93e2d3;
     --c-sauvegarde: #6fcad4;  --c-sauvegarde-fort: #93dbe2;
     --c-pdf: #f4a261;         --c-pdf-fort: #f7b984;
     --c-reglages: #aab6c5;    --c-reglages-fort: #c3ccd8;
@@ -410,6 +412,7 @@ details[open] > .fiche-tete::after { transform: rotate(-90deg); }
 :root[data-theme='dark'] {
   --c-livre: #e0b25c;       --c-livre-fort: #f0c777;
   --c-nouveau: #7fcf98;     --c-nouveau-fort: #9ee0b2;
+  --c-fiche: #6fd6c2;       --c-fiche-fort: #93e2d3;
   --c-sauvegarde: #6fcad4;  --c-sauvegarde-fort: #93dbe2;
   --c-pdf: #f4a261;         --c-pdf-fort: #f7b984;
   --c-reglages: #aab6c5;    --c-reglages-fort: #c3ccd8;
@@ -419,6 +422,7 @@ details[open] > .fiche-tete::after { transform: rotate(-90deg); }
 
 /* La page ouverte prend la couleur de sa fonction. */
 body[data-couleur='nouveau']    { --accent: var(--c-nouveau);    --accent-fort: var(--c-nouveau-fort); }
+body[data-couleur='fiche']      { --accent: var(--c-fiche);      --accent-fort: var(--c-fiche-fort); }
 body[data-couleur='sauvegarde'] { --accent: var(--c-sauvegarde); --accent-fort: var(--c-sauvegarde-fort); }
 body[data-couleur='pdf']        { --accent: var(--c-pdf);        --accent-fort: var(--c-pdf-fort); }
 body[data-couleur='reglages']   { --accent: var(--c-reglages);   --accent-fort: var(--c-reglages-fort); }
@@ -429,6 +433,7 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 /* Navigation : chaque onglet garde toujours sa couleur. */
 [data-couleur='livre']      { --f: var(--c-livre);      --f-fort: var(--c-livre-fort); }
 [data-couleur='nouveau']    { --f: var(--c-nouveau);    --f-fort: var(--c-nouveau-fort); }
+[data-couleur='fiche']      { --f: var(--c-fiche);      --f-fort: var(--c-fiche-fort); }
 [data-couleur='sauvegarde'] { --f: var(--c-sauvegarde); --f-fort: var(--c-sauvegarde-fort); }
 [data-couleur='pdf']        { --f: var(--c-pdf);        --f-fort: var(--c-pdf-fort); }
 [data-couleur='reglages']   { --f: var(--c-reglages);   --f-fort: var(--c-reglages-fort); }
@@ -576,3 +581,25 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 .bandeau.rappel .btn { min-height: 36px; padding: 6px 14px; font-size: 0.88rem; }
 .bandeau.rappel .lien { color: var(--encre-douce); }
 .nav-bas a span { text-align: center; line-height: 1.1; }
+
+/* Barre du bas : 6 boutons, textes un peu plus petits */
+.nav-bas a { font-size: 0.68rem; padding: 0 2px; }
+
+/* « Nouvelle fiche » : choisir le livre */
+.liste-livres { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
+.liste-livres a {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  border: 1px solid var(--filet); border-radius: var(--rayon); background: var(--page);
+  color: var(--encre); text-decoration: none;
+}
+.liste-livres a:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--page)); }
+.choix-livre .toc-couv { flex: none; display: block; width: 38px; }
+.choix-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.choix-texte .t { font: 700 1.02rem var(--serif); }
+.choix-texte .a { font-size: 0.85rem; color: var(--encre-douce); }
+.choix-fleche { font: 700 1.5rem var(--sans); color: var(--accent); }
+.choix-autre { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--filet); display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.livre-ajoute { display: flex; gap: 18px; align-items: flex-start; }
+.livre-ajoute .toc-couv img, .livre-ajoute .couv-vide { width: 70px; height: 100px; }
+.livre-ajoute .toc-couv { width: 70px; }
+.livre-ajoute h1 { font-size: clamp(1.3rem, 4.5vw, 1.8rem); }

@@ -29,7 +29,7 @@ export async function renderPdf(view) {
   ]);
   const keyOf = (b) => `${b.id}:${b.ficheId}`;
   const nomCase = (b) => {
-    if (b.general) return ` — <strong>Résumé général</strong> (${b.resumeGeneral.pagesPdf || b.resumeGeneral.pages})`;
+    if (b.general) return ` — <strong>Résumé général</strong> (${b.resumeGeneral.pagesPdf || b.resumeGeneral.pages}p)`;
     if (b.ficheCount > 1) {
       const ch = chapterOf(b.fiche, b.ficheIndex, b.ficheCount);
       return ` — ${esc([ch.label, ch.titre].filter(Boolean).join(' : '))}`;

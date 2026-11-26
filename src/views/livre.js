@@ -184,8 +184,8 @@ function tocChapters(book) {
     .join('')}</ol></details>`;
 }
 
-/** « (5) » : nombre de pages du PDF (le nombre demandé tant qu'il n'est pas compté). */
-const pagesLabel = (g) => `(${g.pagesPdf || g.pages})`;
+/** « (5p) » : nombre de pages du PDF (le nombre demandé tant qu'il n'est pas compté). */
+const pagesLabel = (g) => `(${g.pagesPdf || g.pages}p)`;
 
 /** Résumés généraux faits avant que l'appli compte les pages : on les compte une fois, puis on les garde. */
 async function countMissingPages(view, books) {
@@ -282,7 +282,7 @@ export async function renderLivre(view, params) {
     view.innerHTML = `<section class="page vide">
       <h1>${esc(settings.titreLivre)}</h1>
       <p>Votre livre est encore vide. Chaque fiche de lecture que vous créerez deviendra un chapitre.</p>
-      <a class="btn primaire" href="#/nouveau">${icons.plus} Créer ma première fiche</a>
+      <a class="btn primaire" href="#/nouveau">${icons.plus} Ajouter mon premier livre</a>
       <p class="petit">Vous avez déjà des fiches sur un autre appareil ? <a href="#/sauvegarde">Importez votre sauvegarde</a>.</p>
     </section>`;
     return;

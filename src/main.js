@@ -9,6 +9,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { applyTheme, icons } from './ui.js';
 import { renderLivre } from './views/livre.js';
 import { renderAtelier } from './views/atelier.js';
+import { renderChoixLivre } from './views/choixlivre.js';
 import { renderModifier } from './views/modifier.js';
 import { renderGeneral } from './views/general.js';
 import { receiveFile, renderSauvegarde } from './views/sauvegarde.js';
@@ -19,7 +20,8 @@ import { startAutoBackup } from './autobackup.js';
 // Chaque fonction a sa couleur (voir style.css, --c-livre, --c-nouveau…).
 const NAV = [
   ['#/', 'Mon livre', icons.book, 'livre'],
-  ['#/nouveau', 'Nouvelle fiche', icons.plus, 'nouveau'],
+  ['#/nouveau', 'Nouveau livre', icons.bookPlus, 'nouveau'],
+  ['#/fiche', 'Nouvelle fiche', icons.plus, 'fiche'],
   ['#/sauvegarde', 'Sauvegarde', icons.sync, 'sauvegarde'],
   ['#/pdf', 'PDF', icons.pdf, 'pdf'],
   ['#/reglages', 'Réglages', icons.gear, 'reglages'],
@@ -48,13 +50,14 @@ async function route() {
   view.onclick = view.oninput = view.onchange = null;
   const active = name === 'livre' || name === 'modifier' || name === 'general' ? '' : name;
   // La couleur de la page suit la fonction ouverte (« Modifier » et « Compléter » ont la leur).
-  document.body.dataset.couleur = name === 'livre' ? 'nouveau' : name === 'modifier' ? 'modifier'
+  document.body.dataset.couleur = name === 'livre' ? 'fiche' : name === 'modifier' ? 'modifier'
     : name === 'general' ? 'general' : NAV.find(([h]) => h === `#/${active}`)?.[3] || 'livre';
   document.querySelectorAll('.nav-haut a, .nav-bas a').forEach((a) => {
     a.classList.toggle('actif', a.getAttribute('href') === `#/${active}`);
   });
   try {
-    if (name === 'nouveau') await renderAtelier(view, {});
+    if (name === 'nouveau') await renderAtelier(view, { livreSeul: true });
+    else if (name === 'fiche') await renderChoixLivre(view, { id, ...params });
     else if (name === 'livre' && id) await renderAtelier(view, { id, f: params.f });
     else if (name === 'modifier' && id) await renderModifier(view, { id, f: params.f, notice: params.notice === '1' });
     else if (name === 'general' && id) await renderGeneral(view, { id });

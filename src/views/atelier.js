@@ -1,4 +1,5 @@
 // Vue « Nouvelle fiche » / « Compléter une fiche » : passages → demande pour Claude → réponse.
+// Avec { livreSeul: true } (menu « Nouveau livre ») : seulement l'écran du livre, sans fiche.
 // Un livre peut avoir plusieurs fiches (une par chapitre) : #/livre/<livre>?f=<fiche> ou ?f=nouvelle.
 import { findBookByKey, getBook, saveBook } from '../db.js';
 import { parseClippings } from '../clippings.js';
@@ -82,14 +83,16 @@ export async function renderAtelier(view, params) {
   };
   const hasNotice = NOTICE_FIELDS.some(([k]) => v[k]);
   const ia = currentIa();
+  const livreSeul = !!params.livreSeul;
 
   view.innerHTML = `<section class="page atelier">
-    <h1>${adding ? `Nouvelle fiche pour « ${esc(book.title)} »` : book ? `Compléter « ${esc(book.title)} »` : 'Nouvelle fiche'}</h1>
+    <h1>${livreSeul ? 'Nouveau livre' : adding ? `Nouvelle fiche pour « ${esc(book.title)} »` : book ? `Compléter « ${esc(book.title)} »` : 'Nouvelle fiche'}</h1>
+    ${livreSeul ? '<p class="petit">Ajoutez le livre à votre bibliothèque. Vous écrirez ensuite ses fiches (une par chapitre si vous voulez) avec « Nouvelle fiche ».</p>' : ''}
     ${part?.fiche?.chapitre ? `<p class="meta">${esc(part.fiche.chapitre)}</p>` : ''}
-    ${adding ? `<p class="petit">Ce livre a déjà ${pluralize(parts.length, 'fiche', 'fiches')}. Donnez le texte d'un autre chapitre (ou joignez ses captures) : il aura sa propre fiche, à la suite des autres.</p>` : ''}
+    ${adding && parts.length ? `<p class="petit">Ce livre a déjà ${pluralize(parts.length, 'fiche', 'fiches')}. Donnez le texte d'un autre chapitre (ou joignez ses captures) : il aura sa propre fiche, à la suite des autres.</p>` : ''}
     ${part?.fiche ? '<p class="petit">Ajoutez du texte à la fin si vous voulez, puis refaites le résumé : la nouvelle réponse remplacera cette fiche (les autres fiches du livre ne changent pas).</p>' : ''}
 
-    <ol class="etapes-nav" aria-label="Étapes">
+    <ol class="etapes-nav" aria-label="Étapes"${livreSeul ? ' hidden' : ''}>
       ${ETAPES.map((t, i) => `<li><button type="button" data-aller="${i + 1}"><span class="pastille">${i + 1}</span><span class="etapes-nom">${t}</span></button></li>`).join('')}
     </ol>
 
@@ -100,17 +103,19 @@ export async function renderAtelier(view, params) {
         <label>Auteur<input id="f-author" value="${esc(v.author)}" autocomplete="off"></label>
         <label>Date de parution<input id="f-pubDate" value="${esc(v.pubDate)}" placeholder="par exemple 1857" autocomplete="off"></label>
       </div>
-      <details class="notice"${hasNotice ? ' open' : ''}>
+      <details class="notice"${hasNotice || livreSeul ? ' open' : ''}>
         <summary>Informations sur le livre (facultatif, communes à toutes ses fiches) : éditeur, ISBN, date de lecture…</summary>
         ${remplirHtml()}
         ${couvertureHtml()}
         <div class="champs">
           ${NOTICE_FIELDS.map(([k, l]) => `<label>${l}<input id="f-${k}" value="${esc(v[k])}" autocomplete="off"${k === 'isbn' ? ' inputmode="numeric"' : ''}></label>`).join('')}
         </div>
-        <button class="btn primaire" id="ajouter-notice" type="button">Enregistrer les informations du livre</button>
-        <p class="petit">Enregistre seulement ces informations, sans créer de fiche. Elles apparaîtront sur la page de présentation du livre dans les PDF. Vous les retrouvez aussi sous le livre : bouton « Informations du livre ».</p>
+        <button class="btn primaire" id="ajouter-notice" type="button"${livreSeul ? ' hidden' : ''}>Enregistrer les informations du livre</button>
+        <p class="petit"${livreSeul ? ' hidden' : ''}>Enregistre seulement ces informations, sans créer de fiche. Elles apparaîtront sur la page de présentation du livre dans les PDF. Vous les retrouvez aussi sous le livre : bouton « Informations du livre ».</p>
       </details>
-      <div class="etape-suite"><span></span><button class="btn primaire" type="button" data-aller="2">Suivant : le texte →</button></div>
+      <div class="etape-suite"><span></span>${livreSeul
+        ? '<button class="btn primaire" type="button" id="enregistrer-livre">Enregistrer le livre</button>'
+        : '<button class="btn primaire" type="button" data-aller="2">Suivant : le texte →</button>'}</div>
     </div>
 
     <div class="etape" data-etape="2">
@@ -306,7 +311,7 @@ export async function renderAtelier(view, params) {
     if (n > step && !canLeave(n)) return;
     goTo(n);
   });
-  goTo(savedStep(draftKey) || (v.answer.trim() ? 4 : book ? 2 : 1), { scroll: false });
+  goTo(livreSeul ? 1 : savedStep(draftKey) || (v.answer.trim() ? 4 : book ? 2 : 1), { scroll: false });
 
   /**
    * Enregistre le livre et la fiche en cours (création, ou nouvelle fiche dans le livre existant
@@ -411,12 +416,12 @@ export async function renderAtelier(view, params) {
   });
 
   // Enregistre seulement le livre (titre, auteur, informations) : aucune fiche n'est créée.
-  $('#ajouter-notice', view).addEventListener('click', async () => {
+  async function saveBookOnly() {
     const f = readForm();
     if (!f.title) {
       toast('Indiquez le titre du livre.', 'erreur');
       el.title.focus();
-      return;
+      return false;
     }
     const meta = {
       title: f.title,
@@ -447,7 +452,22 @@ export async function renderAtelier(view, params) {
     saveDraft(draftKey, readForm());
     couv.markSaved();
     updateNoticeBtn();
-    toast('Informations du livre enregistrées ✓ (aucune fiche créée). Elles seront sur la page de présentation des PDF.', 'ok', 7000);
+    return true;
+  }
+  $('#ajouter-notice', view).addEventListener('click', async () => {
+    if (await saveBookOnly()) {
+      toast('Informations du livre enregistrées ✓ (aucune fiche créée). Elles seront sur la page de présentation des PDF.', 'ok', 7000);
+    }
+  });
+  // « Nouveau livre » : on enregistre le livre, puis on propose d'écrire sa première fiche.
+  $('#enregistrer-livre', view)?.addEventListener('click', async () => {
+    if (!livreSeul) return;
+    const twin = !book && (await findBookByKey(el.title.value.trim(), el.author.value.trim()));
+    if (!(await saveBookOnly())) return;
+    clearDraft(draftKey);
+    saveStep(draftKey, 0);
+    toast(twin ? 'Ce livre était déjà dans votre bibliothèque : ses informations sont mises à jour ✓' : 'Livre ajouté à votre bibliothèque ✓', 'ok', 6000);
+    location.hash = `#/fiche/${book.id}?cree=1`;
   });
 
   $('#enregistrer', view).addEventListener('click', async () => {
