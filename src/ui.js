@@ -66,10 +66,13 @@ export function applyTheme(theme = getPrefs().theme) {
   const root = document.documentElement;
   if (theme === 'clair') root.dataset.theme = 'light';
   else if (theme === 'sombre') root.dataset.theme = 'dark';
+  else if (theme === 'nature') root.dataset.theme = 'nature';
   else delete root.dataset.theme;
   const dark =
     theme === 'sombre' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1b1915' : '#f7f3ea');
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', theme === 'nature' ? '#1e3b2f' : dark ? '#1b1915' : '#f7f3ea');
 }
 
 let toastTimer;

@@ -609,3 +609,64 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 .fermer-livre { position: absolute; top: 14px; right: 16px; font: 0.85rem var(--sans); color: var(--encre-douce); text-decoration: none; padding: 4px 8px; border-radius: 6px; }
 .fermer-livre:hover { background: var(--fond, rgba(0,0,0,.05)); color: inherit; }
 .toc li.ouvert .t { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ───────── Apparence « Nature » (reprise de la charte de MonWebOrga) ─────────
+   Vert forêt, mousse, brun chocolat, caramel, sable ; texte crème.
+   Placé en fin de fichier pour passer devant le mode sombre automatique. */
+:root[data-theme='nature'] {
+  --nat-foret: #1e3b2f;
+  --nat-pin: #33664f;
+  --nat-mousse: #7fb560;
+  --nat-chocolat: #7d4d30;
+  --nat-caramel: #c4864e;
+  --nat-sable: #ebc89c;
+  --nat-creme: #f4ecdf;
+  --papier: #1e3b2f;
+  --page: #26473a;
+  --encre: var(--nat-creme);
+  --encre-douce: #cdc2ad;
+  --filet: #41695a;
+  --accent: var(--nat-sable);
+  --accent-fort: #f3d9b6;
+  --sur-accent: #3b2a1e;
+  --surligne: rgb(235 200 156 / 0.32);
+  --surligne-encre: #fff8ec;
+  --alerte: #f0a35e;
+  --alerte-fond: #3d3a24;
+  --danger: #f08b7c;
+  --ok: #a9d98c;
+  --ombre: inset 0 1px 0 rgb(255 255 255 / 0.10), 0 10px 22px -6px rgb(8 20 14 / 0.65), 0 3px 6px rgb(8 20 14 / 0.35);
+  /* Couleurs des fonctions, en tons de terre et de végétation */
+  --c-livre: #ebc89c;       --c-livre-fort: #f3d9b6;
+  --c-nouveau: #9fd07f;     --c-nouveau-fort: #b8de9f;
+  --c-fiche: #8fd1b0;       --c-fiche-fort: #aadfc4;
+  --c-sauvegarde: #9cc9d6;  --c-sauvegarde-fort: #b6d8e2;
+  --c-pdf: #e0a56e;         --c-pdf-fort: #ebbb8e;
+  --c-reglages: #cdc2ad;    --c-reglages-fort: #ddd4c2;
+  --c-modifier: #e8a990;    --c-modifier-fort: #f0bfaa;
+  --c-general: #c9a6d9;     --c-general-fort: #d8bde4;
+  color-scheme: dark;
+}
+/* Fond : dégradé forêt avec une lumière douce en haut à gauche */
+:root[data-theme='nature'] body { background: transparent; }
+:root[data-theme='nature'] {
+  min-height: 100%;
+  background-color: #1e3b2f;
+  background-attachment: fixed;
+  background-image:
+    radial-gradient(1200px 700px at 12% -10%, rgb(220 187 151 / 0.16), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgb(107 70 50 / 0.32), transparent 65%),
+    linear-gradient(160deg, #2a5141 0%, #1e3b2f 55%, #18301f 100%);
+}
+:root[data-theme='nature'] .entete { background: rgb(30 59 47 / 0.88); }
+/* Pages : panneau vert en relief, reflet de lumière en haut à gauche */
+:root[data-theme='nature'] .page {
+  background: linear-gradient(150deg, rgb(255 255 255 / 0.07) 0%, rgb(255 255 255 / 0) 40%, rgb(0 0 0 / 0.08) 100%), var(--page);
+  border: 1px solid rgb(244 236 223 / 0.10);
+  border-radius: 18px;
+}
+:root[data-theme='nature'] .nav-bas { background: rgb(30 59 47 / 0.96); backdrop-filter: blur(8px); }
+/* Bouton principal : pilule en relief */
+:root[data-theme='nature'] .btn.primaire { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 6px 14px -4px rgb(8 20 14 / 0.6); }
+/* Couvertures et pastilles : petite ombre portée plus marquée sur le fond vert */
+:root[data-theme='nature'] .toc-couv img, :root[data-theme='nature'] .couv-livre { box-shadow: 0 3px 8px rgb(8 20 14 / 0.55); }

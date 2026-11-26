@@ -20,7 +20,7 @@ export async function renderReglages(view) {
 
     <fieldset class="segment">
       <legend>Apparence</legend>
-      ${[['auto', 'Automatique'], ['clair', 'Clair'], ['sombre', 'Sombre']]
+      ${[['auto', 'Automatique'], ['clair', 'Clair'], ['sombre', 'Sombre'], ['nature', 'Nature']]
         .map(([k, l]) => `<label><input type="radio" name="theme" value="${k}"${prefs.theme === k ? ' checked' : ''}><span>${l}</span></label>`)
         .join('')}
     </fieldset>
