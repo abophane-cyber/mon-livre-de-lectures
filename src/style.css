@@ -606,8 +606,9 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 
 /* Livre ouvert sous la liste : bouton pour le refermer, et repère dans la liste. */
 .chapitre { position: relative; }
-.fermer-livre { position: absolute; top: 14px; right: 16px; font: 0.85rem var(--sans); color: var(--encre-douce); text-decoration: none; padding: 4px 8px; border-radius: 6px; }
-.fermer-livre:hover { background: var(--fond, rgba(0,0,0,.05)); color: inherit; }
+.livre-boutons { position: absolute; top: 14px; right: 16px; display: flex; gap: 2px; }
+.fermer-livre, .replier-livre { font: 0.85rem var(--sans); color: var(--encre-douce); text-decoration: none; padding: 4px 8px; border-radius: 6px; background: none; border: 0; cursor: pointer; }
+.replier-livre:hover, .fermer-livre:hover { background: var(--fond, rgba(0,0,0,.05)); color: inherit; }
 .toc li.ouvert .t { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ───────── Apparence « Nature » (reprise de la charte de MonWebOrga) ─────────
@@ -670,3 +671,11 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 :root[data-theme='nature'] .btn.primaire { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 6px 14px -4px rgb(8 20 14 / 0.6); }
 /* Couvertures et pastilles : petite ombre portée plus marquée sur le fond vert */
 :root[data-theme='nature'] .toc-couv img, :root[data-theme='nature'] .couv-livre { box-shadow: 0 3px 8px rgb(8 20 14 / 0.55); }
+
+/* Livre replié : seul le titre reste (clic sur le titre ou « ▾ Déplier » pour le rouvrir). */
+.chapitre h2[data-action] { cursor: pointer; }
+.chapitre.replie > :not(.livre-boutons):not(.tete-livre) { display: none; }
+.chapitre.replie .tete-livre > a, .chapitre.replie .tete-livre > div > :not(h2) { display: none; }
+.chapitre.replie h2 { margin-bottom: 0; }
+.chapitre .tete-livre h2 { padding-right: 150px; }
+@media (max-width: 599px) { .chapitre { padding-top: 44px; } .chapitre .tete-livre h2 { padding-right: 0; } }

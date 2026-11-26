@@ -239,12 +239,16 @@ function renderBook(book) {
   const genre = parts.find((p) => p.fiche?.genre)?.fiche.genre;
   const meta = [book.author, book.pubDate, genre].filter(Boolean).map(esc).join(' · ');
   const ready = parts.filter((p) => p.fiche).length;
-  return `<article class="chapitre page" id="ch-${esc(book.id)}">
-    <a class="fermer-livre" href="#/" title="Fermer ce livre" aria-label="Fermer ce livre">✕ Fermer</a>
+  const replie = openState[`livre-${book.id}`] === false;
+  return `<article class="chapitre page${replie ? ' replie' : ''}" id="ch-${esc(book.id)}">
+    <div class="livre-boutons">
+      <button type="button" class="replier-livre" data-action="replier-livre" data-id="${esc(book.id)}" aria-expanded="${!replie}">${replie ? '▾ Déplier' : '▴ Replier'}</button>
+      <a class="fermer-livre" href="#/" title="Fermer ce livre" aria-label="Fermer ce livre">✕ Fermer</a>
+    </div>
     <div class="tete-livre">
       ${book.cover ? `<a href="#/modifier/${esc(book.id)}?notice=1" title="Couverture et informations du livre"><img class="couv-livre" src="${esc(book.cover)}" alt="Couverture de « ${esc(book.title)} »"></a>` : ''}
       <div>
-        <h2>${esc(book.title)}</h2>
+        <h2 data-action="replier-livre" data-id="${esc(book.id)}" title="Replier ou déplier ce livre">${esc(book.title)}</h2>
         ${meta ? `<p class="meta">${meta}</p>` : ''}
         ${renderInfos(book)}
       </div>
@@ -448,6 +452,16 @@ export async function renderLivre(view, params) {
     const book = books.find((b) => b.id === btn.dataset.id);
     if (!book) return;
     const part = btn.dataset.fi ? partsOf(book).find((p) => p.id === btn.dataset.fi) : null;
+    if (btn.dataset.action === 'replier-livre') {
+      // Replier le livre : il ne reste que son titre (re-clic : tout revient).
+      const art = btn.closest('.chapitre');
+      const replie = art.classList.toggle('replie');
+      setOpen(`livre-${book.id}`, !replie);
+      const b = art.querySelector('.replier-livre');
+      b.textContent = replie ? '▾ Déplier' : '▴ Replier';
+      b.setAttribute('aria-expanded', String(!replie));
+      return;
+    }
     if (btn.dataset.action === 'deplier' || btn.dataset.action === 'replier') {
       const open = btn.dataset.action === 'deplier';
       for (const d of $$(`#ch-${CSS.escape(book.id)} details.fiche-partie`, view)) d.open = open;
