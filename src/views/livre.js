@@ -240,6 +240,7 @@ function renderBook(book) {
   const meta = [book.author, book.pubDate, genre].filter(Boolean).map(esc).join(' · ');
   const ready = parts.filter((p) => p.fiche).length;
   return `<article class="chapitre page" id="ch-${esc(book.id)}">
+    <a class="fermer-livre" href="#/" title="Fermer ce livre" aria-label="Fermer ce livre">✕ Fermer</a>
     <div class="tete-livre">
       ${book.cover ? `<a href="#/modifier/${esc(book.id)}?notice=1" title="Couverture et informations du livre"><img class="couv-livre" src="${esc(book.cover)}" alt="Couverture de « ${esc(book.title)} »"></a>` : ''}
       <div>
@@ -277,6 +278,9 @@ export async function renderLivre(view, params) {
   const mode = SORTS[prefs.sort] ? prefs.sort : 'perso';
   const filtre = FILTRES[prefs.filtre] ? prefs.filtre : 'tous';
   if (params.fi) setOpen(params.fi, true);
+  // Seul le livre demandé (clic dans la liste) est ouvert sous la liste. Quand la page se redessine
+  // (recherche, tri…), le livre ouvert reste celui de l'adresse.
+  const ch = params.ch || new URLSearchParams(location.hash.split('?')[1] || '').get('ch') || '';
 
   if (!books.length) {
     view.innerHTML = `<section class="page vide">
@@ -354,7 +358,7 @@ export async function renderLivre(view, params) {
       <ol class="toc${canDrag ? ' deplacable' : ''}" id="toc">
         ${shown
           .map(
-            (b, i) => `<li data-id="${esc(b.id)}">
+            (b, i) => `<li data-id="${esc(b.id)}"${b.id === ch ? ' class="ouvert"' : ''}>
               ${canDrag ? `<span class="poignee" aria-label="Déplacer">${icons.grip}</span>` : ''}
               <a class="toc-couv" href="#/?ch=${esc(b.id)}" tabindex="-1" aria-hidden="true">${b.cover
                 ? `<img src="${esc(b.cover)}" alt="" loading="lazy">`
@@ -383,7 +387,7 @@ export async function renderLivre(view, params) {
           : `<p>${filtre === 'termines' ? 'Aucun livre terminé pour l’instant. En bas d’un livre dont toutes les fiches sont faites, touchez « ✓ Livre terminé ».' : 'Aucun livre en cours : ils sont tous terminés.'}</p>`}
       <p class="petit">${pluralize(books.length, 'livre', 'livres')} et ${pluralize(books.reduce((n, b) => n + partsOf(b).length, 0), 'fiche', 'fiches')} dans votre livre de lectures.</p>
     </section>
-    <div id="chapitres">${shown.map((b) => renderBook(b)).join('')}</div>`;
+    <div id="chapitres">${books.filter((b) => b.id === ch).map((b) => renderBook(b)).join('')}</div>`;
 
   const search = $('#recherche', view);
   search.addEventListener('input', () => {
@@ -557,7 +561,7 @@ export async function renderLivre(view, params) {
   }
 
   if (params.ch) {
-    const target = (params.fi && document.getElementById('fi-' + params.fi)) || document.getElementById('ch-' + params.ch);
+    const target = (params.fi && document.getElementById('fi-' + params.fi)) || document.getElementById('ch-' + ch);
     requestAnimationFrame(() => target?.scrollIntoView({ block: 'start' }));
   }
 }

@@ -603,3 +603,9 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 .livre-ajoute .toc-couv img, .livre-ajoute .couv-vide { width: 70px; height: 100px; }
 .livre-ajoute .toc-couv { width: 70px; }
 .livre-ajoute h1 { font-size: clamp(1.3rem, 4.5vw, 1.8rem); }
+
+/* Livre ouvert sous la liste : bouton pour le refermer, et repère dans la liste. */
+.chapitre { position: relative; }
+.fermer-livre { position: absolute; top: 14px; right: 16px; font: 0.85rem var(--sans); color: var(--encre-douce); text-decoration: none; padding: 4px 8px; border-radius: 6px; }
+.fermer-livre:hover { background: var(--fond, rgba(0,0,0,.05)); color: inherit; }
+.toc li.ouvert .t { text-decoration: underline; text-underline-offset: 3px; }
