@@ -31,6 +31,26 @@ function rememberClippings(list) {
   }
 }
 
+// La page est découpée en 4 écrans. L'écran affiché est retenu pendant la session, pour
+// retomber au bon endroit quand le téléphone recharge la page en revenant de l'IA.
+const ETAPES = ['Le livre', 'Le texte', 'La demande', 'La réponse'];
+const ETAPE_KEY = 'mll:etape:';
+function savedStep(key) {
+  try {
+    return Number(sessionStorage.getItem(ETAPE_KEY + key)) || 0;
+  } catch {
+    return 0;
+  }
+}
+function saveStep(key, n) {
+  try {
+    if (n) sessionStorage.setItem(ETAPE_KEY + key, String(n));
+    else sessionStorage.removeItem(ETAPE_KEY + key);
+  } catch {
+    /* rien */
+  }
+}
+
 export async function renderAtelier(view, params) {
   let book = params.id ? await getBook(params.id) : null;
   if (params.id && !book) {
@@ -66,28 +86,19 @@ export async function renderAtelier(view, params) {
   view.innerHTML = `<section class="page atelier">
     <h1>${adding ? `Nouvelle fiche pour « ${esc(book.title)} »` : book ? `Compléter « ${esc(book.title)} »` : 'Nouvelle fiche'}</h1>
     ${part?.fiche?.chapitre ? `<p class="meta">${esc(part.fiche.chapitre)}</p>` : ''}
-    ${adding ? `<p class="petit">Ce livre a déjà ${pluralize(parts.length, 'fiche', 'fiches')}. Collez ci-dessous le texte d'un autre chapitre (ou joignez ses captures) : il aura sa propre fiche, à la suite des autres.</p>` : ''}
+    ${adding ? `<p class="petit">Ce livre a déjà ${pluralize(parts.length, 'fiche', 'fiches')}. Donnez le texte d'un autre chapitre (ou joignez ses captures) : il aura sa propre fiche, à la suite des autres.</p>` : ''}
     ${part?.fiche ? '<p class="petit">Ajoutez du texte à la fin si vous voulez, puis refaites le résumé : la nouvelle réponse remplacera cette fiche (les autres fiches du livre ne changent pas).</p>' : ''}
 
-    <div class="etape">
-      <h2><span class="pastille">1</span> Le livre et le texte à résumer</h2>
-      <div class="import">
-        <label class="btn" for="fichier-clippings">Importer My Clippings.txt</label>
-        <input type="file" id="fichier-clippings" accept=".txt,text/plain" hidden>
-        <select id="choix-livre" ${clippingsBooks.length ? '' : 'hidden'} aria-label="Choisir un livre">
-          <option value="">— Choisissez un livre (${clippingsBooks.length}) —</option>
-          ${clippingsBooks
-            .map((b, i) => `<option value="${i}">${esc(b.title)}${b.author ? ' — ' + esc(b.author) : ''} (${b.passages.length})</option>`)
-            .join('')}
-        </select>
-      </div>
+    <ol class="etapes-nav" aria-label="Étapes">
+      ${ETAPES.map((t, i) => `<li><button type="button" data-aller="${i + 1}"><span class="pastille">${i + 1}</span><span class="etapes-nom">${t}</span></button></li>`).join('')}
+    </ol>
+
+    <div class="etape" data-etape="1">
+      <h2><span class="pastille">1</span> Le livre</h2>
       <div class="champs">
         <label>Titre du livre<input id="f-title" required value="${esc(v.title)}" autocomplete="off"></label>
         <label>Auteur<input id="f-author" value="${esc(v.author)}" autocomplete="off"></label>
         <label>Date de parution<input id="f-pubDate" value="${esc(v.pubDate)}" placeholder="par exemple 1857" autocomplete="off"></label>
-        <label>Langue du résumé
-          <select id="f-lang">${LANGUES.map((l) => `<option${l === v.lang ? ' selected' : ''}>${l}</option>`).join('')}</select>
-        </label>
       </div>
       <details class="notice"${hasNotice ? ' open' : ''}>
         <summary>Informations sur le livre (facultatif, communes à toutes ses fiches) : éditeur, ISBN, date de lecture…</summary>
@@ -99,6 +110,24 @@ export async function renderAtelier(view, params) {
         <button class="btn primaire" id="ajouter-notice" type="button">Enregistrer les informations du livre</button>
         <p class="petit">Enregistre seulement ces informations, sans créer de fiche. Elles apparaîtront sur la page de présentation du livre dans les PDF. Vous les retrouvez aussi sous le livre : bouton « Informations du livre ».</p>
       </details>
+      <div class="etape-suite"><span></span><button class="btn primaire" type="button" data-aller="2">Suivant : le texte →</button></div>
+    </div>
+
+    <div class="etape" data-etape="2">
+      <h2><span class="pastille">2</span> Le texte à résumer</h2>
+      <div class="import">
+        <label class="btn" for="fichier-clippings">Importer My Clippings.txt</label>
+        <input type="file" id="fichier-clippings" accept=".txt,text/plain" hidden>
+        <select id="choix-livre" ${clippingsBooks.length ? '' : 'hidden'} aria-label="Choisir un livre">
+          <option value="">— Choisissez un livre (${clippingsBooks.length}) —</option>
+          ${clippingsBooks
+            .map((b, i) => `<option value="${i}">${esc(b.title)}${b.author ? ' — ' + esc(b.author) : ''} (${b.passages.length})</option>`)
+            .join('')}
+        </select>
+      </div>
+      <label class="langue">Langue du résumé
+        <select id="f-lang">${LANGUES.map((l) => `<option${l === v.lang ? ' selected' : ''}>${l}</option>`).join('')}</select>
+      </label>
       <fieldset class="segment">
         <legend>Longueur</legend>
         ${Object.entries(LONGUEURS)
@@ -115,10 +144,11 @@ export async function renderAtelier(view, params) {
         <textarea id="f-passages" rows="12" placeholder="Collez ici le texte à résumer : un extrait, un chapitre, vos passages préférés…">${esc(v.passages)}</textarea>
       </label>
       <button class="lien" id="enregistrer">Enregistrer pour plus tard</button>
+      <div class="etape-suite"><button class="btn" type="button" data-aller="1">← Le livre</button><button class="btn primaire" type="button" data-aller="3">Suivant : la demande →</button></div>
     </div>
 
-    <div class="etape">
-      <h2><span class="pastille">2</span> Demander le résumé à ${esc(ia.label)}</h2>
+    <div class="etape" data-etape="3">
+      <h2><span class="pastille">3</span> Demander le résumé à ${esc(ia.label)}</h2>
       <p class="petit" id="aide-sans-captures" ${v.captures ? 'hidden' : ''}>L'appli copie une demande complète (avec vos règles et votre texte) et ouvre ${esc(ia.label)}. Là-bas, collez-la (appui long puis « Coller » sur le téléphone, Ctrl+V sur l'ordinateur) et envoyez.</p>
       <ol class="petit instructions" id="aide-avec-captures" ${v.captures ? '' : 'hidden'}>
         <li>Touchez le bouton ci-dessous : la demande est copiée et ${esc(ia.label)} s'ouvre.</li>
@@ -133,11 +163,11 @@ export async function renderAtelier(view, params) {
       </div>
       ${part?.fiche
         ? `<div class="notice-seule" id="bloc-suite">
-            <p class="petit"><strong>La suite du chapitre, avec d'autres captures ?</strong> (par exemple quand ${esc(ia.label)} n'accepte que 10 captures à la fois). Touchez ce bouton : la demande contient le résumé déjà fait. Dans <strong>une nouvelle conversation</strong> ${esc(ia.label)}, joignez les captures suivantes, collez la demande dans le même message, envoyez, puis recollez la réponse à l'étape 3. Vous obtiendrez une seule fiche A4 pour tout le chapitre (elle remplace celle-ci).</p>
+            <p class="petit"><strong>La suite du chapitre, avec d'autres captures ?</strong> (par exemple quand ${esc(ia.label)} n'accepte que 10 captures à la fois). Touchez ce bouton : la demande contient le résumé déjà fait. Dans <strong>une nouvelle conversation</strong> ${esc(ia.label)}, joignez les captures suivantes, collez la demande dans le même message, envoyez, puis recollez la réponse à l'étape 4. Vous obtiendrez une seule fiche A4 pour tout le chapitre (elle remplace celle-ci).</p>
             <button class="btn" id="copier-suite">Copier la demande « suite du chapitre »</button>
           </div>
           <div class="notice-seule">
-            <p class="petit"><strong>Seulement la notice et la bibliographie ?</strong> Sans refaire le résumé : touchez ce bouton, joignez dans ${esc(ia.label)} vos captures de la page d'informations du livre (éditeur, ISBN…) ou de la bibliographie, collez, envoyez, puis recollez la réponse à l'étape 3.</p>
+            <p class="petit"><strong>Seulement la notice et la bibliographie ?</strong> Sans refaire le résumé : touchez ce bouton, joignez dans ${esc(ia.label)} vos captures de la page d'informations du livre (éditeur, ISBN…) ou de la bibliographie, collez, envoyez, puis recollez la réponse à l'étape 4.</p>
             <button class="btn" id="copier-notice">Copier la demande « notice et bibliographie »</button>
           </div>`
         : ''}
@@ -145,10 +175,11 @@ export async function renderAtelier(view, params) {
         <p class="petit">La copie automatique n'a pas marché : sélectionnez tout le texte ci-dessous et copiez-le.</p>
         <textarea id="demande" rows="8" readonly></textarea>
       </div>
+      <div class="etape-suite"><button class="btn" type="button" data-aller="2">← Le texte</button><button class="btn" type="button" data-aller="4">J'ai la réponse →</button></div>
     </div>
 
-    <div class="etape">
-      <h2><span class="pastille">3</span> Coller la réponse de ${esc(ia.label)}</h2>
+    <div class="etape" data-etape="4">
+      <h2><span class="pastille">4</span> Coller la réponse de ${esc(ia.label)}</h2>
       <p class="petit">Dans ${esc(ia.label)}, copiez toute la réponse avec le bouton <strong>Copier</strong> (les deux petits carrés sous la réponse), revenez ici et collez-la. Une phrase en plus avant ou après ne gêne pas.</p>
       <textarea id="f-answer" rows="8" placeholder="Collez ici la réponse de ${esc(ia.label)}">${esc(v.answer)}</textarea>
       <div class="rangee">
@@ -156,6 +187,7 @@ export async function renderAtelier(view, params) {
         <button class="btn primaire" id="ajouter">Ajouter à mon livre</button>
       </div>
       <div id="erreurs" class="erreurs" hidden></div>
+      <div class="etape-suite"><button class="btn" type="button" data-aller="3">← La demande</button><span></span></div>
     </div>
   </section>`;
 
@@ -237,6 +269,45 @@ export async function renderAtelier(view, params) {
     el.passages.focus();
   });
 
+  // Écrans : un seul visible à la fois. Livre déjà connu : on commence au texte.
+  let step = 1;
+  function goTo(n, { scroll = true } = {}) {
+    step = Math.min(4, Math.max(1, n));
+    for (const d of view.querySelectorAll('.etape[data-etape]')) d.hidden = Number(d.dataset.etape) !== step;
+    view.querySelectorAll('.etapes-nav li').forEach((li, i) => {
+      li.classList.toggle('actif', i + 1 === step);
+      li.classList.toggle('fait', i + 1 < step);
+      li.querySelector('button').setAttribute('aria-current', i + 1 === step ? 'step' : 'false');
+    });
+    saveStep(draftKey, step);
+    if (scroll) window.scrollTo({ top: 0 });
+  }
+  /** Peut-on quitter l'écran actuel vers l'écran n ? (on peut toujours revenir en arrière) */
+  function canLeave(n) {
+    const f = readForm();
+    if (n > 1 && !f.title) {
+      goTo(1);
+      toast('Indiquez d’abord le titre du livre.', 'erreur');
+      el.title.focus();
+      return false;
+    }
+    if (n > 2 && !f.passages.trim() && !f.captures) {
+      goTo(2);
+      toast("Collez le texte à résumer, ou cochez « J'ai des captures d'écran ».", 'erreur', 6000);
+      el.passages.focus();
+      return false;
+    }
+    return true;
+  }
+  $('.atelier', view).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-aller]');
+    if (!b) return;
+    const n = Number(b.dataset.aller);
+    if (n > step && !canLeave(n)) return;
+    goTo(n);
+  });
+  goTo(savedStep(draftKey) || (v.answer.trim() ? 4 : book ? 2 : 1), { scroll: false });
+
   /**
    * Enregistre le livre et la fiche en cours (création, ou nouvelle fiche dans le livre existant
    * du même titre et auteur). Renvoie la fiche « aplatie » (livre + fiche), ou null.
@@ -244,12 +315,14 @@ export async function renderAtelier(view, params) {
   async function persist() {
     const f = readForm();
     if (!f.title) {
+      goTo(1);
       toast('Indiquez le titre du livre.', 'erreur');
       el.title.focus();
       return null;
     }
     const passages = splitPassages(f.passages);
     if (!passages.length && !f.captures) {
+      goTo(2);
       toast("Collez le texte à résumer, ou cochez « J'ai des captures d'écran ».", 'erreur', 6000);
       el.passages.focus();
       return null;
@@ -287,7 +360,9 @@ export async function renderAtelier(view, params) {
     part = partsOf(book).find((p) => p.id === rec.id);
     if (draftKey !== keyOf()) {
       clearDraft(draftKey);
+      saveStep(draftKey, 0);
       draftKey = keyOf();
+      saveStep(draftKey, step);
       history.replaceState(null, '', `#/livre/${book.id}?f=${part.id}`);
     }
     el.passages.value = joinPassages(part.passages);
@@ -364,7 +439,9 @@ export async function renderAtelier(view, params) {
     book = await saveBook(base);
     if (draftKey !== keyOf()) {
       clearDraft(draftKey);
+      saveStep(draftKey, 0);
       draftKey = keyOf();
+      saveStep(draftKey, step);
       history.replaceState(null, '', `#/livre/${book.id}?f=${part ? part.id : 'nouvelle'}`);
     }
     saveDraft(draftKey, readForm());
@@ -383,6 +460,8 @@ export async function renderAtelier(view, params) {
       $('#secours', view).hidden = true;
       openExternal(ia.url);
       toast(message, 'ok', 8000);
+      // Au retour de l'IA, on arrive directement sur l'écran où coller la réponse.
+      goTo(4, { scroll: false });
     } else {
       $('#secours', view).hidden = false;
       $('#demande', view).value = prompt;
@@ -416,14 +495,14 @@ export async function renderAtelier(view, params) {
     if (!saved) return;
     await copyAndOpen(
       buildContinuationPrompt(saved),
-      `Demande copiée ✓ Dans une nouvelle conversation ${ia.label} : joignez les captures suivantes, collez la demande, envoyez, puis recollez la réponse à l'étape 3.`,
+      `Demande copiée ✓ Dans une nouvelle conversation ${ia.label} : joignez les captures suivantes, collez la demande, envoyez, puis recollez la réponse à l'étape 4.`,
     );
   });
 
   $('#copier-notice', view)?.addEventListener('click', async () => {
     await copyAndOpen(
       buildNoticePrompt(book),
-      `Demande copiée ✓ Dans ${ia.label}, joignez vos captures (page d'informations, bibliographie), collez, envoyez, puis recollez la réponse à l'étape 3.`,
+      `Demande copiée ✓ Dans ${ia.label}, joignez vos captures (page d'informations, bibliographie), collez, envoyez, puis recollez la réponse à l'étape 4.`,
     );
   });
 
@@ -463,6 +542,7 @@ export async function renderAtelier(view, params) {
     if (result.partial) {
       book = await saveBook(withPart({ ...book, ...patch }, { ...part, ...chap }));
       clearDraft(draftKey);
+      saveStep(draftKey, 0);
       toast(
         changed
           ? `Notice et bibliographie mises à jour ✓${noticeMsg}`
@@ -490,7 +570,8 @@ export async function renderAtelier(view, params) {
     }
     book = await saveBook(withPart({ ...book, ...patch }, { ...part, ...chap, passages: allPassages, fiche: result.fiche, ficheEditedByHand: false }));
     clearDraft(draftKey);
-    const goTo = `#/?ch=${book.id}&fi=${part.id}`;
+    saveStep(draftKey, 0);
+    const lien = `#/?ch=${book.id}&fi=${part.id}`;
     const extra = (fromCaptures > 0 ? ` ${pluralize(fromCaptures, 'extrait recopié', 'extraits recopiés')} depuis vos captures.` : '') + noticeMsg;
     if (missing) {
       toast(`Fiche ajoutée.${extra} ${missing > 1 ? `${missing} citations ne figurent` : '1 citation ne figure'} pas mot pour mot dans votre texte : ${missing > 1 ? 'elles sont signalées' : 'elle est signalée'} en orange.`, 'attention', 9000);
@@ -499,6 +580,6 @@ export async function renderAtelier(view, params) {
     } else {
       toast(`Fiche ajoutée à votre livre ✓${extra} Pour un autre chapitre : bouton « + Ajouter une fiche » sous le livre.`, 'ok', 8000);
     }
-    location.hash = goTo;
+    location.hash = lien;
   });
 }

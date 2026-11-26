@@ -10,6 +10,7 @@ import { esc, pluralize } from '../util.js';
 import { $, $$, currentIa, getPrefs, icons, setPrefs, toast } from '../ui.js';
 
 let searchQuery = '';
+let filtresOuverts = false;
 let sortable;
 
 // Fiches dépliées / repliées (gardé pendant la session). Par défaut : dépliée seulement
@@ -35,6 +36,12 @@ const isOpen = (id, n) => openState[id] ?? n === 1;
 export const FILTRES = { tous: 'Tous les livres', encours: 'En cours', termines: 'Terminés' };
 /** Livres terminés : marqués « Livre terminé » et sans fiche en attente. */
 export const isFinished = (b) => !!b.termine && isComplete(b);
+
+/** Boutons rarement utilisés, rangés dans un petit menu « ⋯ Plus ». */
+const plusMenu = (items) =>
+  items.filter(Boolean).length
+    ? `<details class="plus"><summary class="btn" aria-label="Plus d’actions">⋯ Plus</summary><div class="plus-menu">${items.filter(Boolean).join('')}</div></details>`
+    : '';
 
 /** Le contenu d'une fiche (book = livre « aplati » sur cette fiche). */
 function renderFiche(book) {
@@ -125,8 +132,10 @@ function renderPart(book, part, i, n) {
     <div class="actions">
       ${part.fiche ? `<button class="btn primaire" data-action="fichea4" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Fiche A4</button>` : ''}
       ${part.fiche ? `<a class="btn" href="#/modifier/${q}">Modifier le texte</a>` : ''}
-      <a class="btn" href="#/livre/${q}">Compléter (suite du chapitre) / refaire le résumé</a>
-      <button class="btn danger" data-action="supprimer-fiche" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Supprimer cette fiche</button>
+      ${plusMenu([
+        part.fiche ? `<a class="btn" href="#/livre/${q}">Compléter (suite du chapitre) / refaire le résumé</a>` : '',
+        `<button class="btn danger" data-action="supprimer-fiche" data-id="${esc(book.id)}" data-fi="${esc(part.id)}">Supprimer cette fiche</button>`,
+      ])}
     </div>
     </div>
   </details>`;
@@ -216,8 +225,10 @@ function renderGeneralBlock(book) {
       ${idees}
       <div class="actions">
         <button class="btn primaire" data-action="generalA4" data-id="${esc(book.id)}">PDF</button>
-        <a class="btn" href="#/general/${esc(book.id)}">Refaire (autre longueur, nouvelles fiches)</a>
-        <button class="btn danger" data-action="supprimer-general" data-id="${esc(book.id)}">Supprimer le résumé général</button>
+        ${plusMenu([
+          `<a class="btn" href="#/general/${esc(book.id)}">Refaire (autre longueur, nouvelles fiches)</a>`,
+          `<button class="btn danger" data-action="supprimer-general" data-id="${esc(book.id)}">Supprimer le résumé général</button>`,
+        ])}
       </div>
     </div>
   </details>`;
@@ -252,8 +263,10 @@ function renderBook(book) {
         : `<a class="btn${isComplete(book) ? '' : ' primaire'}" href="#/livre/${esc(book.id)}?f=nouvelle">+ Ajouter une fiche${parts.length ? " (autre chapitre)" : ""}</a>`}
       ${ready > 1 ? `<button class="btn" data-action="fichea4" data-id="${esc(book.id)}">Toutes les fiches A4 du livre (${ready})</button>` : ''}
       ${ready && !book.resumeGeneral ? `<a class="btn" href="#/general/${esc(book.id)}">Résumé général de toutes les fiches</a>` : ''}
-      <a class="btn" href="#/modifier/${esc(book.id)}?notice=1">Informations du livre (ISBN, éditeur…)</a>
-      <button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">${parts.length > 1 ? 'Supprimer le livre et ses fiches' : parts.length ? 'Supprimer le livre et sa fiche' : 'Supprimer le livre'}</button>
+      ${plusMenu([
+        `<a class="btn" href="#/modifier/${esc(book.id)}?notice=1">Informations du livre (ISBN, éditeur…)</a>`,
+        `<button class="btn danger" data-action="supprimer" data-id="${esc(book.id)}">${parts.length > 1 ? 'Supprimer le livre et ses fiches' : parts.length ? 'Supprimer le livre et sa fiche' : 'Supprimer le livre'}</button>`,
+      ])}
     </div>
   </article>`;
 }
@@ -289,6 +302,7 @@ export async function renderLivre(view, params) {
     (!theme || hasTheme(b, theme)) &&
     (filtre === 'termines' ? isFinished(b) : filtre === 'encours' ? !isFinished(b) : true),
   );
+  const nbFiltres = (mode !== 'perso') + !!theme + (filtre !== 'tous');
   const canDrag = mode === 'perso' && !searchQuery && filtre === 'tous' && !theme;
   const tags = (b) => {
     const list = themesOf(b);
@@ -306,14 +320,19 @@ export async function renderLivre(view, params) {
   const week = 7 * 24 * 3600 * 1000;
   // Logiciel Windows : la sauvegarde automatique (dans Téléchargements) compte comme une sauvegarde.
   const lastSave = Math.max(prefs.lastExport || 0, isDesktopApp && prefs.autoBackup !== false ? prefs.lastAuto || 0 : 0);
-  const reminder = Date.now() - lastSave > week;
+  // « Plus tard » : le rappel se tait 3 jours.
+  const reminder = Date.now() - lastSave > week && Date.now() - (prefs.rappelPlusTard || 0) > 3 * 24 * 3600 * 1000;
 
   view.innerHTML = `
-    ${reminder ? `<div class="bandeau">Pensez à faire une sauvegarde : vos fiches ne sont enregistrées que sur cet appareil. <a href="#/sauvegarde">Sauvegarder</a></div>` : ''}
+    ${reminder ? `<div class="bandeau rappel" role="status"><span>${lastSave ? 'Dernière sauvegarde il y a plus d’une semaine.' : 'Vos fiches ne sont pas encore sauvegardées.'}</span>
+      <a class="btn" href="#/sauvegarde">Sauvegarder</a><button class="lien" type="button" data-action="plus-tard">Plus tard</button></div>` : ''}
     <section class="page sommaire">
       <h1>${esc(settings.titreLivre)}</h1>
       <div class="outils">
-        <input type="search" id="recherche" placeholder="Rechercher : titre, auteur, mot dans les fiches, thème…" value="${esc(searchQuery)}" aria-label="Rechercher">
+        <input type="search" id="recherche" placeholder="Rechercher un livre, un mot, un thème…" value="${esc(searchQuery)}" aria-label="Rechercher">
+        <button type="button" class="btn btn-filtres${nbFiltres ? ' actif' : ''}" id="btn-filtres" aria-expanded="${filtresOuverts}" aria-controls="filtres">${icons.filtre} Trier et filtrer${nbFiltres ? ` (${nbFiltres})` : ''}</button>
+      </div>
+      <div class="filtres" id="filtres"${filtresOuverts ? '' : ' hidden'}>
         <label class="tri">Trier par
           <select id="tri">${Object.entries(SORTS)
             .map(([k, v]) => `<option value="${k}"${k === mode ? ' selected' : ''}>${v}</option>`)
@@ -329,6 +348,7 @@ export async function renderLivre(view, params) {
             .map(([k, v]) => `<option value="${k}"${k === filtre ? ' selected' : ''}>${v}</option>`)
             .join('')}</select>
         </label>
+        ${nbFiltres ? '<button type="button" class="lien" id="effacer-filtres">Tout effacer</button>' : ''}
       </div>
       ${canDrag && shown.length > 1 ? '<p class="petit aide">Pour changer l\'ordre, faites glisser la poignée ⠿ (au doigt ou à la souris).</p>' : ''}
       <ol class="toc${canDrag ? ' deplacable' : ''}" id="toc">
@@ -336,13 +356,20 @@ export async function renderLivre(view, params) {
           .map(
             (b, i) => `<li data-id="${esc(b.id)}">
               ${canDrag ? `<span class="poignee" aria-label="Déplacer">${icons.grip}</span>` : ''}
-              <a href="#/?ch=${esc(b.id)}"><span class="num">${i + 1}.</span>
-                <span class="t">${esc(b.title)}</span>
-                <span class="a">${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</span></a>
-              ${isComplete(b) ? (b.termine ? '<span class="badge badge-ok">terminé ✓</span>' : '') : '<span class="badge">à terminer</span>'}
-              ${tags(b)}
-              ${hitsHtml(b)}
-              ${tocChapters(b)}
+              <a class="toc-couv" href="#/?ch=${esc(b.id)}" tabindex="-1" aria-hidden="true">${b.cover
+                ? `<img src="${esc(b.cover)}" alt="" loading="lazy">`
+                : `<span class="couv-vide">${esc((b.title || '?').trim().charAt(0).toUpperCase())}</span>`}</a>
+              <div class="toc-corps">
+                <div class="toc-tete">
+                  <a href="#/?ch=${esc(b.id)}"><span class="num">${i + 1}.</span>
+                    <span class="t">${esc(b.title)}</span>
+                    <span class="a">${[b.author, b.pubDate].filter(Boolean).map(esc).join(' · ')}</span></a>
+                  ${isComplete(b) ? (b.termine ? '<span class="badge badge-ok">terminé ✓</span>' : '') : '<span class="badge">à terminer</span>'}
+                  ${tags(b)}
+                </div>
+                ${hitsHtml(b)}
+                ${tocChapters(b)}
+              </div>
             </li>`,
           )
           .join('')}
@@ -368,6 +395,15 @@ export async function renderLivre(view, params) {
       s.setSelectionRange(pos, pos);
     });
   });
+  $('#btn-filtres', view).addEventListener('click', () => {
+    filtresOuverts = !filtresOuverts;
+    $('#filtres', view).hidden = !filtresOuverts;
+    $('#btn-filtres', view).setAttribute('aria-expanded', String(filtresOuverts));
+  });
+  $('#effacer-filtres', view)?.addEventListener('click', () => {
+    setPrefs({ sort: 'perso', filtreTheme: '', filtre: 'tous' });
+    renderLivre(view, {});
+  });
   $('#tri', view).addEventListener('change', (e) => {
     setPrefs({ sort: e.target.value });
     renderLivre(view, {});
@@ -386,6 +422,15 @@ export async function renderLivre(view, params) {
   countMissingPages(view, books);
 
   view.onclick = async (e) => {
+    // Menus « ⋯ Plus » : un clic ailleurs (ou sur un de leurs boutons) les referme.
+    for (const d of $$('details.plus[open]', view)) {
+      if (!d.contains(e.target) || e.target.closest('.plus-menu')) d.open = false;
+    }
+    if (e.target.closest('[data-action="plus-tard"]')) {
+      setPrefs({ rappelPlusTard: Date.now() });
+      e.target.closest('.bandeau').hidden = true;
+      return;
+    }
     // Clic sur un thème : n'afficher que les livres de ce thème (re-clic : tous).
     const th = e.target.closest('[data-theme]');
     if (th) {
