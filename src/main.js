@@ -19,7 +19,7 @@ import { startAutoBackup } from './autobackup.js';
 // Chaque fonction a sa couleur (voir style.css, --c-livre, --c-nouveau…).
 const NAV = [
   ['#/', 'Mon livre', icons.book, 'livre'],
-  ['#/nouveau', 'Nouvelle', icons.plus, 'nouveau'],
+  ['#/nouveau', 'Nouvelle fiche', icons.plus, 'nouveau'],
   ['#/sauvegarde', 'Sauvegarde', icons.sync, 'sauvegarde'],
   ['#/pdf', 'PDF', icons.pdf, 'pdf'],
   ['#/reglages', 'Réglages', icons.gear, 'reglages'],

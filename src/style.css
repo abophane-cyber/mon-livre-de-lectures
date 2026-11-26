@@ -575,3 +575,4 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 .bandeau.rappel span { flex: 1 1 200px; }
 .bandeau.rappel .btn { min-height: 36px; padding: 6px 14px; font-size: 0.88rem; }
 .bandeau.rappel .lien { color: var(--encre-douce); }
+.nav-bas a span { text-align: center; line-height: 1.1; }
