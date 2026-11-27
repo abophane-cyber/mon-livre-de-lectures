@@ -18,6 +18,8 @@ const csp = (native) => [
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data: blob:",
+  // Vidéo de fond d'écran choisie dans Réglages (fichier gardé sur l'appareil).
+  "media-src 'self' blob:",
   "font-src 'self'",
   `connect-src 'self'${native ? ` ${SITE}` : ''} https://catalogue.bnf.fr https://openlibrary.org https://www.googleapis.com https://covers.openlibrary.org https://archive.org https://*.archive.org https://m.media-amazon.com`,
   "worker-src 'self'",
