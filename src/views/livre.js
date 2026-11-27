@@ -13,8 +13,8 @@ let searchQuery = '';
 let filtresOuverts = false;
 let sortable;
 
-// Fiches dépliées / repliées (gardé pendant la session). Par défaut : dépliée seulement
-// si c'est la seule fiche du livre.
+// Fiches dépliées dans la page par « Tout déplier » (gardé pendant la session). Par défaut,
+// tout est replié : un clic sur un chapitre l'ouvre dans la fenêtre de lecture.
 const OPEN_KEY = 'mll:fiches-ouvertes';
 const openState = (() => {
   try {
@@ -31,7 +31,47 @@ function setOpen(id, open) {
     /* rien */
   }
 }
-const isOpen = (id, n) => openState[id] ?? n === 1;
+const isOpen = (id) => openState[id] ?? false;
+
+/** Fenêtre de lecture : le contenu d'un chapitre (ou du résumé général) s'y affiche, par-dessus la page.
+ *  Le contenu y est déplacé tel quel (ses boutons marchent comme dans la page), puis remis à sa place
+ *  à la fermeture (« ✕ Fermer », touche Échap ou clic à côté). */
+function ouvrirLecture(view, details) {
+  const corps = details.querySelector(':scope > .fiche-corps');
+  if (!corps) return;
+  const tete = details.querySelector(':scope > .fiche-tete');
+  const dlg = document.createElement('dialog');
+  dlg.className = 'lecture';
+  dlg.setAttribute('aria-label', tete.textContent.replace(/\s+/g, ' ').trim());
+  dlg.innerHTML = `<header class="lecture-tete">
+      <div class="lecture-titre">${tete.innerHTML}</div>
+      <button type="button" class="lecture-fermer" data-lecture="fermer">✕ Fermer</button>
+    </header>
+    <div class="lecture-corps" tabindex="-1"></div>`;
+  dlg.querySelector('.lecture-titre .badge')?.remove();
+  dlg.querySelector('.lecture-corps').append(corps);
+  view.append(dlg);
+  // Remet le contenu à sa place dans la page, puis retire la fenêtre (une seule fois).
+  const fermer = () => {
+    if (!dlg.isConnected) return;
+    if (details.isConnected) details.append(corps);
+    if (dlg.open) dlg.close();
+    dlg.remove();
+  };
+  dlg.addEventListener('click', (e) => {
+    // Clic sur le fond sombre (hors de la fenêtre) ou sur « Fermer ».
+    if (e.target === dlg || e.target.closest('[data-lecture="fermer"]')) fermer();
+  });
+  dlg.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      fermer();
+    }
+  });
+  dlg.addEventListener('close', fermer);
+  dlg.showModal();
+  dlg.querySelector('.lecture-corps').focus({ preventScroll: true });
+}
 
 export const FILTRES = { tous: 'Tous les livres', encours: 'En cours', termines: 'Terminés' };
 /** Livres terminés : marqués « Livre terminé » et sans fiche en attente. */
@@ -281,7 +321,7 @@ export async function renderLivre(view, params) {
   const prefs = getPrefs();
   const mode = SORTS[prefs.sort] ? prefs.sort : 'perso';
   const filtre = FILTRES[prefs.filtre] ? prefs.filtre : 'tous';
-  if (params.fi) setOpen(params.fi, true);
+  if (params.fi) setOpen(params.fi, false); // il s'ouvrira dans la fenêtre de lecture
   // Seul le livre demandé (clic dans la liste) est ouvert sous la liste. Quand la page se redessine
   // (recherche, tri…), le livre ouvert reste celui de l'adresse.
   const ch = params.ch || new URLSearchParams(location.hash.split('?')[1] || '').get('ch') || '';
@@ -426,6 +466,16 @@ export async function renderLivre(view, params) {
   });
   for (const d of $$('details.fiche-partie, details.toc-details', view)) {
     d.addEventListener('toggle', () => setOpen(d.dataset.fi, d.open));
+  }
+  // Un chapitre fermé s'ouvre dans la fenêtre de lecture (un chapitre déplié dans la page,
+  // par « Tout déplier », se replie normalement).
+  for (const s of $$('details.fiche-partie > summary.fiche-tete', view)) {
+    s.addEventListener('click', (e) => {
+      const d = s.parentElement;
+      if (d.open) return;
+      e.preventDefault();
+      ouvrirLecture(view, d);
+    });
   }
   countMissingPages(view, books);
 
@@ -577,5 +627,7 @@ export async function renderLivre(view, params) {
   if (params.ch) {
     const target = (params.fi && document.getElementById('fi-' + params.fi)) || document.getElementById('ch-' + ch);
     requestAnimationFrame(() => target?.scrollIntoView({ block: 'start' }));
+    // Lien du sommaire ou de la recherche vers un chapitre : il s'ouvre dans la fenêtre de lecture.
+    if (params.fi && target?.matches('details.fiche-partie:not([open])')) ouvrirLecture(view, target);
   }
 }
