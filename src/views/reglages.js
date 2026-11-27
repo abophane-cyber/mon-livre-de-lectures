@@ -2,6 +2,7 @@
 import { isAndroidApp, isNativeApp } from '../native.js';
 import { getSettings, setSettings } from '../db.js';
 import { esc } from '../util.js';
+import { VERSION_NOM, lireVersionPubliee, ouvrirTelechargement, versionPlusRecente } from '../maj.js';
 import { $, IA, applyTheme, currentIaKey, getPrefs, setPrefs, toast } from '../ui.js';
 
 let installEvent = null;
@@ -45,6 +46,12 @@ export async function renderReglages(view) {
            Dans Samsung Internet : menu <strong>≡</strong> → <strong>Ajouter la page à</strong> → <strong>Écran d'accueil</strong>.</p>`}
     </div>`}
 
+    ${isAndroidApp ? `<div class="etape">
+      <h2>Mises à jour</h2>
+      <p class="petit">Version installée : ${esc(VERSION_NOM)}. L'appli vérifie à chaque ouverture s'il en existe une plus récente.</p>
+      <button class="btn" id="verifierMaj">Vérifier maintenant</button>
+    </div>` : ''}
+
     <div class="etape">
       <h2>Vos données</h2>
       <p class="petit">${isNativeApp
@@ -74,6 +81,19 @@ export async function renderReglages(view) {
       toast('Enregistré ✓', 'ok');
     }
   };
+
+  $('#verifierMaj', view)?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    const publiee = await lireVersionPubliee();
+    e.target.disabled = false;
+    if (!publiee) return toast('Impossible de vérifier : pas de connexion Internet ?', 'attention');
+    const maj = versionPlusRecente(publiee);
+    if (!maj) return toast('Vous avez la dernière version ✓', 'ok');
+    if (confirm(`Nouvelle version disponible (${maj.versionName}). La télécharger ?`)) {
+      await ouvrirTelechargement(maj);
+      toast("Une fois le téléchargement fini, touchez le fichier pour l'installer. Vos fiches sont gardées.", 'info', 9000);
+    }
+  });
 
   $('#installer', view)?.addEventListener('click', async () => {
     if (!installEvent) return;

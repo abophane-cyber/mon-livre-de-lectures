@@ -11,7 +11,8 @@
     "build:app": "vite build --mode native",
     "exe": "npm run build:app && electron-builder --win nsis",
     "apk": "npm run build:app && cap sync android && cd android && .\\gradlew.bat assembleDebug",
-    "app": "npm run build:app && electron ."
+    "app": "npm run build:app && electron .",
+    "publier-apk": "node scripts/publier-apk.mjs"
   },
   "type": "module",
   "dependencies": {

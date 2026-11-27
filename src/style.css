@@ -684,3 +684,6 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 .chapitre.replie h2 { margin-bottom: 0; }
 .chapitre .tete-livre h2 { padding-right: 150px; }
 @media (max-width: 599px) { .chapitre { padding-top: 44px; } .chapitre .tete-livre h2 { padding-right: 0; } }
+
+/* Appli Android : nouvelle version disponible */
+.bandeau.rappel.maj::before { content: '⬇️'; }

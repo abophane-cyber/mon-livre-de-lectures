@@ -16,6 +16,8 @@ import { receiveFile, renderSauvegarde } from './views/sauvegarde.js';
 import { renderPdf } from './views/pdfview.js';
 import { renderReglages } from './views/reglages.js';
 import { startAutoBackup } from './autobackup.js';
+import { isAndroidApp } from './native.js';
+import { verifierMiseAJour } from './maj.js';
 
 // Chaque fonction a sa couleur (voir style.css, --c-livre, --c-nouveau…).
 const NAV = [
@@ -98,3 +100,6 @@ window.addEventListener('fichier-recu', checkReceivedFile);
 // Fonctionne hors connexion et se met à jour toute seule.
 // (Inutile dans les versions installées .exe et .apk, qui contiennent déjà tout.)
 if (import.meta.env.MODE !== 'native') registerSW({ immediate: true });
+
+// Appli Android : propose la nouvelle version quand il y en a une (voir maj.js).
+if (isAndroidApp) verifierMiseAJour().catch(() => {});

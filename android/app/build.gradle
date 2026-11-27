@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+// Numéro de version lu dans public/version-apk.json (mis à jour par « npm run publier-apk »).
+def versionApk = new groovy.json.JsonSlurper().parse(file('../../public/version-apk.json'))
+
 android {
     namespace = "fr.monlivre.lectures"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +10,8 @@ android {
         applicationId "fr.monlivre.lectures"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode versionApk.versionCode
+        versionName versionApk.versionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
