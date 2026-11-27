@@ -7,7 +7,7 @@ import { NOTICE_FIELDS } from '../notice.js';
 import { copyText } from '../download.js';
 import { isDesktopApp } from '../native.js';
 import { esc, pluralize } from '../util.js';
-import { $, $$, currentIa, getPrefs, icons, setPrefs, toast } from '../ui.js';
+import { $, $$, changerTaille, currentIa, getPrefs, icons, setPrefs, toast } from '../ui.js';
 
 let searchQuery = '';
 let filtresOuverts = false;
@@ -45,7 +45,11 @@ function ouvrirLecture(view, details) {
   dlg.setAttribute('aria-label', tete.textContent.replace(/\s+/g, ' ').trim());
   dlg.innerHTML = `<header class="lecture-tete">
       <div class="lecture-titre">${tete.innerHTML}</div>
-      <button type="button" class="lecture-fermer" data-lecture="fermer">✕ Fermer</button>
+      <div class="lecture-outils">
+        <button type="button" class="lecture-bouton" data-lecture="moins" title="Texte plus petit" aria-label="Texte plus petit">A−</button>
+        <button type="button" class="lecture-bouton lecture-plus" data-lecture="plus" title="Texte plus grand" aria-label="Texte plus grand">A+</button>
+        <button type="button" class="lecture-bouton lecture-fermer" data-lecture="fermer">✕ Fermer</button>
+      </div>
     </header>
     <div class="lecture-corps" tabindex="-1"></div>`;
   dlg.querySelector('.lecture-titre .badge')?.remove();
@@ -61,6 +65,11 @@ function ouvrirLecture(view, details) {
   dlg.addEventListener('click', (e) => {
     // Clic sur le fond sombre (hors de la fenêtre) ou sur « Fermer ».
     if (e.target === dlg || e.target.closest('[data-lecture="fermer"]')) fermer();
+    const taille = e.target.closest('[data-lecture="moins"], [data-lecture="plus"]');
+    if (taille) {
+      const t = changerTaille({ crans: taille.dataset.lecture === 'plus' ? 1 : -1 });
+      toast(`Taille du texte : ${t} %`, 'info', 1500);
+    }
   });
   dlg.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {

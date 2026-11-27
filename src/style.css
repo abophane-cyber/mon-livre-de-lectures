@@ -69,7 +69,7 @@ body {
   background: var(--papier);
   color: var(--encre);
   font-family: var(--sans);
-  font-size: 16px;
+  font-size: 1rem; /* suit la taille du texte choisie dans Réglages (sur <html>) */
   line-height: 1.5;
   padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);
 }
@@ -719,10 +719,25 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
   background: radial-gradient(circle, var(--encre-douce) 2px, transparent 2.5px) 0 50% / 10px 10px repeat-x;
 }
 .page-poignee:hover { opacity: 0.9; }
-.page-bord-droit { top: 16px; bottom: 16px; right: -5px; width: 10px; cursor: ew-resize; }
-.page-bord-bas { left: 16px; right: 16px; bottom: -5px; height: 10px; cursor: ns-resize; }
-.page-coin { right: -6px; bottom: -6px; width: 18px; height: 18px; cursor: nwse-resize; }
-.page-bord:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); border-radius: 6px; }
+.page-bord-droit { top: 24px; bottom: 24px; right: -8px; width: 16px; cursor: ew-resize; }
+.page-bord-bas { left: 24px; right: 24px; bottom: -8px; height: 16px; cursor: ns-resize; }
+.page-coin { right: -8px; bottom: -8px; width: 26px; height: 26px; cursor: nwse-resize; }
+/* Repères toujours visibles : une barrette au milieu du bord droit et du bord bas, des stries dans le coin */
+.page-bord-droit::after, .page-bord-bas::after {
+  content: ''; position: absolute; top: 50%; left: 50%; border-radius: 999px;
+  background: var(--encre-douce); opacity: 0.55; transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--page) 70%, transparent);
+  transition: opacity 0.15s, background 0.15s;
+}
+.page-bord-droit::after { width: 6px; height: 56px; }
+.page-bord-bas::after { width: 56px; height: 6px; }
+.page-coin::after {
+  content: ''; position: absolute; right: 9px; bottom: 9px; width: 14px; height: 14px; opacity: 0.8;
+  background: linear-gradient(135deg, transparent 0 42%, var(--encre-douce) 42% 52%, transparent 52% 64%, var(--encre-douce) 64% 74%, transparent 74% 86%, var(--encre-douce) 86% 96%, transparent 96%);
+  transition: opacity 0.15s;
+}
+.page-bord:hover::after { opacity: 1; background-color: var(--accent); }
+.page-coin:hover::after { background-color: transparent; }
 /* Pendant un glisser : pas de sélection de texte, curseur conservé */
 :root.page-en-cours, :root.page-en-cours * { user-select: none; }
 :root.page-en-cours .page-poignee { cursor: grabbing; opacity: 0.9; }
@@ -746,11 +761,21 @@ dialog.lecture::backdrop { background: rgb(0 0 0 / 0.55); backdrop-filter: blur(
 .lecture-titre { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .lecture-titre .partie-num { margin: 0; }
 .lecture-titre .chapitre-resume { font-family: var(--serif); font-weight: 700; font-size: 1.35rem; line-height: 1.3; text-wrap: balance; }
-.lecture-fermer {
-  flex: none; font: 500 0.9rem var(--sans); color: var(--encre); cursor: pointer;
+.lecture-outils { flex: none; display: flex; gap: 6px; align-items: center; }
+.lecture-bouton {
+  font: 600 0.9rem var(--sans); color: var(--encre); cursor: pointer;
   background: color-mix(in srgb, var(--accent) 8%, var(--page)); border: 1px solid var(--filet);
-  border-radius: 999px; padding: 6px 14px;
+  border-radius: 999px; padding: 6px 12px; min-width: 40px;
 }
-.lecture-fermer:hover { background: color-mix(in srgb, var(--accent) 16%, var(--page)); }
+.lecture-plus { font-size: 1.05rem; padding: 4px 11px; }
+.lecture-fermer { font-weight: 500; padding: 6px 14px; margin-left: 4px; }
+.lecture-bouton:hover { background: color-mix(in srgb, var(--accent) 16%, var(--page)); }
 .lecture-corps { overflow: auto; padding: 8px 32px 28px; outline: none; overscroll-behavior: contain; }
 @media (max-width: 599px) { .lecture-corps { padding: 4px 18px 22px; } .lecture-tete { padding: 14px 14px 12px 16px; } }
+
+/* Taille du texte (Réglages) */
+.taille-ligne { display: flex; align-items: center; gap: 10px; }
+.taille-ligne input[type='range'] { flex: 1; accent-color: var(--accent); }
+.taille-ligne .btn { min-width: 48px; justify-content: center; }
+.taille-plus { font-size: 1.15rem; }
+.taille-ligne output { min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }

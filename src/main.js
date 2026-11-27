@@ -6,7 +6,7 @@ import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
 import './style.css';
 import { registerSW } from 'virtual:pwa-register';
-import { applyTheme, icons } from './ui.js';
+import { applyTheme, appliquerTaille, icons } from './ui.js';
 import { renderLivre } from './views/livre.js';
 import { renderAtelier } from './views/atelier.js';
 import { renderChoixLivre } from './views/choixlivre.js';
@@ -80,6 +80,7 @@ async function route() {
 window.addEventListener('hashchange', route);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme());
 applyTheme();
+appliquerTaille();
 appliquerFond();
 route();
 startAutoBackup();

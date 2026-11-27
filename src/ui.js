@@ -62,6 +62,27 @@ export function currentIa() {
   return IA[currentIaKey()];
 }
 
+/** Taille du texte, en % de la taille normale (toute l'appli est en rem : tout suit). */
+export const TAILLE = { min: 80, max: 160, pas: 10, defaut: 100 };
+
+export function tailleTexte() {
+  const t = Number(getPrefs().taille) || TAILLE.defaut;
+  return Math.min(TAILLE.max, Math.max(TAILLE.min, t));
+}
+
+export function appliquerTaille(t = tailleTexte()) {
+  document.documentElement.style.fontSize = t === TAILLE.defaut ? '' : `${t}%`;
+}
+
+/** Change la taille du texte (valeur, ou +1 / -1 cran) et la garde ; renvoie la nouvelle taille. */
+export function changerTaille({ valeur, crans = 0 }) {
+  const t = Math.min(TAILLE.max, Math.max(TAILLE.min, (valeur ?? tailleTexte()) + crans * TAILLE.pas));
+  setPrefs({ taille: t });
+  appliquerTaille(t);
+  window.dispatchEvent(new CustomEvent('taille-texte', { detail: t }));
+  return t;
+}
+
 export function applyTheme(theme = getPrefs().theme) {
   const root = document.documentElement;
   if (theme === 'clair') root.dataset.theme = 'light';

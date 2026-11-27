@@ -5,7 +5,7 @@ import { VOILE_DEFAUT, appliquerFond, appliquerVoile } from '../fond.js';
 import { reinitialiserPage } from '../pageajust.js';
 import { esc } from '../util.js';
 import { VERSION_NOM, lireVersionPubliee, ouvrirTelechargement, versionPlusRecente } from '../maj.js';
-import { $, IA, applyTheme, currentIaKey, getPrefs, setPrefs, toast } from '../ui.js';
+import { $, IA, TAILLE, applyTheme, changerTaille, currentIaKey, getPrefs, setPrefs, tailleTexte, toast } from '../ui.js';
 
 let installEvent = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -29,6 +29,18 @@ export async function renderReglages(view) {
         .map(([k, l]) => `<label><input type="radio" name="theme" value="${k}"${prefs.theme === k ? ' checked' : ''}><span>${l}</span></label>`)
         .join('')}
     </fieldset>
+
+    <div class="etape taille-reglage">
+      <h2>Taille du texte</h2>
+      <div class="taille-ligne">
+        <button type="button" class="btn taille-moins" data-taille="-1" aria-label="Texte plus petit">A−</button>
+        <input type="range" id="taille" min="${TAILLE.min}" max="${TAILLE.max}" step="${TAILLE.pas}" value="${tailleTexte()}" aria-label="Taille du texte">
+        <button type="button" class="btn taille-plus" data-taille="1" aria-label="Texte plus grand">A+</button>
+        <output id="tailleVal">${tailleTexte()} %</output>
+      </div>
+      <p class="petit">Toute l'appli suit cette taille. Dans la fenêtre de lecture d'un chapitre, les boutons A− et A+ la changent aussi.
+        <button type="button" class="lien" data-taille="0">Taille normale</button></p>
+    </div>
 
     <div class="etape fond-reglage">
       <h2>Fond d'écran</h2>
@@ -121,6 +133,18 @@ export async function renderReglages(view) {
     $('#voileVal', view).textContent = `${Math.round(e.target.value * 100)} %`;
     appliquerVoile();
   });
+
+  const montrerTaille = (t) => {
+    $('#taille', view).value = t;
+    $('#tailleVal', view).textContent = `${t} %`;
+  };
+  $('#taille', view).addEventListener('input', (e) => montrerTaille(changerTaille({ valeur: Number(e.target.value) })));
+  for (const b of view.querySelectorAll('[data-taille]')) {
+    b.addEventListener('click', () => {
+      const n = Number(b.dataset.taille);
+      montrerTaille(n === 0 ? changerTaille({ valeur: TAILLE.defaut }) : changerTaille({ crans: n }));
+    });
+  }
 
   $('#pageCentre', view)?.addEventListener('click', () => {
     reinitialiserPage();
