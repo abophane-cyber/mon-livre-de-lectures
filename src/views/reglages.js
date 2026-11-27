@@ -2,6 +2,7 @@
 import { isAndroidApp, isNativeApp } from '../native.js';
 import { getFond, getSettings, setFond, setSettings } from '../db.js';
 import { VOILE_DEFAUT, appliquerFond, appliquerVoile } from '../fond.js';
+import { reinitialiserPage } from '../pageajust.js';
 import { esc } from '../util.js';
 import { VERSION_NOM, lireVersionPubliee, ouvrirTelechargement, versionPlusRecente } from '../maj.js';
 import { $, IA, applyTheme, currentIaKey, getPrefs, setPrefs, toast } from '../ui.js';
@@ -39,6 +40,12 @@ export async function renderReglages(view) {
       ${fond?.blob ? `<label class="bloc">Assombrissement du fond : <output id="voileVal">${Math.round(voile * 100)} %</output>
         <input type="range" id="voile" min="0" max="0.85" step="0.05" value="${voile}">
       </label>` : ''}
+    </div>
+
+    <div class="etape ecran-large">
+      <h2>Position et taille de la page</h2>
+      <p class="petit">Sur ordinateur, glissez la petite barre en haut de la page pour la déplacer, et tirez son bord droit, son bord bas ou son coin pour changer sa taille.</p>
+      <button class="btn" id="pageCentre">Remettre la page au centre, à sa taille d'origine</button>
     </div>
 
     <label class="bloc">IA utilisée pour les résumés
@@ -113,6 +120,11 @@ export async function renderReglages(view) {
     setPrefs({ voile: Number(e.target.value) });
     $('#voileVal', view).textContent = `${Math.round(e.target.value * 100)} %`;
     appliquerVoile();
+  });
+
+  $('#pageCentre', view)?.addEventListener('click', () => {
+    reinitialiserPage();
+    toast('Page remise au centre ✓', 'ok');
   });
 
   $('#fondRetirer', view)?.addEventListener('click', async () => {

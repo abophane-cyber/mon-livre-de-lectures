@@ -698,3 +698,31 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 :root.avec-fond .page { box-shadow: var(--ombre), 0 12px 40px rgb(0 0 0 / 0.35); }
 .fond-reglage .actions { margin-top: 0; padding-top: 0; border-top: 0; }
 .fond-reglage input[type='range'] { display: block; width: 100%; margin-top: 6px; accent-color: var(--accent); }
+
+/* ───────── Page déplaçable et redimensionnable (grands écrans, voir pageajust.js) ───────── */
+@media (min-width: 820px) {
+  #view > .page {
+    position: relative;
+    left: var(--page-dx, 0px); top: var(--page-dy, 0px);
+    max-width: var(--page-larg, 760px);
+  }
+  #view.page-hauteur-fixe > .page { height: var(--page-haut); overflow: auto; overscroll-behavior: contain; }
+}
+.page-calque { position: absolute; z-index: 5; pointer-events: none; }
+.page-calque[hidden] { display: none; }
+.page-calque > div { position: absolute; pointer-events: auto; touch-action: none; }
+/* Poignée de déplacement : petite barre au milieu du bord haut */
+.page-poignee {
+  top: 6px; left: 50%; width: 72px; height: 14px; margin-left: -36px; border-radius: 999px;
+  cursor: grab; opacity: 0.35; transition: opacity 0.15s;
+  background: radial-gradient(circle, var(--encre-douce) 1.6px, transparent 2px) 0 50% / 9px 9px repeat-x;
+}
+.page-poignee:hover { opacity: 0.9; }
+.page-bord-droit { top: 16px; bottom: 16px; right: -5px; width: 10px; cursor: ew-resize; }
+.page-bord-bas { left: 16px; right: 16px; bottom: -5px; height: 10px; cursor: ns-resize; }
+.page-coin { right: -6px; bottom: -6px; width: 18px; height: 18px; cursor: nwse-resize; }
+.page-bord:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); border-radius: 6px; }
+/* Pendant un glisser : pas de sélection de texte, curseur conservé */
+:root.page-en-cours, :root.page-en-cours * { user-select: none; }
+:root.page-en-cours .page-poignee { cursor: grabbing; opacity: 0.9; }
+@media (max-width: 819px) { .ecran-large { display: none; } }

@@ -17,6 +17,7 @@ import { renderPdf } from './views/pdfview.js';
 import { renderReglages } from './views/reglages.js';
 import { startAutoBackup } from './autobackup.js';
 import { appliquerFond } from './fond.js';
+import { activerAjustementPage } from './pageajust.js';
 import { isAndroidApp } from './native.js';
 import { verifierMiseAJour } from './maj.js';
 
@@ -39,6 +40,7 @@ document.getElementById('app').innerHTML = `
   <nav class="nav-bas" aria-label="Navigation">${NAV.map(([h, l, i, c]) => `<a href="${h}" data-couleur="${c}">${i}<span>${l}</span></a>`).join('')}</nav>`;
 
 const view = document.getElementById('view');
+activerAjustementPage(view);
 
 function parseRoute() {
   const raw = location.hash.replace(/^#/, '') || '/';
