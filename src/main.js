@@ -34,13 +34,37 @@ const NAV = [
 document.getElementById('app').innerHTML = `
   <header class="entete">
     <a href="#/" class="marque">Mon livre <em>de lectures</em></a>
-    <nav class="nav-haut" aria-label="Navigation">${NAV.map(([h, l, , c]) => `<a href="${h}" data-couleur="${c}">${l}</a>`).join('')}</nav>
+    <div class="entete-droite">
+      <nav class="nav-haut" aria-label="Navigation">${NAV.map(([h, l, , c]) => `<a href="${h}" data-couleur="${c}">${l}</a>`).join('')}</nav>
+      <button type="button" class="plein-ecran" id="pleinEcran" hidden title="Plein écran (F11)" aria-label="Plein écran">${icons.pleinEcran}</button>
+    </div>
   </header>
   <main id="view" tabindex="-1"></main>
   <nav class="nav-bas" aria-label="Navigation">${NAV.map(([h, l, i, c]) => `<a href="${h}" data-couleur="${c}">${i}<span>${l}</span></a>`).join('')}</nav>`;
 
 const view = document.getElementById('view');
 activerAjustementPage(view);
+
+// Plein écran : bouton en haut à droite (et touche F11 dans l'appli du bureau). Échap en sort.
+const btnPleinEcran = document.getElementById('pleinEcran');
+if (document.fullscreenEnabled && !isAndroidApp) {
+  btnPleinEcran.hidden = false;
+  const basculer = () =>
+    (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});
+  btnPleinEcran.addEventListener('click', basculer);
+  document.addEventListener('fullscreenchange', () => {
+    const plein = !!document.fullscreenElement;
+    btnPleinEcran.innerHTML = plein ? icons.quitterPleinEcran : icons.pleinEcran;
+    btnPleinEcran.title = plein ? 'Quitter le plein écran (Échap)' : 'Plein écran (F11)';
+    btnPleinEcran.setAttribute('aria-label', plein ? 'Quitter le plein écran' : 'Plein écran');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'F11' && !e.repeat) {
+      e.preventDefault();
+      basculer();
+    }
+  });
+}
 
 function parseRoute() {
   const raw = location.hash.replace(/^#/, '') || '/';

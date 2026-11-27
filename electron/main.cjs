@@ -137,9 +137,10 @@ app.whenReady().then(() => {
     item.setSavePath(uniquePath(app.getPath('downloads'), item.getFilename()));
   });
 
-  // Aucune autorisation spéciale, sauf lire/écrire le presse-papiers (boutons Copier et Coller).
+  // Aucune autorisation spéciale, sauf lire/écrire le presse-papiers (boutons Copier et Coller)
+  // et passer en plein écran (bouton en haut à droite, touche F11).
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
-    cb(permission === 'clipboard-read' || permission === 'clipboard-sanitized-write');
+    cb(permission === 'clipboard-read' || permission === 'clipboard-sanitized-write' || permission === 'fullscreen');
   });
 
   Menu.setApplicationMenu(null);

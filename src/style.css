@@ -779,3 +779,13 @@ dialog.lecture::backdrop { background: rgb(0 0 0 / 0.55); backdrop-filter: blur(
 .taille-ligne .btn { min-width: 48px; justify-content: center; }
 .taille-plus { font-size: 1.15rem; }
 .taille-ligne output { min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Bouton plein écran, en haut à droite (voir main.js) */
+.entete-droite { display: flex; align-items: center; gap: 8px; }
+.plein-ecran {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0; border-radius: 50%; cursor: pointer;
+  color: var(--encre); background: var(--page); border: 1px solid var(--filet);
+}
+.plein-ecran:hover { background: color-mix(in srgb, var(--accent) 12%, var(--page)); }
+.plein-ecran svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
