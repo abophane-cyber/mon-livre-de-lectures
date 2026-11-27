@@ -16,6 +16,7 @@ import { receiveFile, renderSauvegarde } from './views/sauvegarde.js';
 import { renderPdf } from './views/pdfview.js';
 import { renderReglages } from './views/reglages.js';
 import { startAutoBackup } from './autobackup.js';
+import { appliquerFond } from './fond.js';
 import { isAndroidApp } from './native.js';
 import { verifierMiseAJour } from './maj.js';
 
@@ -77,6 +78,7 @@ async function route() {
 window.addEventListener('hashchange', route);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme());
 applyTheme();
+appliquerFond();
 route();
 startAutoBackup();
 

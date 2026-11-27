@@ -1,6 +1,7 @@
 // Vue « Réglages » : thème, IA utilisée, couverture, installation.
 import { isAndroidApp, isNativeApp } from '../native.js';
-import { getSettings, setSettings } from '../db.js';
+import { getFond, getSettings, setFond, setSettings } from '../db.js';
+import { VOILE_DEFAUT, appliquerFond, appliquerVoile } from '../fond.js';
 import { esc } from '../util.js';
 import { VERSION_NOM, lireVersionPubliee, ouvrirTelechargement, versionPlusRecente } from '../maj.js';
 import { $, IA, applyTheme, currentIaKey, getPrefs, setPrefs, toast } from '../ui.js';
@@ -15,6 +16,8 @@ export async function renderReglages(view) {
   const prefs = getPrefs();
   const settings = await getSettings();
   const installed = window.matchMedia('(display-mode: standalone)').matches;
+  const fond = await getFond().catch(() => null);
+  const voile = prefs.voile ?? VOILE_DEFAUT;
 
   view.innerHTML = `<section class="page reglages">
     <h1>Réglages</h1>
@@ -25,6 +28,18 @@ export async function renderReglages(view) {
         .map(([k, l]) => `<label><input type="radio" name="theme" value="${k}"${prefs.theme === k ? ' checked' : ''}><span>${l}</span></label>`)
         .join('')}
     </fieldset>
+
+    <div class="etape fond-reglage">
+      <h2>Fond d'écran</h2>
+      <p class="petit" id="fondInfo">${fond?.blob ? `Fond actuel : ${esc(fond.name || 'fichier')} (${fond.blob.type.startsWith('video/') ? 'vidéo' : 'image'}).` : 'Aucun fond : la couleur de l\'apparence choisie.'}</p>
+      <div class="actions">
+        <label class="btn">Choisir une image ou une vidéo<input type="file" id="fondFichier" accept="image/*,video/*" hidden></label>
+        ${fond?.blob ? '<button class="btn" id="fondRetirer">Retirer le fond</button>' : ''}
+      </div>
+      ${fond?.blob ? `<label class="bloc">Assombrissement du fond : <output id="voileVal">${Math.round(voile * 100)} %</output>
+        <input type="range" id="voile" min="0" max="0.85" step="0.05" value="${voile}">
+      </label>` : ''}
+    </div>
 
     <label class="bloc">IA utilisée pour les résumés
       <select id="ia">${Object.entries(IA)
@@ -69,6 +84,18 @@ export async function renderReglages(view) {
       setPrefs({ theme: e.target.value });
       applyTheme();
     }
+    if (e.target.id === 'fondFichier' && e.target.files[0]) {
+      const f = e.target.files[0];
+      if (!/^(image|video)\//.test(f.type)) return toast('Choisissez une image ou une vidéo.', 'attention');
+      try {
+        await setFond({ blob: f, name: f.name });
+      } catch {
+        return toast("Fichier trop gros pour être gardé sur cet appareil.", 'attention');
+      }
+      await appliquerFond();
+      toast('Fond d\'écran enregistré ✓', 'ok');
+      renderReglages(view);
+    }
     if (e.target.id === 'ia') {
       setPrefs({ ia: e.target.value, iaChoisie: true });
       toast(`Les résumés se feront avec ${IA[e.target.value].label}.`, 'ok');
@@ -81,6 +108,18 @@ export async function renderReglages(view) {
       toast('Enregistré ✓', 'ok');
     }
   };
+
+  $('#voile', view)?.addEventListener('input', (e) => {
+    setPrefs({ voile: Number(e.target.value) });
+    $('#voileVal', view).textContent = `${Math.round(e.target.value * 100)} %`;
+    appliquerVoile();
+  });
+
+  $('#fondRetirer', view)?.addEventListener('click', async () => {
+    await setFond(null);
+    await appliquerFond();
+    renderReglages(view);
+  });
 
   $('#verifierMaj', view)?.addEventListener('click', async (e) => {
     e.target.disabled = true;

@@ -687,3 +687,14 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 
 /* Appli Android : nouvelle version disponible */
 .bandeau.rappel.maj::before { content: '⬇️'; }
+
+/* ───────── Fond d'écran choisi dans Réglages (image ou vidéo + voile) ─────────
+   Placé en fin de fichier pour passer devant le fond des apparences (dont « Nature »). */
+#fond { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+#fond .fond-media, #fond img, #fond video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#fond .fond-voile { position: absolute; inset: 0; background: #000; opacity: 0.35; }
+:root.avec-fond, :root.avec-fond body { background: transparent; }
+:root.avec-fond .entete { background: color-mix(in srgb, var(--papier) 72%, transparent); border-bottom-color: transparent; }
+:root.avec-fond .page { box-shadow: var(--ombre), 0 12px 40px rgb(0 0 0 / 0.35); }
+.fond-reglage .actions { margin-top: 0; padding-top: 0; border-top: 0; }
+.fond-reglage input[type='range'] { display: block; width: 100%; margin-top: 6px; accent-color: var(--accent); }

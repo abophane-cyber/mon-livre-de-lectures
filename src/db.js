@@ -71,6 +71,15 @@ async function setMeta(key, value, updatedAt = Date.now()) {
   await (await dbPromise).put('meta', { key, value, updatedAt });
 }
 
+/** Fond d'écran (image ou vidéo) propre à cet appareil : { blob, name } ou null. Pas dans les sauvegardes. */
+export async function getFond() {
+  return (await getMeta('fond')).value;
+}
+
+export async function setFond(fond) {
+  await setMeta('fond', fond);
+}
+
 /** Ordre personnalisé des chapitres (identifiants), complété des livres manquants. */
 export async function getOrder() {
   const [meta, books] = await Promise.all([getMeta('order'), liveBooks()]);
