@@ -374,7 +374,7 @@ export async function renderLivre(view, params) {
   view.innerHTML = `
     ${reminder ? `<div class="bandeau rappel" role="status"><span>${lastSave ? 'Dernière sauvegarde il y a plus d’une semaine.' : 'Vos fiches ne sont pas encore sauvegardées.'}</span>
       <a class="btn" href="#/sauvegarde">Sauvegarder</a><button class="lien" type="button" data-action="plus-tard">Plus tard</button></div>` : ''}
-    <section class="page sommaire">
+    <section class="page sommaire"${books.some((b) => b.id === ch) ? ' hidden' : ''}>
       <h1>${esc(settings.titreLivre)}</h1>
       <div class="outils">
         <input type="search" id="recherche" placeholder="Rechercher un livre, un mot, un thème…" value="${esc(searchQuery)}" aria-label="Rechercher">
@@ -490,8 +490,9 @@ export async function renderLivre(view, params) {
       return;
     }
     // Clic sur un thème : n'afficher que les livres de ce thème (re-clic : tous).
+    // (Seulement dans la vue : la balise <html> porte aussi un data-theme, celui de l'apparence.)
     const th = e.target.closest('[data-theme]');
-    if (th) {
+    if (th && view.contains(th)) {
       setPrefs({ filtreTheme: th.dataset.theme === theme ? '' : th.dataset.theme });
       await renderLivre(view, {});
       window.scrollTo(0, 0);

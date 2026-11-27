@@ -46,7 +46,7 @@ function appliquer(page, p = lire(cle(page))) {
 /** Place chaque calque de poignées exactement sur son panneau. */
 function recalerTout() {
   for (const [page, calque] of calques) {
-    if (!page.isConnected || !GRAND.matches) {
+    if (!page.isConnected || !GRAND.matches || page.hidden) {
       calque.hidden = true;
       continue;
     }
