@@ -72,7 +72,7 @@ export function applyTheme(theme = getPrefs().theme) {
     theme === 'sombre' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', theme === 'nature' ? '#1e3b2f' : dark ? '#1b1915' : '#f7f3ea');
+    ?.setAttribute('content', theme === 'nature' ? '#8fa87a' : dark ? '#1b1915' : '#f7f3ea');
 }
 
 let toastTimer;

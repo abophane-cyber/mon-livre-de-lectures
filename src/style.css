@@ -612,65 +612,70 @@ body[data-couleur='general']    { --accent: var(--c-general);    --accent-fort: 
 .toc li.ouvert .t { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ───────── Apparence « Nature » (reprise de la charte de MonWebOrga) ─────────
-   Vert forêt, mousse, brun chocolat, caramel, sable ; texte crème.
+   Vert sauge #8FA87A en base, pages crème, brun chocolat, caramel, sable ;
+   texte vert forêt très foncé (le sauge est trop clair pour un texte crème).
    Placé en fin de fichier pour passer devant le mode sombre automatique. */
 :root[data-theme='nature'] {
-  --nat-foret: #1e3b2f;
-  --nat-pin: #33664f;
-  --nat-mousse: #7fb560;
-  --nat-chocolat: #7d4d30;
+  --nat-sauge: #8fa87a;
+  --nat-sauge-clair: #a4ba91;
+  --nat-sauge-fonce: #7a9466;
+  --nat-foret: #1f2e1b;
+  --nat-chocolat: #6f4329;
   --nat-caramel: #c4864e;
   --nat-sable: #ebc89c;
-  --nat-creme: #f4ecdf;
-  --papier: #1e3b2f;
-  --page: #26473a;
-  --encre: var(--nat-creme);
-  --encre-douce: #cdc2ad;
-  --filet: #41695a;
-  --accent: var(--nat-sable);
-  --accent-fort: #f3d9b6;
-  --sur-accent: #3b2a1e;
-  --surligne: rgb(235 200 156 / 0.32);
-  --surligne-encre: #fff8ec;
-  --alerte: #f0a35e;
-  --alerte-fond: #3d3a24;
-  --danger: #f08b7c;
-  --ok: #a9d98c;
-  --ombre: inset 0 1px 0 rgb(255 255 255 / 0.10), 0 10px 22px -6px rgb(8 20 14 / 0.65), 0 3px 6px rgb(8 20 14 / 0.35);
+  --nat-creme: #f6f2e6;
+  --papier: var(--nat-sauge);
+  --page: var(--nat-creme);
+  --encre: var(--nat-foret);
+  --encre-douce: #4e5a44;
+  --filet: #d5d8c2;
+  --accent: var(--nat-chocolat);
+  --accent-fort: #563220;
+  --sur-accent: #fbf7ee;
+  --surligne: rgb(235 200 156 / 0.6);
+  --surligne-encre: var(--nat-foret);
+  --alerte: #a4520e;
+  --alerte-fond: #f6ead6;
+  --danger: #9e2f22;
+  --ok: #3f6b2e;
+  --ombre: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 10px 22px -8px rgb(40 55 30 / 0.45), 0 3px 6px rgb(40 55 30 / 0.18);
   /* Couleurs des fonctions, en tons de terre et de végétation */
-  --c-livre: #ebc89c;       --c-livre-fort: #f3d9b6;
-  --c-nouveau: #9fd07f;     --c-nouveau-fort: #b8de9f;
-  --c-fiche: #8fd1b0;       --c-fiche-fort: #aadfc4;
-  --c-sauvegarde: #9cc9d6;  --c-sauvegarde-fort: #b6d8e2;
-  --c-pdf: #e0a56e;         --c-pdf-fort: #ebbb8e;
-  --c-reglages: #cdc2ad;    --c-reglages-fort: #ddd4c2;
-  --c-modifier: #e8a990;    --c-modifier-fort: #f0bfaa;
-  --c-general: #c9a6d9;     --c-general-fort: #d8bde4;
-  color-scheme: dark;
+  --c-livre: #6f4329;       --c-livre-fort: #563220;
+  --c-nouveau: #3f6b2e;     --c-nouveau-fort: #2f5222;
+  --c-fiche: #2f6e5a;       --c-fiche-fort: #225445;
+  --c-sauvegarde: #2f6577;  --c-sauvegarde-fort: #234d5b;
+  --c-pdf: #a85a22;         --c-pdf-fort: #86461a;
+  --c-reglages: #555c4a;    --c-reglages-fort: #414738;
+  --c-modifier: #9a4a36;    --c-modifier-fort: #7a3a2a;
+  --c-general: #6b4a7d;     --c-general-fort: #533962;
+  color-scheme: light;
 }
-/* Fond : dégradé forêt avec une lumière douce en haut à gauche */
+/* Fond : dégradé sauge avec une lumière douce en haut à gauche */
 :root[data-theme='nature'] body { background: transparent; }
 :root[data-theme='nature'] {
   min-height: 100%;
-  background-color: #1e3b2f;
+  background-color: #8fa87a;
   background-attachment: fixed;
   background-image:
-    radial-gradient(1200px 700px at 12% -10%, rgb(220 187 151 / 0.16), transparent 60%),
-    radial-gradient(900px 600px at 100% 100%, rgb(107 70 50 / 0.32), transparent 65%),
-    linear-gradient(160deg, #2a5141 0%, #1e3b2f 55%, #18301f 100%);
+    radial-gradient(1200px 700px at 12% -10%, rgb(246 242 230 / 0.28), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgb(111 67 41 / 0.14), transparent 65%),
+    linear-gradient(160deg, #a4ba91 0%, #8fa87a 55%, #7a9466 100%);
 }
-:root[data-theme='nature'] .entete { background: rgb(30 59 47 / 0.88); }
-/* Pages : panneau vert en relief, reflet de lumière en haut à gauche */
+:root[data-theme='nature'] .entete { background: rgb(143 168 122 / 0.9); }
+/* Pages : panneau crème en relief, reflet de lumière en haut à gauche */
 :root[data-theme='nature'] .page {
-  background: linear-gradient(150deg, rgb(255 255 255 / 0.07) 0%, rgb(255 255 255 / 0) 40%, rgb(0 0 0 / 0.08) 100%), var(--page);
-  border: 1px solid rgb(244 236 223 / 0.10);
+  background: linear-gradient(150deg, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0) 40%, rgb(143 168 122 / 0.08) 100%), var(--page);
+  border: 1px solid rgb(31 46 27 / 0.08);
   border-radius: 18px;
 }
-:root[data-theme='nature'] .nav-bas { background: rgb(30 59 47 / 0.96); backdrop-filter: blur(8px); }
+:root[data-theme='nature'] .nav-bas { background: rgb(246 242 230 / 0.96); backdrop-filter: blur(8px); }
+/* Menu du haut : pastilles crème pour que les couleurs des fonctions restent lisibles sur le sauge */
+:root[data-theme='nature'] .nav-haut a[data-couleur]:not(.actif) { background: rgb(246 242 230 / 0.8); }
+:root[data-theme='nature'] .nav-haut a[data-couleur]:not(.actif):hover { background: var(--page); }
 /* Bouton principal : pilule en relief */
-:root[data-theme='nature'] .btn.primaire { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 6px 14px -4px rgb(8 20 14 / 0.6); }
-/* Couvertures et pastilles : petite ombre portée plus marquée sur le fond vert */
-:root[data-theme='nature'] .toc-couv img, :root[data-theme='nature'] .couv-livre { box-shadow: 0 3px 8px rgb(8 20 14 / 0.55); }
+:root[data-theme='nature'] .btn.primaire { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 6px 14px -4px rgb(40 55 30 / 0.45); }
+/* Couvertures et pastilles : petite ombre portée sur le fond sauge */
+:root[data-theme='nature'] .toc-couv img, :root[data-theme='nature'] .couv-livre { box-shadow: 0 3px 8px rgb(40 55 30 / 0.35); }
 
 /* Livre replié : seul le titre reste (clic sur le titre ou « ▾ Déplier » pour le rouvrir). */
 .chapitre h2[data-action] { cursor: pointer; }
